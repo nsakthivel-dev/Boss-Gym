@@ -21,7 +21,7 @@ export const runMidnightCleanup = async () => {
       updates.push(updateDoc(doc(db, "sessions", docSnap.id), {
         exitTime: Timestamp.fromDate(autoExit),
         durationMinutes: durationMinutes,
-        status: "no-exit"
+        status: "closed"
       }));
     });
 

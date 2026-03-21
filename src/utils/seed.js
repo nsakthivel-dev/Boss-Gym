@@ -60,7 +60,7 @@ export const seedDatabase = async () => {
     }
 
     // Seed Sessions — 15 sessions across last 7 days
-    const statuses = ['closed', 'closed', 'closed', 'no-exit', 'open'];
+    const statuses = ['closed', 'closed', 'closed', 'closed', 'open'];
     for (let i = 0; i < 15; i++) {
       const memberEntry = memberRefs[i % memberRefs.length];
       const daysAgo = Math.floor(i / 3);
@@ -69,7 +69,7 @@ export const seedDatabase = async () => {
       const sessionDateStr = sessionDate.toISOString().split('T')[0];
       const entryHour = 6 + (i % 8);
       const entryTime = new Date(sessionDate.getTime() + entryHour * 3600000);
-      const status = daysAgo === 0 && i % 5 === 0 ? 'open' : (daysAgo > 0 && i % 5 === 3 ? 'no-exit' : 'closed');
+      const status = daysAgo === 0 && i % 5 === 0 ? 'open' : 'closed';
       const exitTime = status === 'open' ? null : new Date(entryTime.getTime() + (45 + i * 5) * 60000);
       const durationMinutes = exitTime ? Math.floor((exitTime - entryTime) / 60000) : null;
 
