@@ -7,9 +7,11 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode
+  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode, MessageCircle
 } from 'lucide-react';
+import { sendExpiryAlert } from '../utils/whatsapp';
 import WallQRModal from '../components/WallQRModal';
+
 import { QRCodeCanvas } from 'qrcode.react';
 
 
@@ -242,9 +244,19 @@ const Dashboard = () => {
                 <div key={m.id} className="bg-secondary rounded-lg px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-white font-medium text-sm">{m.name}</p>
-                    <p className="text-muted text-xs">{m.planName}</p>
+                    <p className="text-muted text-xs">{m.planName || (m.price ? `₹${m.price} / ${m.durationDays}d` : 'Gym')}</p>
                   </div>
-                  <span className="text-warning text-xs font-semibold">{daysLeft}d left</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-warning text-xs font-semibold">{daysLeft}d left</span>
+                    <button
+                      onClick={() => sendExpiryAlert(m, daysLeft)}
+                      className="flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#25D366]/90 transition-colors shadow-lg shadow-[#25D366]/10"
+                    >
+                      <MessageCircle size={14} />
+                      WhatsApp
+                    </button>
+                  </div>
+
                 </div>
               );
             })}
