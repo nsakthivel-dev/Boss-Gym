@@ -121,17 +121,18 @@ const Dashboard = () => {
 
 
 
-      // 4. Expiry in 7 days (Single filter to avoid composite index)
-      const expiryQ = query(collection(db, 'members'), where('status', '==', 'active'));
-      const expirySnap = await getDocs(expiryQ);
-      const expiryMembers = expirySnap.docs
+      // 4. Expiry/Expired Alerts
+      const membersRef = collection(db, 'members');
+      const membersSnap = await getDocs(membersRef);
+      const alerts = membersSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(m => {
           if (!m.endDate) return false;
           const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
+          // Include if expired OR expiring in 7 days
           return endDate <= in7Days;
         });
-      setExpiryAlerts(expiryMembers);
+      setExpiryAlerts(alerts);
 
       setStats({
         total: membersCountSnap.data().count,
