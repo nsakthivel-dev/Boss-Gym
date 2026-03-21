@@ -16,6 +16,7 @@ const CheckinPage = () => {
   const [error, setError] = useState('');
   const [memberData, setMemberData] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [debug, setDebug] = useState(null);
 
   const gymLat = parseFloat(import.meta.env.VITE_GYM_LATITUDE);
   const gymLng = parseFloat(import.meta.env.VITE_GYM_LONGITUDE);
@@ -28,6 +29,7 @@ const CheckinPage = () => {
     }
   }, [pageState]);
 
+
   const verifyLocation = () => {
     if (!navigator.geolocation) {
       setPageState('location_error');
@@ -39,12 +41,19 @@ const CheckinPage = () => {
         const { latitude, longitude } = position.coords;
         const distance = getDistanceMeters(latitude, longitude, gymLat, gymLng);
         
+        setDebug({
+          dist: Math.round(distance),
+          lat: latitude.toFixed(6),
+          lng: longitude.toFixed(6)
+        });
+
         if (distance <= gymRadius) {
           setPageState('form');
         } else {
           setPageState('location_outside');
         }
       },
+
       (error) => {
         console.log("GPS Error Code:", error.code);
         console.log("GPS Error Message:", error.message);
@@ -285,6 +294,17 @@ const CheckinPage = () => {
             <p className="text-[#a3a3a3] text-sm mt-3 px-4 leading-relaxed">
               Attendance can only be marked when you are physically present at the gym.
             </p>
+
+            {debug && (
+              <div className="mt-4 p-3 bg-black/20 rounded-lg border border-border/50 text-left">
+                <p className="text-[#a3a3a3] text-[10px] font-mono">DEBUG INFO:</p>
+                <p className="text-white text-[11px] font-mono mt-1">Dist: {debug.dist}m (Max {gymRadius}m)</p>
+                <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lat: {debug.lat}</p>
+                <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lng: {debug.lng}</p>
+                <p className="text-[#a3a3a3] text-[11px] font-mono mt-1 italic">Gym: {gymLat}, {gymLng}</p>
+              </div>
+            )}
+
             <button 
               onClick={() => window.location.reload()}
               className="mt-8 w-full h-[52px] bg-[#2a2a2a] text-white font-bold rounded-[8px] hover:bg-[#333333] transition-colors"
