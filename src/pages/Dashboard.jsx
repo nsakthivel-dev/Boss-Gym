@@ -7,8 +7,10 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, Clock, Loader2, QrCode, MessageCircle
+  Users, UserCheck, Clock, Loader2, QrCode, MessageCircle, Bell
 } from 'lucide-react';
+import { requestNotificationPermission } from "../utils/notifications"
+import { checkAndNotifyExpiring } from "../utils/alertChecker"
 import { sendExpiryAlert } from '../utils/whatsapp';
 import WallQRModal from '../components/WallQRModal';
 
@@ -52,6 +54,7 @@ const Dashboard = () => {
   const [liveInside, setLiveInside] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
 
 
   // Live refresh for duration display
@@ -62,6 +65,29 @@ const Dashboard = () => {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Browser Notifications Logic
+  useEffect(() => {
+    async function initAlerts() {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await checkAndNotifyExpiring();
+      }
+    }
+    initAlerts();
+  }, []);
+
+  // Calculate alert count for the bell and panel
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const count = expiryAlerts.filter(m => {
+      const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
+      const daysLeft = Math.ceil((endDate - today) / 86400000);
+      return daysLeft <= 3;
+    }).length;
+    setAlertCount(count);
+  }, [expiryAlerts]);
 
   useEffect(() => {
     const init = async () => {
@@ -153,6 +179,42 @@ const Dashboard = () => {
           <QrCode size={16} />
           Wall QR Code
         </button>
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <button
+            style={{
+              background: "transparent",
+              border: "1px solid #2a2a2a",
+              borderRadius: "8px",
+              padding: "8px",
+              cursor: "pointer",
+              color: alertCount > 0 ? "#fbbf24" : "#a3a3a3",
+              display: "flex",
+              alignItems: "center"
+            }}
+            title="Membership Alerts"
+          >
+            <Bell size={18} />
+          </button>
+          {alertCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: "-6px",
+              right: "-6px",
+              background: "#f87171",
+              color: "white",
+              borderRadius: "50%",
+              width: "18px",
+              height: "18px",
+              fontSize: "11px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}>
+              {alertCount}
+            </span>
+          )}
+        </div>
       </div>
 
 
@@ -166,6 +228,78 @@ const Dashboard = () => {
         <StatCard label="Present Today" value={stats.presentToday} icon={UserCheck} color="bg-success/10 text-success" />
         <StatCard label="Currently Inside" value={liveInside.length} icon={Clock} color="bg-primary/10 text-primary" />
       </div>
+
+      {/* Alert Panel */}
+      {alertCount > 0 && (
+        <div style={{
+          background: "#2d2000",
+          border: "1px solid #fbbf24",
+          borderRadius: "10px",
+          padding: "16px 20px",
+        }}>
+          <div style={{
+            color: "#fbbf24",
+            fontWeight: "bold",
+            fontSize: "14px",
+            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            ⚠️ Membership Alerts — Action Required
+          </div>
+
+          {expiryAlerts
+            .filter(member => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const endDate = member.endDate.toDate?.() ?? new Date(member.endDate);
+              const daysLeft = Math.ceil((endDate - today) / 86400000);
+              return daysLeft <= 3;
+            })
+            .map(member => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const endDate = member.endDate.toDate?.() ?? new Date(member.endDate);
+              const daysLeft = Math.ceil((endDate - today) / 86400000);
+
+              return (
+                <div key={member.id} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 0",
+                  borderBottom: "1px solid #2a2a2a"
+                }}>
+                  <div>
+                    <div style={{ color: "white", fontWeight: "600", fontSize: "14px" }}>
+                      {member.name}
+                    </div>
+                    <div style={{ color: "#a3a3a3", fontSize: "12px" }}>
+                      {member.planName || (member.price ? `₹${member.price} / ${member.durationDays}d` : 'Gym')}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{
+                      color: daysLeft < 0 ? "#f87171" : daysLeft === 0 ? "#f87171" : "#fbbf24",
+                      fontSize: "13px",
+                      fontWeight: "bold"
+                    }}>
+                      {daysLeft < 0
+                        ? "Expired"
+                        : daysLeft === 0
+                        ? "Expires Today"
+                        : daysLeft === 1
+                        ? "Expires Tomorrow"
+                        : `${daysLeft} days left`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         {/* Currently Inside Live Panel */}
