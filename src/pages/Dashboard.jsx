@@ -7,8 +7,12 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2
+  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode
 } from 'lucide-react';
+import WallQRModal from '../components/WallQRModal';
+import { QRCodeCanvas } from 'qrcode.react';
+
+
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -46,6 +50,8 @@ const Dashboard = () => {
   const [liveInside, setLiveInside] = useState([]);
   const [noExitSessions, setNoExitSessions] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
+  const [showQRModal, setShowQRModal] = useState(false);
+
 
   // Live refresh for duration display
   useEffect(() => {
@@ -141,10 +147,20 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-muted text-sm mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-muted text-sm mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+        <button 
+          onClick={() => setShowQRModal(true)}
+          className="flex items-center gap-2 bg-transparent border border-[#2a2a2a] text-[#e8c97e] px-4 py-2 rounded-lg text-sm hover:border-[#e8c97e] transition-colors"
+        >
+          <QrCode size={16} />
+          Wall QR Code
+        </button>
       </div>
+
 
       {error && (
         <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>
@@ -235,7 +251,11 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+      {showQRModal && (
+        <WallQRModal onClose={() => setShowQRModal(false)} />
+      )}
     </div>
+
   );
 };
 

@@ -8,13 +8,16 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
-import Scanner from './pages/Scanner';
+
+
 import Members from './pages/Members';
 import Attendance from './pages/Attendance';
 import Reports from './pages/Reports';
 import Plans from './pages/Plans';
+import CheckinPage from './pages/CheckinPage';
 
 function App() {
+
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -22,9 +25,12 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
-          <Route path="/scanner" element={<Scanner />} />
+          <Route path="/setup" element={<Setup />} />
+
+          <Route path="/checkin" element={<CheckinPage />} />
 
           {/* Protected Routes inside Layout */}
+
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />

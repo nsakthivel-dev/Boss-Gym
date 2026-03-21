@@ -7,8 +7,10 @@ import {
 } from 'firebase/firestore';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
-  Users, Plus, Search, X, Download, Loader2, Eye, ChevronLeft, ChevronRight
+  Users, Plus, Search, X, Download, Loader2, Eye, ChevronLeft, ChevronRight,
+  QrCode
 } from 'lucide-react';
+
 
 const randomDigits = () => Math.floor(100000 + Math.random() * 900000);
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -31,6 +33,9 @@ const Modal = ({ title, children, onClose }) => (
     </div>
   </div>
 );
+
+
+
 
 const MemberProfileModal = ({ member, onClose }) => {
   const [sessions, setSessions] = useState([]);
@@ -76,17 +81,8 @@ const MemberProfileModal = ({ member, onClose }) => {
     loadProfile();
   }, [member.id]);
 
-  const downloadQR = () => {
-    const canvas = document.getElementById('member-qr-canvas');
-    if (!canvas) return;
-    const url = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${member.name}-QR.png`;
-    link.click();
-  };
-
   const startDate = member.startDate?.toDate?.() ?? new Date();
+
   const endDate = member.endDate?.toDate?.() ?? new Date();
   const totalDays = (endDate - startDate) / 86400000;
   const daysElapsed = Math.min((new Date() - startDate) / 86400000, totalDays);
@@ -133,28 +129,8 @@ const MemberProfileModal = ({ member, onClose }) => {
             ))}
           </div>
 
-          {/* QR Code */}
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-muted text-xs">QR Code</p>
-            {member.qrValue && (
-              <QRCodeCanvas
-                id="member-qr-canvas"
-                value={member.qrValue}
-                size={160}
-                bgColor="#1a1a1a"
-                fgColor="#e8c97e"
-                level="H"
-              />
-            )}
-            <button
-              onClick={downloadQR}
-              className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary border border-primary/30 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Download QR
-            </button>
-          </div>
-
           {/* Last 10 Sessions */}
+
           <div>
             <p className="text-muted text-xs mb-2">Last 10 Sessions</p>
             {sessions.length === 0 ? (
@@ -219,8 +195,7 @@ const AddMemberModal = ({ plans, onClose, onAdded }) => {
         createdAt: Timestamp.fromDate(new Date()),
       });
 
-      const qrValue = `GYM-${docRef.id}-${randomDigits()}`;
-      await updateDoc(doc(db, 'members', docRef.id), { qrValue });
+      onAdded();
 
       onAdded();
       onClose();
@@ -292,6 +267,8 @@ const Members = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [viewMember, setViewMember] = useState(null);
 
+
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -325,13 +302,17 @@ const Members = () => {
           </h1>
           <p className="text-muted text-sm mt-1">{members.length} total members</p>
         </div>
-        <button
-          id="add-member-btn"
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 bg-primary text-black font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Member
-        </button>
+        <div className="flex flex-wrap gap-2">
+
+          <button
+            id="add-member-btn"
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 bg-primary text-black font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Member
+          </button>
+        </div>
+
       </div>
 
       {error && <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>}
@@ -416,8 +397,10 @@ const Members = () => {
       )}
 
       {showAdd && <AddMemberModal plans={plans} onClose={() => setShowAdd(false)} onAdded={loadData} />}
+
       {viewMember && <MemberProfileModal member={viewMember} onClose={() => setViewMember(null)} />}
     </div>
+
   );
 };
 

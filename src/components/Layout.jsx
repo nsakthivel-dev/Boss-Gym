@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../firebase/config';
@@ -15,11 +16,14 @@ import {
   Dumbbell,
   QrCode
 } from 'lucide-react';
+import WallQRModal from './WallQRModal';
 
 const Layout = () => {
   const { userRole } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
 
   const handleLogout = async () => {
     try {
@@ -32,12 +36,14 @@ const Layout = () => {
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { label: 'Scanner', icon: QrCode, path: '/scanner' },
     { label: 'Members', icon: Users, path: '/members' },
+
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
     { label: 'Reports', icon: PieChart, path: '/reports' },
+    { label: 'Check-in Page', icon: QrCode, path: '/checkin', external: true },
     ...(userRole === 'admin' ? [{ label: 'Plans', icon: CreditCard, path: '/plans' }] : []),
   ];
+
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
@@ -70,21 +76,33 @@ const Layout = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-150 ${
-                      isActive 
-                        ? 'bg-primary/10 text-primary font-medium' 
-                        : 'text-muted hover:bg-secondary hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </NavLink>
+                <React.Fragment key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noopener noreferrer" : undefined}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-150 ${
+                        isActive && !item.external
+                          ? 'bg-primary/10 text-primary font-medium' 
+                          : 'text-muted hover:bg-secondary hover:text-white'
+                      }`
+                    }
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </NavLink>
+                  {item.label === 'Check-in Page' && (
+                    <button 
+                      onClick={() => setShowQRModal(true)}
+                      className="flex items-center gap-2 ml-12 mt-1 text-[#a3a3a3] text-[12px] hover:text-primary transition-colors"
+                    >
+                      <QrCode size={14} />
+                      Get Wall QR
+                    </button>
+                  )}
+                </React.Fragment>
               );
             })}
           </nav>
@@ -115,8 +133,13 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+      
+      {showQRModal && (
+        <WallQRModal onClose={() => setShowQRModal(false)} />
+      )}
     </div>
   );
 };
 
 export default Layout;
+

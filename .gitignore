@@ -28,3 +28,7 @@ build/
 *.njsproj
 *.sln
 *.sw?
+
+# Project files
+prompt.txt
+
