@@ -46,13 +46,25 @@ const CheckinPage = () => {
         }
       },
       (error) => {
+        console.log("GPS Error Code:", error.code);
+        console.log("GPS Error Message:", error.message);
+
         if (error.code === 1) {
-          setPageState('location_denied');
+          // PERMISSION_DENIED — user blocked location
+          setPageState("location_denied");
+        } else if (error.code === 2) {
+          // POSITION_UNAVAILABLE — GPS hardware failed
+          setPageState("location_error");
+        } else if (error.code === 3) {
+          // TIMEOUT — took too long to get location
+          setPageState("location_error");
         } else {
-          setPageState('location_error');
+          // UNKNOWN ERROR
+          setPageState("location_error");
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+
     );
   };
 
@@ -241,8 +253,15 @@ const CheckinPage = () => {
             <AlertTriangle className="text-[#fbbf24] w-12 h-12 mb-4" />
             <h2 className="text-white text-lg font-bold">Location Error</h2>
             <p className="text-[#a3a3a3] text-sm mt-3 px-4 leading-relaxed">
-              Could not get your location. Make sure GPS is turned on and try again.
+              Could not get your location. Please try the following:
             </p>
+            <div className="text-[#a3a3a3] text-xs mt-2 space-y-1">
+              <p>1. Make sure Location is enabled in phone settings</p>
+              <p>2. Allow location permission for this site in your browser</p>
+              <p>3. Make sure you have internet connection</p>
+              <p>4. Try again after a few seconds</p>
+            </div>
+
             <button 
               onClick={() => window.location.reload()}
               className="mt-8 w-full h-[52px] bg-[#2a2a2a] text-white font-bold rounded-[8px] hover:bg-[#333333] transition-colors"
