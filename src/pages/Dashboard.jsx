@@ -7,7 +7,7 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, Clock, Loader2, QrCode, MessageCircle, Bell
+  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode, MessageCircle, Bell
 } from 'lucide-react';
 import { requestNotificationPermission } from "../utils/notifications"
 import { checkAndNotifyExpiring } from "../utils/alertChecker"
@@ -50,8 +50,9 @@ const StatCard = ({ label, value, icon, color }) => {
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState({ total: 0, presentToday: 0 });
+  const [stats, setStats] = useState({ total: 0, presentToday: 0, noExit: 0 });
   const [liveInside, setLiveInside] = useState([]);
+  const [noExitSessions, setNoExitSessions] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
@@ -121,6 +122,15 @@ const Dashboard = () => {
 
 
 
+
+      // 3. No-Exit Flags (Single filter to avoid composite index)
+      const noExitQ = query(collection(db, 'sessions'), where('status', '==', 'no-exit'));
+      const noExitSnap = await getDocs(noExitQ);
+      const noExit = noExitSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => s.sessionDate < today); // Filter by date in memory
+      setNoExitSessions(noExit);
+
       // 4. Expiry/Expired Alerts
       const membersRef = collection(db, 'members');
       const membersSnap = await getDocs(membersRef);
@@ -137,6 +147,7 @@ const Dashboard = () => {
       setStats({
         total: membersCountSnap.data().count,
         presentToday: uniqueMembersToday.size,
+        noExit: noExit.length,
       });
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
@@ -224,10 +235,11 @@ const Dashboard = () => {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Members" value={stats.total} icon={Users} color="bg-info/10 text-info" />
         <StatCard label="Present Today" value={stats.presentToday} icon={UserCheck} color="bg-success/10 text-success" />
         <StatCard label="Currently Inside" value={liveInside.length} icon={Clock} color="bg-primary/10 text-primary" />
+        <StatCard label="No-Exit Flags" value={stats.noExit} icon={UserX} color="bg-error/10 text-error" />
       </div>
 
       {/* Alert Panel */}
@@ -302,7 +314,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Currently Inside Live Panel */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
@@ -328,6 +340,29 @@ const Dashboard = () => {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* No Exit Panel */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+            <UserX className="w-4 h-4 text-error" />
+            No Exit Flagged Sessions
+          </h2>
+          {noExitSessions.length === 0 ? (
+            <p className="text-muted text-sm text-center py-6">No flagged sessions.</p>
+          ) : (
+            <div className="space-y-3">
+              {noExitSessions.slice(0, 6).map(s => (
+                <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-white font-medium text-sm">{s.memberName}</p>
+                    <p className="text-muted text-xs">{s.sessionDate}</p>
+                  </div>
+                  <span className="text-error text-xs bg-error/10 px-2 py-1 rounded-full">No Exit</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

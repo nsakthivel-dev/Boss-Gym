@@ -18,10 +18,11 @@ const statusBadge = (s) => {
   const map = {
     open: 'bg-info/10 text-info',
     closed: 'bg-success/10 text-success',
+    'no-exit': 'bg-error/10 text-error',
   };
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${map[s] || 'bg-muted/10 text-muted'}`}>
-      {s.charAt(0).toUpperCase() + s.slice(1)}
+      {s === 'no-exit' ? 'No Exit' : s.charAt(0).toUpperCase() + s.slice(1)}
     </span>
   );
 };
