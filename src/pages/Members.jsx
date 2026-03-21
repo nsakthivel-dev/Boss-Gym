@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase/config';
 import {
-  collection, getDocs, addDoc, doc, updateDoc, query, where,
+  collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
 } from 'firebase/firestore';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
-  Users, Plus, Search, X, Download, Loader2, Eye, Edit, ChevronLeft, ChevronRight,
+  Users, Plus, Search, X, Download, Loader2, Eye, Edit, Trash2, ChevronLeft, ChevronRight,
   QrCode
 } from 'lucide-react';
+
 
 
 
@@ -307,7 +308,23 @@ const Members = () => {
     }
   };
 
+  const handleDelete = async (m) => {
+    if (!window.confirm(`Are you sure you want to delete ${m.name}? This action cannot be undone.`)) return;
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, 'members', m.id));
+      await loadData();
+    } catch (err) {
+      setError('Failed to delete member.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => { loadData(); }, []);
+
+
 
   const filtered = members.sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
     .filter(m =>
@@ -392,7 +409,12 @@ const Members = () => {
                             className="flex items-center gap-1.5 text-xs text-muted hover:text-primary border border-border hover:border-primary/40 px-3 py-1.5 rounded-lg transition-colors">
                             <Edit className="w-3.5 h-3.5" /> Edit
                           </button>
+                          <button onClick={() => handleDelete(m)}
+                            className="flex items-center gap-1.5 text-xs text-muted hover:text-error border border-border hover:border-error/40 px-3 py-1.5 rounded-lg transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
                         </div>
+
                       </td>
                     </tr>
                   );
@@ -424,7 +446,12 @@ const Members = () => {
                       className="text-muted hover:text-primary transition-colors p-1">
                       <Edit className="w-5 h-5" />
                     </button>
+                    <button onClick={() => handleDelete(m)}
+                      className="text-muted hover:text-error transition-colors p-1">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
+
                 </div>
               );
             })}
