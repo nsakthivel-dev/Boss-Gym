@@ -40,9 +40,9 @@ const Layout = () => {
 
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
     { label: 'Reports', icon: PieChart, path: '/reports' },
-    { label: 'Check-in Page', icon: QrCode, path: '/checkin', external: true },
     ...(userRole === 'admin' ? [{ label: 'Plans', icon: CreditCard, path: '/plans' }] : []),
   ];
+
 
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
@@ -76,38 +76,37 @@ const Layout = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
-                <React.Fragment key={item.path}>
-                  <NavLink
-                    to={item.path}
-                    target={item.external ? "_blank" : undefined}
-                    rel={item.external ? "noopener noreferrer" : undefined}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-150 ${
-                        isActive && !item.external
-                          ? 'bg-primary/10 text-primary font-medium' 
-                          : 'text-muted hover:bg-secondary hover:text-white'
-                      }`
-                    }
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </NavLink>
-                  {item.label === 'Check-in Page' && (
-                    <button 
-                      onClick={() => setShowQRModal(true)}
-                      className="flex items-center gap-2 ml-12 mt-1 text-[#a3a3a3] text-[12px] hover:text-primary transition-colors"
-                    >
-                      <QrCode size={14} />
-                      Get Wall QR
-                    </button>
-                  )}
-                </React.Fragment>
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-150 ${
+                      isActive
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'text-muted hover:bg-secondary hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </NavLink>
               );
             })}
           </nav>
 
-          <div className="p-4 border-t border-border">
+          <div className="p-4 space-y-2 border-t border-border">
+            <button 
+              onClick={() => {
+                setShowQRModal(true);
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors duration-150"
+            >
+              <QrCode className="w-5 h-5" />
+              Get Wall QR
+            </button>
+
             <button 
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-4 py-3 text-muted hover:text-error hover:bg-error/10 rounded-lg transition-colors duration-150"
@@ -116,6 +115,7 @@ const Layout = () => {
               Logout
             </button>
           </div>
+
         </div>
       </aside>
 

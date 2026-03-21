@@ -7,9 +7,10 @@ import {
 } from 'firebase/firestore';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
-  Users, Plus, Search, X, Download, Loader2, Eye, ChevronLeft, ChevronRight,
+  Users, Plus, Search, X, Download, Loader2, Eye, Edit, ChevronLeft, ChevronRight,
   QrCode
 } from 'lucide-react';
+
 
 
 const randomDigits = () => Math.floor(100000 + Math.random() * 900000);
@@ -166,12 +167,18 @@ const MemberProfileModal = ({ member, onClose }) => {
   );
 };
 
-const AddMemberModal = ({ plans, onClose, onAdded }) => {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', planId: '', startDate: todayStr() });
+const MemberFormModal = ({ plans, editingMember, onClose, onSaved }) => {
+  const [form, setForm] = useState({ 
+    name: editingMember?.name || '', 
+    phone: editingMember?.phone || '', 
+    email: editingMember?.email || '', 
+    planId: editingMember?.planId || '', 
+    startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr() 
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const activePlans = plans.filter(p => p.active);
+  const activePlans = plans.filter(p => p.active || p.id === editingMember?.planId);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,22 +192,32 @@ const AddMemberModal = ({ plans, onClose, onAdded }) => {
       const endDate = new Date(startDate.getTime() + selectedPlan.durationDays * 86400000);
       const status = endDate >= new Date() ? 'active' : 'expired';
 
-      const docRef = await addDoc(collection(db, 'members'), {
-        name: form.name, phone: form.phone, email: form.email,
-        planId: form.planId, planName: selectedPlan.name,
+      const memberData = {
+        name: form.name, 
+        phone: form.phone, 
+        email: form.email,
+        planId: form.planId, 
+        planName: selectedPlan.name,
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         status,
-        qrValue: '',
-        createdAt: Timestamp.fromDate(new Date()),
-      });
+        updatedAt: Timestamp.fromDate(new Date()),
+      };
 
-      onAdded();
+      if (editingMember) {
+        await updateDoc(doc(db, 'members', editingMember.id), memberData);
+      } else {
+        await addDoc(collection(db, 'members'), {
+          ...memberData,
+          qrValue: '',
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
 
-      onAdded();
+      onSaved();
       onClose();
     } catch (err) {
-      setError('Failed to add member. Please try again.');
+      setError(`Failed to ${editingMember ? 'update' : 'add'} member. Please try again.`);
       console.error(err);
     } finally {
       setLoading(false);
@@ -210,7 +227,7 @@ const AddMemberModal = ({ plans, onClose, onAdded }) => {
   const inputClass = "w-full bg-secondary border border-border text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-colors";
 
   return (
-    <Modal title="Add New Member" onClose={onClose}>
+    <Modal title={editingMember ? "Edit Member" : "Add New Member"} onClose={onClose}>
       {error && <div className="mb-4 bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-2">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
         {[['name', 'Full Name', 'text', 'John Doe'], ['phone', 'Phone', 'tel', '9876543210'], ['email', 'Email', 'email', 'john@example.com']].map(([field, label, type, placeholder]) => (
@@ -223,22 +240,13 @@ const AddMemberModal = ({ plans, onClose, onAdded }) => {
         ))}
         <div>
           <label className="text-muted text-sm mb-1 block">Plan</label>
-          {activePlans.length > 0 ? (
-            <select value={form.planId} onChange={e => setForm({ ...form, planId: e.target.value })}
-              required className={inputClass + ' cursor-pointer'}>
-              <option value="">Select a plan</option>
-              {activePlans.map(p => (
-                <option key={p.id} value={p.id}>{p.name} — ₹{p.price} / {p.durationDays} days</option>
-              ))}
-            </select>
-          ) : (
-            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
-              <p className="text-warning text-xs mb-2">No active plans found. You must create a membership plan before adding members.</p>
-              <Link to="/plans" className="text-primary text-xs font-bold hover:underline flex items-center gap-1">
-                Go to Plans Page →
-              </Link>
-            </div>
-          )}
+          <select value={form.planId} onChange={e => setForm({ ...form, planId: e.target.value })}
+            required className={inputClass + ' cursor-pointer'}>
+            <option value="">Select a plan</option>
+            {activePlans.map(p => (
+              <option key={p.id} value={p.id}>{p.name} — ₹{p.price} / {p.durationDays} days</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-muted text-sm mb-1 block">Start Date</label>
@@ -250,13 +258,14 @@ const AddMemberModal = ({ plans, onClose, onAdded }) => {
           <button type="submit" disabled={loading}
             className="px-5 py-2 text-sm bg-primary text-black font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2">
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? 'Adding...' : 'Add Member'}
+            {loading ? (editingMember ? 'Saving...' : 'Adding...') : (editingMember ? 'Save Changes' : 'Add Member')}
           </button>
         </div>
       </form>
     </Modal>
   );
 };
+
 
 const Members = () => {
   const [members, setMembers] = useState([]);
@@ -266,8 +275,7 @@ const Members = () => {
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [viewMember, setViewMember] = useState(null);
-
-
+  const [editingMember, setEditingMember] = useState(null);
 
   const loadData = async () => {
     try {
@@ -303,7 +311,6 @@ const Members = () => {
           <p className="text-muted text-sm mt-1">{members.length} total members</p>
         </div>
         <div className="flex flex-wrap gap-2">
-
           <button
             id="add-member-btn"
             onClick={() => setShowAdd(true)}
@@ -312,7 +319,6 @@ const Members = () => {
             <Plus className="w-4 h-4" /> Add Member
           </button>
         </div>
-
       </div>
 
       {error && <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>}
@@ -359,11 +365,17 @@ const Members = () => {
                       <td className="px-5 py-3 text-muted text-sm">{m.planName}</td>
                       <td className="px-5 py-3">{statusBadge(m.status)}</td>
                       <td className="px-5 py-3 text-sm text-white">{m.status === 'active' ? `${daysLeft}d` : '—'}</td>
-                      <td className="px-5 py-3">
-                        <button onClick={() => setViewMember(m)}
-                          className="flex items-center gap-1.5 text-xs text-muted hover:text-primary border border-border hover:border-primary/40 px-3 py-1.5 rounded-lg transition-colors">
-                          <Eye className="w-3.5 h-3.5" /> View
-                        </button>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button onClick={() => setViewMember(m)}
+                            className="flex items-center gap-1.5 text-xs text-muted hover:text-primary border border-border hover:border-primary/40 px-3 py-1.5 rounded-lg transition-colors">
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </button>
+                          <button onClick={() => setEditingMember(m)}
+                            className="flex items-center gap-1.5 text-xs text-muted hover:text-primary border border-border hover:border-primary/40 px-3 py-1.5 rounded-lg transition-colors">
+                            <Edit className="w-3.5 h-3.5" /> Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -380,15 +392,21 @@ const Members = () => {
               const daysLeft = m.endDate ? Math.max(0, Math.ceil((m.endDate.toDate() - new Date()) / 86400000)) : 0;
               return (
                 <div key={m.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between gap-3">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-white font-medium text-sm">{m.name}</p>
                     <p className="text-muted text-xs">{m.phone} · {m.planName}</p>
                     <p className="text-xs mt-1">{statusBadge(m.status)} {m.status === 'active' && <span className="text-muted ml-2">{daysLeft}d left</span>}</p>
                   </div>
-                  <button onClick={() => setViewMember(m)}
-                    className="text-muted hover:text-primary transition-colors">
-                    <Eye className="w-5 h-5" />
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => setViewMember(m)}
+                      className="text-muted hover:text-primary transition-colors p-1">
+                      <Eye className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => setEditingMember(m)}
+                      className="text-muted hover:text-primary transition-colors p-1">
+                      <Edit className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -396,10 +414,20 @@ const Members = () => {
         </>
       )}
 
-      {showAdd && <AddMemberModal plans={plans} onClose={() => setShowAdd(false)} onAdded={loadData} />}
+      {showAdd && <MemberFormModal plans={plans} onClose={() => setShowAdd(false)} onSaved={loadData} />}
+      
+      {editingMember && (
+        <MemberFormModal 
+          plans={plans} 
+          editingMember={editingMember} 
+          onClose={() => setEditingMember(null)} 
+          onSaved={loadData} 
+        />
+      )}
 
       {viewMember && <MemberProfileModal member={viewMember} onClose={() => setViewMember(null)} />}
     </div>
+
 
   );
 };
