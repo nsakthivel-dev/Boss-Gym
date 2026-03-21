@@ -100,13 +100,20 @@ const MemberProfileModal = ({ member, onClose }) => {
         <div className="space-y-5">
           {/* Details */}
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {[['Phone', member.phone], ['Email', member.email], ['Plan', member.planName], ['Status', member.status === 'active' ? '✅ Active' : '❌ Expired']].map(([k, v]) => (
+            {[
+              ['Phone', member.phone], 
+              ['Email', member.email], 
+              ['Amount Paid', `₹${member.price || 0}`], 
+              ['Duration', `${member.durationDays || 0} Days`],
+              ['Status', member.status === 'active' ? '✅ Active' : '❌ Expired']
+            ].map(([k, v]) => (
               <div key={k}>
                 <p className="text-muted text-xs mb-0.5">{k}</p>
                 <p className="text-white font-medium">{v}</p>
               </div>
             ))}
           </div>
+
 
           {/* Progress */}
           <div>
@@ -167,42 +174,47 @@ const MemberProfileModal = ({ member, onClose }) => {
   );
 };
 
-const MemberFormModal = ({ plans, editingMember, onClose, onSaved }) => {
+const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
   const [form, setForm] = useState({ 
     name: editingMember?.name || '', 
     phone: editingMember?.phone || '', 
     email: editingMember?.email || '', 
-    planId: editingMember?.planId || '', 
+    price: editingMember?.price || '',
+    durationDays: editingMember?.durationDays || '30',
     startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr() 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const activePlans = plans.filter(p => p.active || p.id === editingMember?.planId);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.planId) { setError('Please select a plan.'); return; }
+    
+    const price = Number(form.price);
+    const duration = Number(form.durationDays);
+
+    if (isNaN(price) || price < 0) { setError('Please enter a valid amount.'); return; }
+    if (isNaN(duration) || duration <= 0) { setError('Please enter a valid duration.'); return; }
+
     setLoading(true);
     try {
-      const selectedPlan = plans.find(p => p.id === form.planId);
       const startDate = new Date(form.startDate);
       startDate.setHours(0,0,0,0);
-      const endDate = new Date(startDate.getTime() + selectedPlan.durationDays * 86400000);
+      const endDate = new Date(startDate.getTime() + duration * 86400000);
       const status = endDate >= new Date() ? 'active' : 'expired';
 
       const memberData = {
         name: form.name, 
         phone: form.phone, 
         email: form.email,
-        planId: form.planId, 
-        planName: selectedPlan.name,
+        price,
+        durationDays: duration,
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         status,
         updatedAt: Timestamp.fromDate(new Date()),
       };
+
 
       if (editingMember) {
         await updateDoc(doc(db, 'members', editingMember.id), memberData);
@@ -238,21 +250,26 @@ const MemberFormModal = ({ plans, editingMember, onClose, onSaved }) => {
               className={inputClass} />
           </div>
         ))}
-        <div>
-          <label className="text-muted text-sm mb-1 block">Plan</label>
-          <select value={form.planId} onChange={e => setForm({ ...form, planId: e.target.value })}
-            required className={inputClass + ' cursor-pointer'}>
-            <option value="">Select a plan</option>
-            {activePlans.map(p => (
-              <option key={p.id} value={p.id}>{p.name} — ₹{p.price} / {p.durationDays} days</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-muted text-sm mb-1 block">Amount (₹)</label>
+            <input type="number" required placeholder="500" value={form.price}
+              onChange={e => setForm({ ...form, price: e.target.value })}
+              className={inputClass} />
+          </div>
+          <div>
+            <label className="text-muted text-sm mb-1 block">Duration (Days)</label>
+            <input type="number" required placeholder="30" value={form.durationDays}
+              onChange={e => setForm({ ...form, durationDays: e.target.value })}
+              className={inputClass} />
+          </div>
         </div>
         <div>
           <label className="text-muted text-sm mb-1 block">Start Date</label>
           <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })}
             required className={inputClass} />
         </div>
+
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="px-5 py-2 text-sm text-muted hover:text-white border border-border rounded-lg transition-colors">Cancel</button>
           <button type="submit" disabled={loading}
@@ -269,7 +286,6 @@ const MemberFormModal = ({ plans, editingMember, onClose, onSaved }) => {
 
 const Members = () => {
   const [members, setMembers] = useState([]);
-  const [plans, setPlans] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -280,12 +296,8 @@ const Members = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [membersSnap, plansSnap] = await Promise.all([
-        getDocs(collection(db, 'members')),
-        getDocs(collection(db, 'plans')),
-      ]);
+      const membersSnap = await getDocs(collection(db, 'members'));
       setMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (err) {
       setError('Failed to load members.');
       console.error(err);
@@ -296,10 +308,12 @@ const Members = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const filtered = members.filter(m =>
-    m.name?.toLowerCase().includes(search.toLowerCase()) ||
-    m.phone?.includes(search)
-  );
+  const filtered = members.sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
+    .filter(m =>
+      m.name?.toLowerCase().includes(search.toLowerCase()) ||
+      m.phone?.includes(search)
+    );
+
 
   return (
     <div className="space-y-6">
@@ -346,7 +360,7 @@ const Members = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border text-muted text-xs uppercase tracking-wide">
-                  {['Name', 'Phone', 'Plan', 'Status', 'Days Left', 'Actions'].map(h => (
+                  {['Name', 'Phone', 'Amount', 'Duration', 'Status', 'Days Left', 'Actions'].map(h => (
                     <th key={h} className="px-5 py-3 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -354,7 +368,7 @@ const Members = () => {
               <tbody className="divide-y divide-border">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center text-muted py-10 text-sm">No members found.</td>
+                    <td colSpan={7} className="text-center text-muted py-10 text-sm">No members found.</td>
                   </tr>
                 ) : filtered.map(m => {
                   const daysLeft = m.endDate ? Math.max(0, Math.ceil((m.endDate.toDate() - new Date()) / 86400000)) : 0;
@@ -362,7 +376,8 @@ const Members = () => {
                     <tr key={m.id} className="hover:bg-secondary/50 transition-colors">
                       <td className="px-5 py-3 text-white text-sm font-medium">{m.name}</td>
                       <td className="px-5 py-3 text-muted text-sm">{m.phone}</td>
-                      <td className="px-5 py-3 text-muted text-sm">{m.planName}</td>
+                      <td className="px-5 py-3 text-muted text-sm">₹{m.price}</td>
+                      <td className="px-5 py-3 text-muted text-sm">{m.durationDays}d</td>
                       <td className="px-5 py-3">{statusBadge(m.status)}</td>
                       <td className="px-5 py-3 text-sm text-white">{m.status === 'active' ? `${daysLeft}d` : '—'}</td>
                       <td className="px-5 py-3 text-right">
@@ -394,7 +409,7 @@ const Members = () => {
                 <div key={m.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between gap-3">
                   <div className="flex-1">
                     <p className="text-white font-medium text-sm">{m.name}</p>
-                    <p className="text-muted text-xs">{m.phone} · {m.planName}</p>
+                    <p className="text-muted text-xs">{m.phone} · ₹{m.price} / {m.durationDays}d</p>
                     <p className="text-xs mt-1">{statusBadge(m.status)} {m.status === 'active' && <span className="text-muted ml-2">{daysLeft}d left</span>}</p>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -414,16 +429,16 @@ const Members = () => {
         </>
       )}
 
-      {showAdd && <MemberFormModal plans={plans} onClose={() => setShowAdd(false)} onSaved={loadData} />}
+      {showAdd && <MemberFormModal onClose={() => setShowAdd(false)} onSaved={loadData} />}
       
       {editingMember && (
         <MemberFormModal 
-          plans={plans} 
           editingMember={editingMember} 
           onClose={() => setEditingMember(null)} 
           onSaved={loadData} 
         />
-      )}
+      ) }
+
 
       {viewMember && <MemberProfileModal member={viewMember} onClose={() => setViewMember(null)} />}
     </div>

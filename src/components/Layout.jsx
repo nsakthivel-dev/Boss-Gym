@@ -40,8 +40,8 @@ const Layout = () => {
 
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
     { label: 'Reports', icon: PieChart, path: '/reports' },
-    ...(userRole === 'admin' ? [{ label: 'Plans', icon: CreditCard, path: '/plans' }] : []),
   ];
+
 
 
 
