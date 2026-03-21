@@ -18,10 +18,11 @@ const CheckinPage = () => {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [debug, setDebug] = useState(null);
 
-  const gymLat = parseFloat(import.meta.env.VITE_GYM_LATITUDE);
-  const gymLng = parseFloat(import.meta.env.VITE_GYM_LONGITUDE);
-  const gymRadius = parseInt(import.meta.env.VITE_GYM_RADIUS_METERS);
+  const gymLat = parseFloat(import.meta.env.VITE_GYM_LATITUDE || "0");
+  const gymLng = parseFloat(import.meta.env.VITE_GYM_LONGITUDE || "0");
+  const gymRadius = parseInt(import.meta.env.VITE_GYM_RADIUS_METERS || "150");
   const gymName = import.meta.env.VITE_GYM_NAME || 'GYMCORE';
+
 
   useEffect(() => {
     if (pageState === 'locating') {
@@ -301,7 +302,10 @@ const CheckinPage = () => {
                 <p className="text-white text-[11px] font-mono mt-1">Dist: {debug.dist}m (Max {gymRadius}m)</p>
                 <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lat: {debug.lat}</p>
                 <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lng: {debug.lng}</p>
-                <p className="text-[#a3a3a3] text-[11px] font-mono mt-1 italic">Gym: {gymLat}, {gymLng}</p>
+                <p className="text-[#a3a3a3] text-[11px] font-mono mt-1 italic">
+                  Gym: {gymLat || 'NOT SET'}, {gymLng || 'NOT SET'}
+                </p>
+
               </div>
             )}
 
