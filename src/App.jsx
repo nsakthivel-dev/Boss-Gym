@@ -13,8 +13,9 @@ import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Attendance from './pages/Attendance';
 import Reports from './pages/Reports';
-import Plans from './pages/Plans';
+import QRPage from './pages/QRPage';
 import CheckinPage from './pages/CheckinPage';
+
 
 function App() {
 
@@ -37,6 +38,7 @@ function App() {
               <Route path="/members" element={<Members />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/qr" element={<QRPage />} />
 
             </Route>
           </Route>

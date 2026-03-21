@@ -40,7 +40,9 @@ const Layout = () => {
 
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
     { label: 'Reports', icon: PieChart, path: '/reports' },
+    { label: 'Wall QR', icon: QrCode, path: '/qr' },
   ];
+
 
 
 
@@ -96,17 +98,6 @@ const Layout = () => {
           </nav>
 
           <div className="p-4 space-y-2 border-t border-border">
-            <button 
-              onClick={() => {
-                setShowQRModal(true);
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-colors duration-150"
-            >
-              <QrCode className="w-5 h-5" />
-              Get Wall QR
-            </button>
-
             <button 
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-4 py-3 text-muted hover:text-error hover:bg-error/10 rounded-lg transition-colors duration-150"

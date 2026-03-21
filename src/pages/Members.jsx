@@ -103,8 +103,8 @@ const MemberProfileModal = ({ member, onClose }) => {
             {[
               ['Phone', member.phone], 
               ['Email', member.email], 
-              ['Amount Paid', `₹${member.price || 0}`], 
-              ['Duration', `${member.durationDays || 0} Days`],
+              ['Amount Paid', member.price ? `₹${member.price}` : (member.planName || '—')], 
+              ['Duration', member.durationDays ? `${member.durationDays} Days` : '—'],
               ['Status', member.status === 'active' ? '✅ Active' : '❌ Expired']
             ].map(([k, v]) => (
               <div key={k}>
@@ -112,6 +112,7 @@ const MemberProfileModal = ({ member, onClose }) => {
                 <p className="text-white font-medium">{v}</p>
               </div>
             ))}
+
           </div>
 
 
@@ -376,8 +377,9 @@ const Members = () => {
                     <tr key={m.id} className="hover:bg-secondary/50 transition-colors">
                       <td className="px-5 py-3 text-white text-sm font-medium">{m.name}</td>
                       <td className="px-5 py-3 text-muted text-sm">{m.phone}</td>
-                      <td className="px-5 py-3 text-muted text-sm">₹{m.price}</td>
-                      <td className="px-5 py-3 text-muted text-sm">{m.durationDays}d</td>
+                      <td className="px-5 py-3 text-muted text-sm">{m.price ? `₹${m.price}` : (m.planName || '—')}</td>
+                      <td className="px-5 py-3 text-muted text-sm">{m.durationDays ? `${m.durationDays}d` : '—'}</td>
+
                       <td className="px-5 py-3">{statusBadge(m.status)}</td>
                       <td className="px-5 py-3 text-sm text-white">{m.status === 'active' ? `${daysLeft}d` : '—'}</td>
                       <td className="px-5 py-3 text-right">
@@ -409,7 +411,8 @@ const Members = () => {
                 <div key={m.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between gap-3">
                   <div className="flex-1">
                     <p className="text-white font-medium text-sm">{m.name}</p>
-                    <p className="text-muted text-xs">{m.phone} · ₹{m.price} / {m.durationDays}d</p>
+                    <p className="text-muted text-xs">{m.phone} · {m.price ? `₹${m.price} / ${m.durationDays}d` : (m.planName || '—')}</p>
+
                     <p className="text-xs mt-1">{statusBadge(m.status)} {m.status === 'active' && <span className="text-muted ml-2">{daysLeft}d left</span>}</p>
                   </div>
                   <div className="flex flex-col gap-2">
