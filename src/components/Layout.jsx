@@ -44,6 +44,7 @@ const Layout = () => {
     { label: 'Members', icon: Users, path: '/members' },
 
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
+    { label: 'Schedule', icon: Calendar, path: '/schedule' },
     { label: 'Reports', icon: PieChart, path: '/reports' },
     { label: 'Wall QR', icon: QrCode, path: '/qr' },
   ];

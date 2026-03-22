@@ -92,7 +92,8 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
     email: editingMember?.email || '',
     price: editingMember?.price || '',
     durationDays: editingMember?.durationDays || '30',
-    startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr()
+    startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr(),
+    workoutStartPreference: 'today'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -109,6 +110,13 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
       const endDate = new Date(startDate.getTime() + duration * 86400000);
       const status = endDate >= new Date() ? 'active' : 'expired';
 
+      // Calculate Workout Schedule Start Date
+      const workoutStartDate = new Date();
+      workoutStartDate.setHours(0,0,0,0);
+      if (form.workoutStartPreference === 'tomorrow') {
+        workoutStartDate.setDate(workoutStartDate.getDate() + 1);
+      }
+
       const memberData = {
         name: form.name,
         phone: form.phone,
@@ -118,6 +126,7 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
         startDate: Timestamp.fromDate(startDate),
         endDate: Timestamp.fromDate(endDate),
         status,
+        workoutStartDate: Timestamp.fromDate(workoutStartDate),
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
@@ -191,9 +200,30 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
           </div>
         </div>
         <div>
-          <label className="text-muted text-xs mb-1 block">Start Date</label>
+          <label className="text-muted text-xs mb-1 block">Membership Start Date</label>
           <input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputClass} />
         </div>
+        {!editingMember && (
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg space-y-3">
+            <label className="text-primary text-[10px] font-bold tracking-widest uppercase block">When do you want to start the workout schedule?</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, workoutStartPreference: 'today' })}
+                className={`py-2 text-[10px] font-bold tracking-widest uppercase border rounded transition-all ${form.workoutStartPreference === 'today' ? 'bg-primary border-primary text-black' : 'border-[#222] text-[#555]'}`}
+              >
+                Start Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, workoutStartPreference: 'tomorrow' })}
+                className={`py-2 text-[10px] font-bold tracking-widest uppercase border rounded transition-all ${form.workoutStartPreference === 'tomorrow' ? 'bg-primary border-primary text-black' : 'border-[#222] text-[#555]'}`}
+              >
+                Start Tomorrow
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="px-5 py-2 text-sm text-muted">Cancel</button>
           <button type="submit" disabled={loading} className="px-5 py-2 text-sm bg-primary text-black font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50">
