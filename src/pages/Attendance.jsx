@@ -114,36 +114,36 @@ const SessionTable = ({ sessions, userRole, currentUser, onEdit }) => (
     <div className="hidden md:block overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-muted text-xs uppercase tracking-wide">
-            {['Member', 'Entry', 'Exit', 'Duration', 'Status', ...(userRole === 'admin' ? ['Edit'] : [])].map(h => (
-              <th key={h} className="px-5 py-3 text-left font-medium">{h}</th>
+          <tr className="border-b border-[#1a1a1a] bg-[#0a0a0a]">
+            {['Member', 'Entry', 'Exit', 'Duration', 'Status', ...(userRole === 'admin' ? [''] : [])].map(h => (
+              <th key={h} className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">{h}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {sessions.length === 0 ? (
-            <tr><td colSpan={6} className="text-center text-muted py-10">No sessions found.</td></tr>
-          ) : sessions.map(s => (
-            <tr key={s.id} className="hover:bg-secondary/50 transition-colors">
-              <td className="px-5 py-3 text-white font-medium">
-                {s.memberName}
-                {s.edited && <span className="ml-1.5 text-muted text-xs">✏️</span>}
-              </td>
-              <td className="px-5 py-3 text-muted">{formatTime(s.entryTime)}</td>
-              <td className="px-5 py-3 text-muted">{formatTime(s.exitTime)}</td>
-              <td className="px-5 py-3 text-muted">{s.durationMinutes ? `${s.durationMinutes}m` : '—'}</td>
-              <td className="px-5 py-3">{statusBadge(s.status)}</td>
-              {userRole === 'admin' && (
-                <td className="px-5 py-3">
-                  <button onClick={() => onEdit(s)}
-                    className="text-muted hover:text-primary transition-colors">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+          <tbody className="divide-y divide-[#1a1a1a]">
+            {sessions.length === 0 ? (
+              <tr><td colSpan={6} className="text-center text-primary/20 py-20 font-bold tracking-widest text-xs uppercase">No sessions found.</td></tr>
+            ) : sessions.map(s => (
+              <tr key={s.id} className="hover:bg-white/[0.02] transition-colors group">
+                <td className="px-8 py-6 text-primary font-bold text-sm tracking-tight">
+                  {s.memberName}
+                  {s.edited && <span className="ml-1.5 text-primary/40 text-xs">✏️</span>}
                 </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
+                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{formatTime(s.entryTime)}</td>
+                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{formatTime(s.exitTime)}</td>
+                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{s.durationMinutes ? `${s.durationMinutes}m` : '—'}</td>
+                <td className="px-8 py-6">{statusBadge(s.status)}</td>
+                {userRole === 'admin' && (
+                  <td className="px-8 py-6 text-right">
+                    <button onClick={() => onEdit(s)}
+                      className="text-primary/40 hover:text-warning transition-colors">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
       </table>
     </div>
     {/* Mobile */}
@@ -211,19 +211,19 @@ const Attendance = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-4xl font-black text-primary tracking-tight uppercase flex items-center gap-2">
           <CalendarCheck className="text-primary" /> Attendance
         </h1>
-        <p className="text-muted text-sm mt-1">Session logs for all members.</p>
+        <p className="text-[#555] text-xs font-bold tracking-[0.2em] mt-2 uppercase text-muted">Session logs for all members.</p>
       </div>
 
       {error && <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>}
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-secondary border border-border rounded-xl p-1 w-fit">
+      <div className="flex gap-2 bg-[#0a0a0a] border border-[#1a1a1a] p-1 w-fit rounded-sm">
         {['today', 'history'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 text-sm rounded-lg font-medium capitalize transition-colors ${activeTab === tab ? 'bg-card text-primary shadow-sm' : 'text-muted hover:text-white'}`}>
+            className={`px-6 py-2 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === tab ? 'bg-[#111] text-primary' : 'text-[#666] hover:text-white'}`}>
             {tab}
           </button>
         ))}

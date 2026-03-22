@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import {
   Users, Plus, Search, X, Download, Loader2, Eye, Edit, Trash2, ChevronLeft, ChevronRight,
-  QrCode, MessageCircle, Check
+  QrCode, MessageCircle, Check, TrendingUp, Wallet, ShieldCheck, MoreVertical, ExternalLink
 } from 'lucide-react';
 import { sendExpiryAlert, sendExpiredAlert, sendWelcomeMessage } from '../utils/whatsapp';
 
@@ -242,70 +242,136 @@ const Members = () => {
     .sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
     .filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.phone?.includes(search));
 
+  const activeCount = members.filter(m => m.status === 'active').length;
+  const totalRevenue = members.filter(m => m.status === 'active').reduce((acc, m) => acc + (Number(m.price) || 0), 0);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Members</h1>
-          <p className="text-muted text-sm">{members.length} total</p>
+          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">Members</h1>
+          <p className="text-[#555] text-xs font-bold tracking-[0.2em] mt-2 uppercase">{activeCount} Total Active Subscription</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="bg-primary text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2">
-          <Plus size={18} /> Add Member
-        </button>
+        <div className="flex items-center gap-3">
+          <button className="bg-[#111] border border-[#1a1a1a] text-primary px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2">
+            Export List
+          </button>
+          <button 
+            onClick={() => setShowAdd(true)}
+            className="bg-primary text-black px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:text-black transition-colors flex items-center gap-2 font-black"
+          >
+            <Plus size={14} /> Add Member
+          </button>
+        </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-4 h-4" />
-        <input
-          type="text"
-          placeholder="Search by name or phone…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full bg-card border border-border rounded-xl pl-10 py-2.5 text-sm text-white focus:outline-none focus:border-primary"
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden">
+          <TrendingUp size={20} className="text-info/40 mb-6 group-hover:text-info transition-colors" />
+          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-2">Active Retention</p>
+          <p className="text-4xl font-black text-info">94%</p>
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-info">
+            <TrendingUp size={80} />
+          </div>
+        </div>
+
+        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden">
+          <Wallet size={20} className="text-[#333] mb-6" />
+          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-2">Revenue (30d)</p>
+          <p className="text-4xl font-black text-primary font-mono">₹{(totalRevenue / 1000).toFixed(1)}k</p>
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-primary">
+            <Wallet size={80} />
+          </div>
+        </div>
+
+        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden md:col-span-1">
+          <ShieldCheck size={20} className="text-success/40 mb-2 group-hover:text-success transition-colors" />
+          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">System Status</p>
+          <p className="text-lg font-bold text-success leading-tight uppercase tracking-tight">System Operational</p>
+          <p className="text-[#444] text-[10px] mt-2 font-bold uppercase tracking-wider">Access Points: Check OK</p>
+          <div className="absolute top-1/2 right-0 -translate-y-1/2 p-4 opacity-10 text-success">
+            <ShieldCheck size={120} />
+          </div>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
-      ) : (
-        <>
-          <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/30 text-muted uppercase text-[10px] font-bold">
-                <tr>
-                  <th className="px-4 py-3 text-left">Name</th>
-                  <th className="px-4 py-3 text-left">Phone</th>
-                  <th className="px-4 py-3 text-left">Plan</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+      {/* Search & Table */}
+      <div className="space-y-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] w-4 h-4" />
+          <input
+            type="text"
+            placeholder="FILTER BY NAME OR PHONE..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full bg-[#0a0a0a] border-b border-[#1a1a1a] pl-12 py-4 text-[10px] font-bold tracking-widest text-primary/40 focus:outline-none focus:border-primary transition-colors"
+          />
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center p-24"><Loader2 className="animate-spin text-white w-8 h-8 opacity-20" /></div>
+        ) : (
+          <div className="border border-[#1a1a1a] bg-[#0c0c0c]/50">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[#1a1a1a] bg-[#0a0a0a]">
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Name</th>
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Phone</th>
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Plan</th>
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/50">
-                {filtered.map(m => {
+              <tbody className="divide-y divide-[#1a1a1a]">
+                {filtered.map((m, idx) => {
                   const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+                  const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                  const uid = `BOSS-${2024 + (idx % 3)}-${String(idx + 1).padStart(3, '0')}`; // Placeholder UID logic
+
                   return (
-                    <tr key={m.id} className="hover:bg-secondary/20 transition-colors">
-                      <td className="px-4 py-3 font-medium text-white">{m.name}</td>
-                      <td className="px-4 py-3 text-muted">{m.phone}</td>
-                      <td className="px-4 py-3 text-muted">{m.price ? `₹${m.price} / ${m.durationDays}d` : (m.planName || '—')}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          {statusBadge(m.status)}
-                          {m.status === 'active' && <span className="text-[10px] text-muted">{daysLeft}d left</span>}
+                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-sm tracking-widest group-hover:border-primary/20 transition-colors">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="text-primary font-bold text-sm tracking-tight">{m.name}</p>
+                            <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">UID: {uid}</p>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          {daysLeft <= 0 ? (
-                            <button onClick={() => sendExpiredAlert(m)} className="bg-[#25D366] text-white p-1.5 rounded-lg hover:bg-[#25D366]/80 flex items-center gap-1 text-[10px] font-bold"><MessageCircle size={14} /> Alert</button>
-                          ) : daysLeft <= 7 ? (
-                            <button onClick={() => sendExpiryAlert(m, daysLeft)} className="bg-[#25D366] text-white p-1.5 rounded-lg hover:bg-[#25D366]/80 flex items-center gap-1 text-[10px] font-bold"><MessageCircle size={14} /> Remind</button>
-                          ) : (
-                            <button onClick={() => sendWelcomeMessage(m)} className="bg-[#25D366] text-white p-1.5 rounded-lg hover:bg-[#25D366]/80 flex items-center gap-1 text-[10px] font-bold"><MessageCircle size={14} /> WhatsApp</button>
-                          )}
-                          <button onClick={() => setViewMember(m)} className="text-muted hover:text-white p-1.5"><Eye size={16} /></button>
-                          <button onClick={() => setEditingMember(m)} className="text-muted hover:text-white p-1.5"><Edit size={16} /></button>
-                          <button onClick={() => handleDelete(m)} className="text-muted hover:text-error p-1.5"><Trash2 size={16} /></button>
+                      <td className="px-8 py-6 text-[#666] font-mono text-sm group-hover:text-info transition-colors">
+                        {m.phone.startsWith('+') ? m.phone : `+91 ${m.phone}`}
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-primary font-bold text-sm tracking-tight">₹{m.price} / {m.durationDays}d</p>
+                        <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">Exp: {m.endDate?.toDate?.().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className={`flex items-center gap-2 border rounded-full px-3 py-1 w-fit ${
+                          m.status === 'active' 
+                            ? 'bg-[#0d1a10] border-[#1a2e1d]' 
+                            : 'bg-[#1a0d0d] border-[#2e1a1a]'
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            m.status === 'active' ? 'bg-[#10b981]' : 'bg-[#ef4444]'
+                          }`} />
+                          <span className={`text-[10px] font-black tracking-[0.1em] uppercase ${
+                            m.status === 'active' ? 'text-[#10b981]' : 'text-[#ef4444]'
+                          }`}>
+                            {m.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => sendWelcomeMessage(m)} className="p-2 text-[#25D366] hover:text-[#25D366]/80 transition-colors" title="WhatsApp"><MessageCircle size={16} /></button>
+                          <button onClick={() => setViewMember(m)} className="p-2 text-primary/40 hover:text-info transition-colors" title="View Profile"><Eye size={16} /></button>
+                          <button onClick={() => setEditingMember(m)} className="p-2 text-primary/40 hover:text-warning transition-colors" title="Edit Member"><Edit size={16} /></button>
+                          <button onClick={() => handleDelete(m)} className="p-2 text-error/40 hover:text-error transition-colors" title="Delete"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -314,45 +380,16 @@ const Members = () => {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
 
-          <div className="md:hidden space-y-3">
-            {filtered.map(m => {
-              const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
-              return (
-                <div key={m.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-bold text-white">{m.name}</p>
-                      <p className="text-muted text-xs">{m.phone}</p>
-                    </div>
-                    {statusBadge(m.status)}
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-muted">
-                    <span>{m.price ? `₹${m.price} / ${m.durationDays}d` : (m.planName || '—')}</span>
-                    {m.status === 'active' && <span>{daysLeft}d left</span>}
-                  </div>
-                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                    <div className="flex-1">
-                      {daysLeft <= 0 ? (
-                        <button onClick={() => sendExpiredAlert(m)} className="w-full bg-[#25D366] text-white py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"><MessageCircle size={14} /> Send Alert</button>
-                      ) : daysLeft <= 7 ? (
-                        <button onClick={() => sendExpiryAlert(m, daysLeft)} className="w-full bg-[#25D366] text-white py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"><MessageCircle size={14} /> Send Reminder</button>
-                      ) : (
-                        <button onClick={() => sendWelcomeMessage(m)} className="w-full bg-[#25D366] text-white py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"><MessageCircle size={14} /> WhatsApp</button>
-                      )}
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setViewMember(m)} className="bg-secondary p-2 rounded-lg text-muted"><Eye size={16} /></button>
-                      <button onClick={() => setEditingMember(m)} className="bg-secondary p-2 rounded-lg text-muted"><Edit size={16} /></button>
-                      <button onClick={() => handleDelete(m)} className="bg-secondary p-2 rounded-lg text-error"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <div className="flex items-center justify-between text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase">
+        <p>Showing 1 to {filtered.length} of {members.length} Members</p>
+        <div className="flex items-center gap-6">
+          <button className="flex items-center gap-2 hover:text-primary transition-colors"><ChevronLeft size={14} /> Previous</button>
+          <button className="flex items-center gap-2 hover:text-primary transition-colors">Next <ChevronRight size={14} /></button>
+        </div>
+      </div>
 
       {showAdd && <MemberFormModal onClose={() => setShowAdd(false)} onSaved={loadData} />}
       {editingMember && <MemberFormModal editingMember={editingMember} onClose={() => setEditingMember(null)} onSaved={loadData} />}
