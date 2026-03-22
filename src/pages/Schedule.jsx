@@ -228,21 +228,21 @@ const Schedule = () => {
         </div>
       ) : (
         /* Calendar View (Full width) */
-        <div className="flex-1 bg-[#111] border border-[#1a1a1a] rounded-sm p-8 flex flex-col min-h-[600px]">
-          <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1a1a1a]">
-            <div>
-              <p className="text-info text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Personal Calendar</p>
-              <h2 className="text-2xl font-black text-primary uppercase tracking-[0.1em]">{selectedMember.name}</h2>
+        <div className="flex-1 bg-[#111] border border-[#1a1a1a] rounded-sm p-4 md:p-8 flex flex-col">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4">
+            <div className="text-center md:text-left">
+              <p className="text-info text-[8px] md:text-[10px] font-bold tracking-[0.3em] uppercase mb-1">Personal Calendar</p>
+              <h2 className="text-xl md:text-2xl font-black text-primary uppercase tracking-[0.1em]">{selectedMember.name}</h2>
             </div>
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+              <div className="flex items-center justify-center gap-4 md:gap-6 bg-[#0a0a0a] md:bg-transparent p-2 md:p-0 rounded-sm w-full md:w-auto">
                 <button 
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
                   className="p-2 text-[#444] hover:text-primary transition-colors"
                 >
                   <ChevronLeft size={20} />
                 </button>
-                <h3 className="text-primary font-black text-sm md:text-lg uppercase tracking-widest min-w-[100px] md:min-w-[150px] text-center">
+                <h3 className="text-primary font-black text-sm md:text-lg uppercase tracking-widest min-w-[80px] md:min-w-[150px] text-center">
                   {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
                 </h3>
                 <button 
@@ -254,7 +254,7 @@ const Schedule = () => {
               </div>
               <button 
                 onClick={() => setCurrentDate(new Date())}
-                className="text-[10px] font-bold text-[#555] uppercase tracking-[0.2em] hover:text-primary transition-colors"
+                className="text-[8px] md:text-[10px] font-bold text-[#555] uppercase tracking-[0.2em] hover:text-primary transition-colors"
               >
                 Today
               </button>
