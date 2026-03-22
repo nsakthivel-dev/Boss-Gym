@@ -146,7 +146,6 @@ const Schedule = () => {
               )}
             </button>
           );
-          );
         })}
       </div>
     );
