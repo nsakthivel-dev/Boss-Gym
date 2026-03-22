@@ -103,9 +103,12 @@ const Schedule = () => {
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
     
     return (
-      <div className="grid grid-cols-7 gap-2">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="text-center text-[10px] font-bold text-[#444] uppercase py-2 transition-colors">{d}</div>
+      <div className="grid grid-cols-7 gap-1 md:gap-2">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
+          <div key={idx} className="text-center text-[8px] md:text-[10px] font-bold text-[#444] uppercase py-2 transition-colors">
+            <span className="hidden md:inline">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][idx]}</span>
+            <span className="md:hidden">{d}</span>
+          </div>
         ))}
         {days.map((date, i) => {
           if (!date) return <div key={`empty-${i}`} className="aspect-square bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
@@ -117,7 +120,7 @@ const Schedule = () => {
             <button
               key={i}
               onClick={() => workout && setViewingWorkout({ date, workout })}
-              className={`aspect-square p-2 border rounded-sm flex flex-col items-start justify-between transition-all group ${
+              className={`aspect-square p-1 md:p-2 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
                 workout 
                   ? workout.isRest 
                     ? 'bg-[#111] border-[#1a1a1a] hover:border-info/30' 
@@ -126,21 +129,23 @@ const Schedule = () => {
               } ${isToday ? 'scale-105 border-primary shadow-[0_0_15px_rgba(232,201,126,0.1)] z-10' : ''}`}
             >
               <div className="flex items-center justify-between w-full">
-                <span className={`text-[10px] font-black ${isToday ? 'text-primary' : 'text-[#444]'}`}>{date.getDate()}</span>
+                <span className={`text-[8px] md:text-[10px] font-black ${isToday ? 'text-primary' : 'text-[#444]'}`}>{date.getDate()}</span>
                 {workout && (
-                  <span className={`text-[8px] font-black uppercase tracking-tighter ${workout.isRest ? 'text-info' : 'text-primary/60'}`}>
-                    Day {workout.day}
+                  <span className={`text-[6px] md:text-[8px] font-black uppercase tracking-tighter ${workout.isRest ? 'text-info' : 'text-primary/60'}`}>
+                    <span className="hidden md:inline">Day </span>{workout.day}
                   </span>
                 )}
               </div>
               {workout && (
-                <div className="w-full truncate text-left pt-1">
-                  <p className={`text-[8px] font-bold uppercase tracking-widest truncate ${workout.isRest ? 'text-info' : 'text-primary'}`}>
-                    {workout.isRest ? 'Recovery' : workout.title.replace(' DAY', '')}
+                <div className="w-full truncate text-left pt-0.5 md:pt-1">
+                  <p className={`text-[7px] md:text-[8px] font-bold uppercase tracking-widest truncate ${workout.isRest ? 'text-info' : 'text-primary'}`}>
+                    <span className="md:hidden">{workout.isRest ? 'R' : workout.title.charAt(0)}</span>
+                    <span className="hidden md:inline">{workout.isRest ? 'Recovery' : workout.title.replace(' DAY', '')}</span>
                   </p>
                 </div>
               )}
             </button>
+          );
           );
         })}
       </div>
@@ -181,16 +186,21 @@ const Schedule = () => {
               <ChevronLeft size={24} />
             </button>
           )}
-          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">
-            {selectedMember ? 'Workout Schedule' : 'Schedules'}
+          <h1 className="text-xl md:text-4xl font-black text-primary tracking-tight uppercase">
+            {selectedMember ? (
+              <span className="flex flex-col md:flex-row md:items-baseline gap-1">
+                <span className="text-xs md:text-4xl">Workout</span>
+                <span>Schedule</span>
+              </span>
+            ) : 'Schedules'}
           </h1>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setEditingSchedule(true)}
-            className="bg-[#111] border border-[#1a1a1a] text-primary px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:text-white transition-all flex items-center gap-2"
+            className="bg-[#111] border border-[#1a1a1a] text-primary p-2.5 md:px-6 md:py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:text-white transition-all flex items-center gap-2"
           >
-            <Edit3 size={14} /> Edit Master Schedule
+            <Edit3 size={14} /> <span className="hidden md:inline">Edit Master Schedule</span>
           </button>
         </div>
       </div>
@@ -233,8 +243,8 @@ const Schedule = () => {
                 >
                   <ChevronLeft size={20} />
                 </button>
-                <h3 className="text-primary font-black text-lg uppercase tracking-widest min-w-[150px] text-center">
-                  {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                <h3 className="text-primary font-black text-sm md:text-lg uppercase tracking-widest min-w-[100px] md:min-w-[150px] text-center">
+                  {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
                 </h3>
                 <button 
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}

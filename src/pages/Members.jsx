@@ -345,7 +345,7 @@ const Members = () => {
         ) : (
           <div className="border border-[#1a1a1a] bg-[#0c0c0c]/50">
             <table className="w-full text-left">
-              <thead>
+              <thead className="hidden md:table-header-group">
                 <tr className="border-b border-[#1a1a1a] bg-[#0a0a0a]">
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Name</th>
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Phone</th>
@@ -354,33 +354,36 @@ const Members = () => {
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1a1a]">
+              <tbody className="divide-y divide-[#1a1a1a] block md:table-row-group">
                 {filtered.map((m, idx) => {
                   const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
                   const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                  const uid = `BOSS-${2024 + (idx % 3)}-${String(idx + 1).padStart(3, '0')}`; // Placeholder UID logic
+                  const uid = m.uid || `BOSS-${2024 + (idx % 3)}-${String(idx + 1).padStart(3, '0')}`;
 
                   return (
-                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-8 py-6">
+                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-6 md:p-0">
+                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-sm tracking-widest group-hover:border-primary/20 transition-colors">
+                          <div className="w-12 h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
                             {initials}
                           </div>
-                          <div>
-                            <p className="text-primary font-bold text-sm tracking-tight">{m.name}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-primary font-bold text-sm tracking-tight truncate">{m.name}</p>
                             <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">UID: {uid}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-[#666] font-mono text-sm group-hover:text-info transition-colors">
+                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell text-[#666] font-mono text-sm group-hover:text-info transition-colors">
+                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-1 tracking-widest">Phone</span>
                         {m.phone.startsWith('+') ? m.phone : `+91 ${m.phone}`}
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
+                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-1 tracking-widest">Membership</span>
                         <p className="text-primary font-bold text-sm tracking-tight">₹{m.price} / {m.durationDays}d</p>
                         <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">Exp: {m.endDate?.toDate?.().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
+                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-2 tracking-widest">Status</span>
                         <div className={`flex items-center gap-2 border rounded-full px-3 py-1 w-fit ${
                           m.status === 'active' 
                             ? 'bg-[#0d1a10] border-[#1a2e1d]' 
@@ -396,8 +399,8 @@ const Members = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell">
+                        <div className="flex items-center md:justify-end gap-2 md:gap-1 opacity-80 md:opacity-60 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => sendWelcomeMessage(m)} className="p-2 text-[#25D366] hover:text-[#25D366]/80 transition-colors" title="WhatsApp"><MessageCircle size={16} /></button>
                           <button onClick={() => setViewMember(m)} className="p-2 text-primary/40 hover:text-info transition-colors" title="View Profile"><Eye size={16} /></button>
                           <button onClick={() => setEditingMember(m)} className="p-2 text-primary/40 hover:text-warning transition-colors" title="Edit Member"><Edit size={16} /></button>
