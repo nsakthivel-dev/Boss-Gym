@@ -7,7 +7,7 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode, MessageCircle, Bell
+  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode, MessageCircle, Bell, CalendarCheck
 } from 'lucide-react';
 import { requestNotificationPermission } from "../utils/notifications"
 import { checkAndNotifyExpiring } from "../utils/alertChecker"
@@ -15,8 +15,6 @@ import { sendExpiryAlert } from '../utils/whatsapp';
 import WallQRModal from '../components/WallQRModal';
 
 import { QRCodeCanvas } from 'qrcode.react';
-
-
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -50,13 +48,12 @@ const StatCard = ({ label, value, icon, color }) => {
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState({ total: 0, presentToday: 0, noExit: 0 });
+  const [stats, setStats] = useState({ total: 0, presentToday: 0, totalToday: 0 });
   const [liveInside, setLiveInside] = useState([]);
-  const [noExitSessions, setNoExitSessions] = useState([]);
+  const [todaySessions, setTodaySessions] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
-
 
   // Live refresh for duration display
   useEffect(() => {
@@ -116,20 +113,16 @@ const Dashboard = () => {
       const membersCountSnap = await getCountFromServer(collection(db, 'members'));
       
       // 2. Present Today (Only fetch IDs for today's sessions)
+      // 3. Today's Attendance count
       const sessionsTodayQ = query(collection(db, 'sessions'), where('sessionDate', '==', today));
       const sessionsTodaySnap = await getDocs(sessionsTodayQ);
       const uniqueMembersToday = new Set(sessionsTodaySnap.docs.map(d => d.data().memberId));
 
-
-
-
-      // 3. No-Exit Flags (Single filter to avoid composite index)
-      const noExitQ = query(collection(db, 'sessions'), where('status', '==', 'no-exit'));
-      const noExitSnap = await getDocs(noExitQ);
-      const noExit = noExitSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(s => s.sessionDate < today); // Filter by date in memory
-      setNoExitSessions(noExit);
+      setStats({
+        total: membersCountSnap.data().count,
+        presentToday: uniqueMembersToday.size,
+        totalToday: sessionsTodaySnap.size,
+      });
 
       // 4. Expiry/Expired Alerts
       const membersRef = collection(db, 'members');
@@ -139,32 +132,25 @@ const Dashboard = () => {
         .filter(m => {
           if (!m.endDate) return false;
           const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
-          // Include if expired OR expiring in 7 days
           return endDate <= in7Days;
         });
       setExpiryAlerts(alerts);
-
-      setStats({
-        total: membersCountSnap.data().count,
-        presentToday: uniqueMembersToday.size,
-        noExit: noExit.length,
-      });
     } catch (err) {
-      console.error("Dashboard Fetch Error:", err);
-      setError('Error fetching stats. Check Firestore rules/indexes.');
+      console.error("Dashboard Stats Fetch Error:", err);
     }
   };
 
   // Live subscription for currently inside
   useEffect(() => {
     const today = todayStr();
-    // Simple query to avoid composite index reqs
     const q = query(collection(db, 'sessions'), where('sessionDate', '==', today));
     const unsub = onSnapshot(q, (snap) => {
-      const openOnes = snap.docs
+      const allToday = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(s => s.status === 'open');
-      setLiveInside(openOnes);
+        .sort((a,b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
+      
+      setTodaySessions(allToday);
+      setLiveInside(allToday.filter(s => s.status === 'open'));
     }, (err) => {
       console.error("Live Query Error:", err);
     });
@@ -229,7 +215,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-
       {error && (
         <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>
       )}
@@ -237,9 +222,9 @@ const Dashboard = () => {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Members" value={stats.total} icon={Users} color="bg-info/10 text-info" />
-        <StatCard label="Present Today" value={stats.presentToday} icon={UserCheck} color="bg-success/10 text-success" />
+        <StatCard label="Unique Today" value={stats.presentToday} icon={UserCheck} color="bg-success/10 text-success" />
         <StatCard label="Currently Inside" value={liveInside.length} icon={Clock} color="bg-primary/10 text-primary" />
-        <StatCard label="No-Exit Flags" value={stats.noExit} icon={UserX} color="bg-error/10 text-error" />
+        <StatCard label="Total Visits Today" value={stats.totalToday} icon={CalendarCheck || Users} color="bg-warning/10 text-warning" />
       </div>
 
       {/* Alert Panel */}
@@ -344,68 +329,80 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* No Exit Panel */}
+        {/* Today Attendance Panel */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-            <UserX className="w-4 h-4 text-error" />
-            No Exit Flagged Sessions
+            <UserCheck className="w-4 h-4 text-primary" />
+            Today Attendance
           </h2>
-          {noExitSessions.length === 0 ? (
-            <p className="text-muted text-sm text-center py-6">No flagged sessions.</p>
+          {todaySessions.length === 0 ? (
+            <p className="text-muted text-sm text-center py-6">No sessions today yet.</p>
           ) : (
             <div className="space-y-3">
-              {noExitSessions.slice(0, 6).map(s => (
+              {todaySessions.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
                   <div>
                     <p className="text-white font-medium text-sm">{s.memberName}</p>
-                    <p className="text-muted text-xs">{s.sessionDate}</p>
+                    <p className="text-muted text-xs">
+                      {formatTime(s.entryTime)} 
+                      {s.exitTime ? ` — ${formatTime(s.exitTime)}` : ' (Inside)'}
+                    </p>
                   </div>
-                  <span className="text-error text-xs bg-error/10 px-2 py-1 rounded-full">No Exit</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                    s.status === 'open' ? 'bg-primary/20 text-primary' : 'bg-success/20 text-success'
+                  }`}>
+                    {s.status === 'open' ? 'Inside' : 'Out'}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Expire Session Panel */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-warning" />
+            Expire Session
+          </h2>
+          {expiryAlerts.length === 0 ? (
+            <p className="text-muted text-sm text-center py-6">No memberships expiring soon.</p>
+          ) : (
+            <div className="space-y-3">
+              {expiryAlerts.map(m => {
+                const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
+                const daysLeft = Math.ceil((endDate - new Date()) / 86400000);
+                return (
+                  <div key={m.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
+                    <div>
+                      <p className="text-white font-medium text-sm">{m.name}</p>
+                      <p className="text-muted text-xs">
+                        {m.planName || (m.price ? `₹${m.price} / ${m.durationDays}d` : 'Gym')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[10px] font-bold ${daysLeft <= 3 ? 'text-error' : 'text-warning'}`}>
+                        {daysLeft}d left
+                      </span>
+                      <button
+                        onClick={() => sendExpiryAlert(m, daysLeft)}
+                        className="bg-[#25D366] text-white p-1.5 rounded-lg hover:bg-[#25D366]/80 flex items-center gap-1 text-[10px] font-bold"
+                      >
+                        <MessageCircle size={14} /> Alert
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Expiry Alerts */}
-      {expiryAlerts.length > 0 && (
-        <div className="bg-warning/5 border border-warning/20 rounded-xl p-5">
-          <h2 className="font-semibold text-warning mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            Memberships Expiring Soon (within 7 days)
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {expiryAlerts.map(m => {
-              const daysLeft = Math.ceil((m.endDate.toDate() - new Date()) / 86400000);
-              return (
-                <div key={m.id} className="bg-secondary rounded-lg px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-medium text-sm">{m.name}</p>
-                    <p className="text-muted text-xs">{m.planName || (m.price ? `₹${m.price} / ${m.durationDays}d` : 'Gym')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-warning text-xs font-semibold">{daysLeft}d left</span>
-                    <button
-                      onClick={() => sendExpiryAlert(m, daysLeft)}
-                      className="flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#25D366]/90 transition-colors shadow-lg shadow-[#25D366]/10"
-                    >
-                      <MessageCircle size={14} />
-                      WhatsApp
-                    </button>
-                  </div>
-
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
       {showQRModal && (
         <WallQRModal onClose={() => setShowQRModal(false)} />
       )}
     </div>
-
   );
 };
 
