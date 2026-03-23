@@ -33,6 +33,8 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [editingSchedule, setEditingSchedule] = useState(false);
   const [viewingWorkout, setViewingWorkout] = useState(null);
+  const [isModalEditing, setIsModalEditing] = useState(false);
+  const [modalExercises, setModalExercises] = useState([]);
   
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -122,7 +124,13 @@ const Schedule = () => {
           return (
             <button
               key={i}
-              onClick={() => workout && setViewingWorkout({ date, workout })}
+              onClick={() => {
+                if (workout) {
+                  setViewingWorkout({ date, workout });
+                  setModalExercises(workout.exercises || []);
+                  setIsModalEditing(false);
+                }
+              }}
               className={`aspect-square p-1 md:p-2 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
                 workout 
                   ? workout.isRest 
@@ -178,6 +186,32 @@ const Schedule = () => {
       setEditingSchedule(false);
     } catch (err) {
       console.error("Error updating schedule:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateDayExercises = async () => {
+    if (!viewingWorkout) return;
+    setLoading(true);
+    try {
+      const updatedWorkout = {
+        ...viewingWorkout.workout,
+        exercises: modalExercises
+      };
+      
+      // Update the master schedule for that day
+      await setDoc(doc(db, 'workout_schedule', `day-${updatedWorkout.day}`), updatedWorkout);
+      
+      // Update local state
+      const newBaseSchedule = baseSchedule.map(d => 
+        d.day === updatedWorkout.day ? updatedWorkout : d
+      );
+      setBaseSchedule(newBaseSchedule);
+      setViewingWorkout({ ...viewingWorkout, workout: updatedWorkout });
+      setIsModalEditing(false);
+    } catch (err) {
+      console.error("Error updating exercises:", err);
     } finally {
       setLoading(false);
     }
@@ -298,9 +332,27 @@ const Schedule = () => {
                   {viewingWorkout.workout.title}
                 </h3>
               </div>
-              <button onClick={() => setViewingWorkout(null)} className="p-2 text-[#444] hover:text-white transition-colors">
-                <X size={24} />
-              </button>
+              <div className="flex items-center gap-2">
+                {!viewingWorkout.workout.isRest && (
+                  <button 
+                    onClick={() => setIsModalEditing(!isModalEditing)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-sm transition-all ${
+                      isModalEditing 
+                        ? 'bg-primary text-black' 
+                        : 'text-[#444] hover:text-primary border border-[#1a1a1a] hover:border-primary/30'
+                    }`}
+                    title="Edit Exercises"
+                  >
+                    <Edit3 size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">
+                      {isModalEditing ? 'Finish' : 'Edit'}
+                    </span>
+                  </button>
+                )}
+                <button onClick={() => setViewingWorkout(null)} className="p-2 text-[#444] hover:text-white transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
             </div>
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-3">
@@ -312,21 +364,110 @@ const Schedule = () => {
               
               {!viewingWorkout.workout.isRest && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-12 text-[10px] font-bold text-[#444] uppercase tracking-widest px-2">
-                    <div className="col-span-6">Exercise</div>
-                    <div className="col-span-2 text-center">Sets</div>
-                    <div className="col-span-2 text-center">Reps</div>
-                  </div>
-                  {viewingWorkout.workout.exercises?.map((ex, i) => (
-                    <div key={i} className="grid grid-cols-12 items-center bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-sm group hover:border-primary/30 transition-colors">
-                      <div className="col-span-6">
-                        <p className="text-xs font-bold text-primary uppercase">{ex.name}</p>
-                        {ex.notes && <p className="text-[10px] text-[#444] font-bold mt-1">{ex.notes}</p>}
-                      </div>
-                      <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.sets}</div>
-                      <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.reps}</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="grid grid-cols-12 w-full text-[10px] font-bold text-[#444] uppercase tracking-widest px-2">
+                      <div className="col-span-6">Exercise</div>
+                      <div className="col-span-2 text-center">Sets</div>
+                      <div className="col-span-2 text-center">Reps</div>
+                      <div className="col-span-2"></div>
                     </div>
-                  ))}
+                  </div>
+                  
+                  {isModalEditing ? (
+                    <div className="space-y-3">
+                      {modalExercises.map((ex, i) => (
+                        <div key={i} className="grid grid-cols-12 items-center bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-sm gap-2">
+                          <div className="col-span-6">
+                            <input 
+                              value={ex.name}
+                              onChange={e => {
+                                const newExs = [...modalExercises];
+                                newExs[i].name = e.target.value;
+                                setModalExercises(newExs);
+                              }}
+                              className="bg-transparent text-xs font-bold text-primary uppercase w-full focus:outline-none"
+                              placeholder="Name"
+                            />
+                            <input 
+                              value={ex.notes}
+                              onChange={e => {
+                                const newExs = [...modalExercises];
+                                newExs[i].notes = e.target.value;
+                                setModalExercises(newExs);
+                              }}
+                              className="bg-transparent text-[10px] text-[#444] font-bold mt-1 w-full focus:outline-none"
+                              placeholder="Notes"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input 
+                              value={ex.sets}
+                              onChange={e => {
+                                const newExs = [...modalExercises];
+                                newExs[i].sets = e.target.value;
+                                setModalExercises(newExs);
+                              }}
+                              className="bg-transparent text-sm font-black text-[#555] text-center w-full focus:outline-none"
+                              placeholder="Sets"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input 
+                              value={ex.reps}
+                              onChange={e => {
+                                const newExs = [...modalExercises];
+                                newExs[i].reps = e.target.value;
+                                setModalExercises(newExs);
+                              }}
+                              className="bg-transparent text-sm font-black text-[#555] text-center w-full focus:outline-none"
+                              placeholder="Reps"
+                            />
+                          </div>
+                          <div className="col-span-2 flex justify-end">
+                            <button 
+                              onClick={() => setModalExercises(modalExercises.filter((_, idx) => idx !== i))}
+                              className="p-1 text-[#333] hover:text-error transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button 
+                        onClick={() => setModalExercises([...modalExercises, { name: "", sets: "", reps: "", notes: "" }])}
+                        className="w-full py-4 border-2 border-dashed border-primary/20 rounded-sm text-primary/60 hover:text-primary hover:border-primary/50 transition-all flex items-center justify-center gap-2 mt-2 bg-primary/5"
+                      >
+                        <Plus size={16} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Add Exercise Row</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {viewingWorkout.workout.exercises?.map((ex, i) => (
+                        <div key={i} className="grid grid-cols-12 items-center bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-sm group hover:border-primary/30 transition-colors">
+                          <div className="col-span-6">
+                            <p className="text-xs font-bold text-primary uppercase">{ex.name}</p>
+                            {ex.notes && <p className="text-[10px] text-[#444] font-bold mt-1">{ex.notes}</p>}
+                          </div>
+                          <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.sets}</div>
+                          <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.reps}</div>
+                        </div>
+                      ))}
+                      
+                      <button 
+                        onClick={() => {
+                          setModalExercises([...(viewingWorkout.workout.exercises || []), { name: "", sets: "", reps: "", notes: "" }]);
+                          setIsModalEditing(true);
+                        }}
+                        className="w-full py-5 border-2 border-dashed border-primary/30 rounded-sm text-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 mt-4 bg-primary/5 group/add"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover/add:scale-110 transition-transform">
+                          <Plus size={24} className="text-primary" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em]">Add New Exercise</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -337,13 +478,34 @@ const Schedule = () => {
                 </div>
               )}
             </div>
-            <div className="p-8 bg-[#0a0a0a] border-t border-[#1a1a1a]">
-              <button 
-                onClick={() => setViewingWorkout(null)}
-                className="w-full py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all"
-              >
-                Close View
-              </button>
+            <div className="p-8 bg-[#0a0a0a] border-t border-[#1a1a1a] flex gap-4">
+              {isModalEditing ? (
+                <>
+                  <button 
+                    onClick={() => {
+                      setIsModalEditing(false);
+                      setModalExercises(viewingWorkout.workout.exercises || []);
+                    }}
+                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] border border-[#1a1a1a] text-[#555] hover:text-white transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleUpdateDayExercises}
+                    disabled={loading}
+                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={16} />} Save Changes
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setViewingWorkout(null)}
+                  className="w-full py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all"
+                >
+                  Close View
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -429,6 +591,90 @@ const Schedule = () => {
                       placeholder="Muscles (e.g. Chest · Triceps)"
                     />
                   </div>
+
+                  {/* Exercises Editing Section */}
+                  {!day.isRest && (
+                    <div className="mt-6 space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-[10px] font-black text-[#333] uppercase tracking-[0.2em]">Exercises</h4>
+                        <button 
+                          onClick={() => {
+                            const newSched = [...baseSchedule];
+                            if (!newSched[idx].exercises) newSched[idx].exercises = [];
+                            newSched[idx].exercises.push({ name: "", sets: "", reps: "", notes: "" });
+                            setBaseSchedule(newSched);
+                          }}
+                          className="flex items-center gap-1 text-[8px] font-black text-primary uppercase hover:text-white transition-colors"
+                        >
+                          <Plus size={10} /> Add Exercise
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {day.exercises?.map((ex, exIdx) => (
+                          <div key={exIdx} className="grid grid-cols-12 gap-2 bg-[#111] p-3 rounded-sm border border-[#1a1a1a] group/ex">
+                            <div className="col-span-5">
+                              <input 
+                                value={ex.name}
+                                onChange={e => {
+                                  const newSched = [...baseSchedule];
+                                  newSched[idx].exercises[exIdx].name = e.target.value;
+                                  setBaseSchedule(newSched);
+                                }}
+                                className="w-full bg-transparent text-[10px] font-bold text-primary uppercase focus:outline-none"
+                                placeholder="Exercise Name"
+                              />
+                              <input 
+                                value={ex.notes}
+                                onChange={e => {
+                                  const newSched = [...baseSchedule];
+                                  newSched[idx].exercises[exIdx].notes = e.target.value;
+                                  setBaseSchedule(newSched);
+                                }}
+                                className="w-full bg-transparent text-[8px] font-bold text-[#444] mt-1 focus:outline-none"
+                                placeholder="Notes (optional)"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <input 
+                                value={ex.sets}
+                                onChange={e => {
+                                  const newSched = [...baseSchedule];
+                                  newSched[idx].exercises[exIdx].sets = e.target.value;
+                                  setBaseSchedule(newSched);
+                                }}
+                                className="w-full bg-transparent text-[10px] font-black text-center text-[#555] focus:outline-none"
+                                placeholder="Sets"
+                              />
+                            </div>
+                            <div className="col-span-3">
+                              <input 
+                                value={ex.reps}
+                                onChange={e => {
+                                  const newSched = [...baseSchedule];
+                                  newSched[idx].exercises[exIdx].reps = e.target.value;
+                                  setBaseSchedule(newSched);
+                                }}
+                                className="w-full bg-transparent text-[10px] font-black text-center text-[#555] focus:outline-none"
+                                placeholder="Reps"
+                              />
+                            </div>
+                            <div className="col-span-2 flex justify-end">
+                              <button 
+                                onClick={() => {
+                                  const newSched = [...baseSchedule];
+                                  newSched[idx].exercises = newSched[idx].exercises.filter((_, i) => i !== exIdx);
+                                  setBaseSchedule(newSched);
+                                }}
+                                className="p-1 text-[#333] hover:text-error transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               
