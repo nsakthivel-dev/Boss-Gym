@@ -18,15 +18,17 @@ const statusBadge = (status) =>
     : <span className="bg-error/10 text-error text-xs px-2 py-0.5 rounded-full font-semibold">Expired</span>;
 
 const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div className="flex items-center justify-between p-5 border-b border-border">
-        <h3 className="text-white font-semibold text-lg">{title}</h3>
-        <button onClick={onClose} className="text-muted hover:text-white transition-colors">
-          <X className="w-5 h-5" />
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/90 backdrop-blur-sm">
+    <div className="w-full max-w-lg bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between p-6 md:p-8 border-b border-[#1a1a1a] bg-[#111]">
+        <h3 className="text-primary font-black text-xl uppercase tracking-tight">{title}</h3>
+        <button onClick={onClose} className="p-2 -mr-2 text-[#444] hover:text-white transition-colors">
+          <X className="w-6 h-6" />
         </button>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar">
+        {children}
+      </div>
     </div>
   </div>
 );
@@ -54,27 +56,35 @@ const MemberProfileModal = ({ member, onClose }) => {
   return (
     <Modal title={member.name} onClose={onClose}>
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
           {[
             ['Phone', member.phone],
             ['Email', member.email],
             ['Plan', member.price ? `₹${member.price} / ${member.durationDays}d` : (member.planName || '—')],
             ['Status', member.status === 'active' ? '✅ Active' : '❌ Expired']
           ].map(([k, v]) => (
-            <div key={k}>
-              <p className="text-muted text-xs mb-0.5">{k}</p>
-              <p className="text-white font-medium">{v}</p>
+            <div key={k} className="flex flex-col">
+              <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">{k}</p>
+              <p className={`text-white font-bold text-sm tracking-tight ${k === 'Email' ? 'break-all' : ''}`}>{v}</p>
             </div>
           ))}
         </div>
-        <div className="border-t border-border pt-4">
-          <h4 className="text-white font-medium text-sm mb-3">Recent Attendance</h4>
-          {loading ? <Loader2 className="w-5 h-5 animate-spin text-primary" /> : sessions.length === 0 ? <p className="text-muted text-xs">No records found.</p> : (
-            <div className="space-y-2">
+        <div className="border-t border-[#1a1a1a] pt-6">
+          <h4 className="text-primary/40 text-[10px] font-black tracking-[0.2em] uppercase mb-4">Recent Attendance</h4>
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            </div>
+          ) : sessions.length === 0 ? (
+            <p className="text-[#333] text-[10px] font-bold uppercase tracking-widest text-center py-4">No records found.</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
               {sessions.map(s => (
-                <div key={s.id} className="flex justify-between text-xs py-1.5 border-b border-border/50">
-                  <span className="text-white">{s.sessionDate}</span>
-                  <span className="text-muted">{s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) || '—'}</span>
+                <div key={s.id} className="flex justify-between items-center py-2 border-b border-[#1a1a1a]/50 group hover:border-primary/20 transition-colors">
+                  <span className="text-primary/60 text-[10px] font-mono">{s.sessionDate}</span>
+                  <span className="text-white font-bold text-[10px] tracking-widest uppercase">
+                    {s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || '—'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -153,23 +163,23 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
   if (successMember) {
     return (
       <Modal title="Success" onClose={onClose}>
-        <div className="text-center py-6 space-y-6">
-          <div className="w-16 h-16 bg-success/20 text-success rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check size={32} />
+        <div className="text-center py-8 space-y-8">
+          <div className="w-20 h-20 bg-success/10 text-success rounded-full flex items-center justify-center mx-auto mb-6 border border-success/20">
+            <Check size={40} strokeWidth={3} />
           </div>
           <div>
-            <h3 className="text-white font-bold text-xl">Member Added Successfully!</h3>
-            <p className="text-muted text-sm mt-1">Would you like to send a welcome message via WhatsApp?</p>
+            <h3 className="text-white font-black text-2xl uppercase tracking-tight">Member Added!</h3>
+            <p className="text-[#555] text-xs font-bold tracking-widest uppercase mt-2">The membership is now active.</p>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <button
               onClick={() => { sendWelcomeMessage(successMember); onClose(); }}
-              className="w-full bg-[#25D366] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/90 transition-colors"
+              className="w-full bg-[#25D366] text-white font-black py-4 rounded-sm flex items-center justify-center gap-3 hover:bg-[#25D366]/90 transition-all uppercase text-[10px] tracking-[0.2em]"
             >
               <MessageCircle size={20} /> Send Welcome WhatsApp
             </button>
-            <button onClick={onClose} className="w-full text-muted hover:text-white py-2 text-sm transition-colors">
-              Skip
+            <button onClick={onClose} className="w-full text-[#444] hover:text-white py-2 text-[10px] font-bold uppercase tracking-widest transition-colors">
+              Close
             </button>
           </div>
         </div>
@@ -177,56 +187,66 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
     );
   }
 
-  const inputClass = "w-full bg-secondary border border-border text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors";
+  const inputClass = "w-full bg-[#111] border border-[#1a1a1a] text-white rounded-sm px-4 py-3 text-sm font-bold focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#333]";
+  const labelClass = "text-[#555] text-[10px] font-black tracking-[0.2em] uppercase mb-2 block";
 
   return (
     <Modal title={editingMember ? "Edit Member" : "Add New Member"} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-error text-xs">{error}</p>}
-        {[['name', 'Full Name', 'text'], ['phone', 'Phone', 'tel'], ['email', 'Email', 'email']].map(([f, l, t]) => (
-          <div key={f}>
-            <label className="text-muted text-xs mb-1 block">{l}</label>
-            <input type={t} required value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && <div className="bg-error/10 border border-error/30 text-error text-[10px] font-bold uppercase tracking-widest rounded-sm px-4 py-3">{error}</div>}
+        
+        <div className="space-y-4">
+          {[['name', 'Full Name', 'text'], ['phone', 'Phone', 'tel'], ['email', 'Email', 'email']].map(([f, l, t]) => (
+            <div key={f}>
+              <label className={labelClass}>{l}</label>
+              <input type={t} required value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} placeholder={`Enter ${l.toLowerCase()}...`} />
+            </div>
+          ))}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Amount (₹)</label>
+              <input type="number" required value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className={inputClass} placeholder="0" />
+            </div>
+            <div>
+              <label className={labelClass}>Duration (Days)</label>
+              <input type="number" required value={form.durationDays} onChange={e => setForm({ ...form, durationDays: e.target.value })} className={inputClass} placeholder="30" />
+            </div>
           </div>
-        ))}
-        <div className="grid grid-cols-2 gap-4">
+          
           <div>
-            <label className="text-muted text-xs mb-1 block">Amount (₹)</label>
-            <input type="number" required value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className={inputClass} />
-          </div>
-          <div>
-            <label className="text-muted text-xs mb-1 block">Duration (Days)</label>
-            <input type="number" required value={form.durationDays} onChange={e => setForm({ ...form, durationDays: e.target.value })} className={inputClass} />
+            <label className={labelClass}>Membership Start Date</label>
+            <input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputClass} />
           </div>
         </div>
-        <div>
-          <label className="text-muted text-xs mb-1 block">Membership Start Date</label>
-          <input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputClass} />
-        </div>
+
         {!editingMember && (
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg space-y-3">
-            <label className="text-primary text-[10px] font-bold tracking-widest uppercase block">When do you want to start the workout schedule?</label>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#111] border border-[#1a1a1a] p-6 rounded-sm space-y-4">
+            <label className="text-primary text-[10px] font-black tracking-[0.3em] uppercase block">Workout Schedule Start</label>
+            <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setForm({ ...form, workoutStartPreference: 'today' })}
-                className={`py-2 text-[10px] font-bold tracking-widest uppercase border rounded transition-all ${form.workoutStartPreference === 'today' ? 'bg-primary border-primary text-black' : 'border-[#222] text-[#555]'}`}
+                className={`py-3 text-[10px] font-black tracking-widest uppercase border rounded-sm transition-all ${form.workoutStartPreference === 'today' ? 'bg-primary border-primary text-black' : 'border-[#1a1a1a] text-[#444] hover:border-[#333]'}`}
               >
-                Start Today
+                Today
               </button>
               <button
                 type="button"
                 onClick={() => setForm({ ...form, workoutStartPreference: 'tomorrow' })}
-                className={`py-2 text-[10px] font-bold tracking-widest uppercase border rounded transition-all ${form.workoutStartPreference === 'tomorrow' ? 'bg-primary border-primary text-black' : 'border-[#222] text-[#555]'}`}
+                className={`py-3 text-[10px] font-black tracking-widest uppercase border rounded-sm transition-all ${form.workoutStartPreference === 'tomorrow' ? 'bg-primary border-primary text-black' : 'border-[#1a1a1a] text-[#444] hover:border-[#333]'}`}
               >
-                Start Tomorrow
+                Tomorrow
               </button>
             </div>
           </div>
         )}
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm text-muted">Cancel</button>
-          <button type="submit" disabled={loading} className="px-5 py-2 text-sm bg-primary text-black font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50">
+
+        <div className="flex gap-4 pt-4">
+          <button type="button" onClick={onClose} className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] border border-[#1a1a1a] text-[#444] hover:text-white transition-all">
+            Cancel
+          </button>
+          <button type="submit" disabled={loading} className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all disabled:opacity-50">
             {loading ? 'Processing...' : (editingMember ? 'Save Changes' : 'Add Member')}
           </button>
         </div>
