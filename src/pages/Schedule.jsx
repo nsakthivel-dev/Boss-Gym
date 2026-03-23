@@ -49,10 +49,18 @@ const Schedule = () => {
       const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
       let scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      if (scheduleData.length === 0) {
+      // Auto-migrate if it's the old 30-day schedule or empty
+      if (scheduleData.length === 0 || scheduleData.length === 30) {
+        console.log("Migrating to 7-day cycle...");
+        // Clear existing if any
+        if (scheduleData.length === 30) {
+          for (const d of scheduleSnap.docs) {
+            await deleteDoc(doc(db, 'workout_schedule', d.id));
+          }
+        }
+        
         // Initialize with the new 7-day cycle
         const initial = DEFAULT_7_DAY_CYCLE;
-        
         for (const item of initial) {
           await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
         }
@@ -70,9 +78,16 @@ const Schedule = () => {
 
   const getDayWorkout = (date, member) => {
     if (!member || !member.workoutStartDate) return null;
+    
+    // Normalize both dates to midnight to get accurate day difference
     const start = member.workoutStartDate.toDate();
-    const diffTime = date.getTime() - start.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    start.setHours(0, 0, 0, 0);
+    
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = targetDate.getTime() - start.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) return null; // Before start date
     
