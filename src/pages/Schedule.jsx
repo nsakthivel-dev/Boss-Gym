@@ -1,13 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import {
-  collection, getDocs, doc, setDoc, updateDoc, query, orderBy, Timestamp
+  collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, Timestamp
 } from 'firebase/firestore';
 import { 
   Calendar, Users, ChevronLeft, ChevronRight, Edit3, Save, X, 
   Dumbbell, Coffee, Info, Loader2, Plus, Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+const DEFAULT_7_DAY_CYCLE = [
+  { day: 1, title: 'CHEST WORKOUT', muscles: 'Chest · Upper Chest · Lower Chest', isRest: false },
+  { day: 2, title: 'BACK WORKOUT', muscles: 'Lats · Traps · Lower Back', isRest: false },
+  { day: 3, title: 'SHOULDER', muscles: 'Deltoids · Rear Delts', isRest: false },
+  { day: 4, title: 'BICEPS', muscles: 'Biceps Brachii · Brachialis', isRest: false },
+  { day: 5, title: 'LEGS', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false },
+  { day: 6, title: 'TRICEPS', muscles: 'Long Head · Lateral Head · Medial Head', isRest: false },
+  { day: 7, title: 'REST', muscles: 'Recovery & Stretching', isRest: true }
+].map(item => ({
+  ...item,
+  exercises: [
+    { name: "Main Exercise 1", sets: "4", reps: "10-12", notes: "Heavy & Controlled" },
+    { name: "Secondary Exercise 1", sets: "3", reps: "12-15", notes: "Focus on squeeze" }
+  ]
+}));
 
 const Schedule = () => {
   const { userRole } = useAuth();
@@ -34,36 +50,8 @@ const Schedule = () => {
       let scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
       if (scheduleData.length === 0) {
-        // Initialize from default if empty (Simplified version of sch.txt parsing)
-        const initial = Array.from({ length: 30 }, (_, i) => {
-          const day = i + 1;
-          let title = "PUSH DAY";
-          let muscles = "Chest · Shoulders · Triceps";
-          let isRest = false;
-          
-          if (day % 7 === 0) {
-            title = "REST DAY";
-            muscles = "Recovery & Stretching";
-            isRest = true;
-          } else if (day % 3 === 2) {
-            title = "PULL DAY";
-            muscles = "Back · Biceps · Rear Delts";
-          } else if (day % 3 === 0) {
-            title = "LEG DAY";
-            muscles = "Quads · Hamstrings · Glutes · Calves";
-          }
-          
-          return {
-            day,
-            title,
-            muscles,
-            exercises: [
-              { name: "Exercise 1", sets: "3", reps: "12", notes: "Master form" },
-              { name: "Exercise 2", sets: "3", reps: "12", notes: "Control tempo" }
-            ],
-            isRest
-          };
-        });
+        // Initialize with the new 7-day cycle
+        const initial = DEFAULT_7_DAY_CYCLE;
         
         for (const item of initial) {
           await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
@@ -154,11 +142,27 @@ const Schedule = () => {
   const handleUpdateSchedule = async (updatedSchedule) => {
     setLoading(true);
     try {
+      // Get current schedule days to identify ones to delete
+      const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
+      const existingDays = scheduleSnap.docs.map(d => d.id);
+      
+      // Upsert current schedule items
       for (const item of updatedSchedule) {
-        await updateDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
+        await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
       }
+      
+      // Delete any days that are no longer in the schedule (e.g. going from 30 to 7 days)
+      const updatedDayIds = updatedSchedule.map(item => `day-${item.day}`);
+      const daysToDelete = existingDays.filter(id => !updatedDayIds.includes(id));
+      
+      for (const dayId of daysToDelete) {
+        await deleteDoc(doc(db, 'workout_schedule', dayId));
+      }
+
       setBaseSchedule(updatedSchedule);
       setEditingSchedule(false);
+    } catch (err) {
+      console.error("Error updating schedule:", err);
     } finally {
       setLoading(false);
     }
@@ -339,9 +343,21 @@ const Schedule = () => {
                 <h3 className="text-2xl font-black text-primary uppercase tracking-tight">Edit Master Schedule</h3>
                 <p className="text-[#555] text-[10px] font-bold uppercase tracking-widest mt-1">Changes reflect across all members</p>
               </div>
-              <button onClick={() => setEditingSchedule(false)} className="p-2 text-[#444] hover:text-white transition-colors">
-                <X size={24} />
-              </button>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => {
+                    if (window.confirm("This will reset the entire schedule to the default 7-day cycle. Continue?")) {
+                      setBaseSchedule(DEFAULT_7_DAY_CYCLE);
+                    }
+                  }}
+                  className="px-4 py-2 border border-primary/20 text-primary/60 text-[10px] font-bold uppercase tracking-widest hover:bg-primary/5 hover:text-primary transition-all rounded-sm"
+                >
+                  Reset to 7-Day Cycle
+                </button>
+                <button onClick={() => setEditingSchedule(false)} className="p-2 text-[#444] hover:text-white transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-4">
               {baseSchedule.map((day, idx) => (
