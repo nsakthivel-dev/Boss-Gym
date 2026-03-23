@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 
 // Pages
 import Login from './pages/Login';
-import Setup from './pages/Setup';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 
 
@@ -26,8 +26,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/setup" element={<Setup />} />
-          <Route path="/setup" element={<Setup />} />
+          <Route path="/register" element={<Register />} />
 
           <Route path="/checkin" element={<CheckinPage />} />
 

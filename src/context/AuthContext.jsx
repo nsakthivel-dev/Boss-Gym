@@ -31,7 +31,8 @@ export const AuthProvider = ({ children }) => {
             setUserRole(role);
             if (role === 'admin') seedDatabase();
           } else {
-            setUserRole(null);
+            // Default to admin for new non-role based accounts
+            setUserRole('admin');
           }
         } else {
           setCurrentUser(null);

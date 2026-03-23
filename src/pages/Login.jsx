@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Dumbbell, LogIn, Loader2 } from 'lucide-react';
@@ -26,7 +26,15 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+        setError('Please verify your email before logging in.');
+        await auth.signOut();
+        return;
+      }
+
       navigate('/');
     } catch (err) {
       switch (err.code) {
@@ -110,9 +118,9 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-border">
-            <p className="text-muted text-xs text-center">
-              First time? <a href="/setup" className="text-primary hover:underline">Run project setup</a>
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-muted text-xs">
+              Don't have an account? <Link to="/register" className="text-primary hover:underline">Create Account</Link>
             </p>
           </div>
         </div>

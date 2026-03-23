@@ -35,10 +35,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_id
 VITE_FIREBASE_APP_ID=your_id
 ```
 
-### 3. Setup
-Navigate to `/setup` in your browser and run the project initializer to create the default Admin and Staff accounts.
-
-### 4. Run locally
+### 3. Run locally
 ```bash
 npm run dev
 ```
