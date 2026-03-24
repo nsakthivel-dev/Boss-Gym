@@ -33,7 +33,7 @@ const Modal = ({ title, children, onClose }) => (
   </div>
 );
 
-const MemberProfileModal = ({ member, onClose }) => {
+const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp }) => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +55,32 @@ const MemberProfileModal = ({ member, onClose }) => {
 
   return (
     <Modal title={member.name} onClose={onClose}>
-      <div className="space-y-6">
+      <div className="space-y-8">
+        {/* Quick Actions */}
+        <div className="grid grid-cols-3 gap-3">
+          <button 
+            onClick={() => { onWhatsApp(member); onClose(); }}
+            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#0d1a10] border border-[#1a2e1d] rounded-sm hover:bg-[#1a2e1d] transition-all group"
+          >
+            <MessageCircle className="text-[#25D366] w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-[8px] font-black text-[#25D366] uppercase tracking-widest">WhatsApp</span>
+          </button>
+          <button 
+            onClick={() => { onEdit(member); onClose(); }}
+            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#111] border border-[#1a1a1a] rounded-sm hover:border-primary/30 transition-all group"
+          >
+            <Edit className="text-primary/60 w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">Edit</span>
+          </button>
+          <button 
+            onClick={() => { onDelete(member); onClose(); }}
+            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#1a0d0d] border border-[#2e1a1a] rounded-sm hover:bg-[#2e1a1a] transition-all group"
+          >
+            <Trash2 className="text-error w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-[8px] font-black text-error uppercase tracking-widest">Delete</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
           {[
             ['Phone', member.phone],
@@ -286,6 +311,33 @@ const Members = () => {
     }
   };
 
+  const handleRenew = async (m) => {
+    const isExpired = m.status === 'expired';
+    if (!isExpired) return;
+    
+    if (!window.confirm(`Renew subscription for ${m.name}?`)) return;
+    
+    setLoading(true);
+    try {
+      const duration = Number(m.durationDays) || 30;
+      const newStartDate = new Date();
+      newStartDate.setHours(0,0,0,0);
+      const newEndDate = new Date(newStartDate.getTime() + duration * 86400000);
+      
+      await updateDoc(doc(db, 'members', m.id), {
+        startDate: Timestamp.fromDate(newStartDate),
+        endDate: Timestamp.fromDate(newEndDate),
+        status: 'active',
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+      await loadData();
+    } catch (err) {
+      alert('Renewal failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => { loadData(); }, []);
 
   const filtered = members
@@ -371,7 +423,7 @@ const Members = () => {
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Phone</th>
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Plan</th>
                   <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Status</th>
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase text-right">Actions</th>
+                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase text-right">Subscription</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1a1a1a] block md:table-row-group">
@@ -379,10 +431,11 @@ const Members = () => {
                   const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
                   const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                   const uid = m.uid || `BOSS-${2024 + (idx % 3)}-${String(idx + 1).padStart(3, '0')}`;
+                  const isExpired = m.status === 'expired';
 
                   return (
                     <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-6 md:p-0">
-                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell">
+                      <td onClick={() => setViewMember(m)} className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell cursor-pointer">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
                             {initials}
@@ -419,13 +472,18 @@ const Members = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell">
-                        <div className="flex items-center md:justify-end gap-2 md:gap-1 opacity-80 md:opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => sendWelcomeMessage(m)} className="p-2 text-[#25D366] hover:text-[#25D366]/80 transition-colors" title="WhatsApp"><MessageCircle size={16} /></button>
-                          <button onClick={() => setViewMember(m)} className="p-2 text-primary/40 hover:text-info transition-colors" title="View Profile"><Eye size={16} /></button>
-                          <button onClick={() => setEditingMember(m)} className="p-2 text-primary/40 hover:text-warning transition-colors" title="Edit Member"><Edit size={16} /></button>
-                          <button onClick={() => handleDelete(m)} className="p-2 text-error/40 hover:text-error transition-colors" title="Delete"><Trash2 size={16} /></button>
-                        </div>
+                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell text-right">
+                        <button 
+                          onClick={() => handleRenew(m)}
+                          disabled={!isExpired}
+                          className={`px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${
+                            isExpired 
+                              ? 'bg-primary text-black hover:bg-white cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]' 
+                              : 'bg-[#111] border border-[#1a1a1a] text-[#333] cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          Renew Subscription
+                        </button>
                       </td>
                     </tr>
                   );
@@ -446,7 +504,15 @@ const Members = () => {
 
       {showAdd && <MemberFormModal onClose={() => setShowAdd(false)} onSaved={loadData} />}
       {editingMember && <MemberFormModal editingMember={editingMember} onClose={() => setEditingMember(null)} onSaved={loadData} />}
-      {viewMember && <MemberProfileModal member={viewMember} onClose={() => setViewMember(null)} />}
+      {viewMember && (
+        <MemberProfileModal 
+          member={viewMember} 
+          onClose={() => setViewMember(null)} 
+          onEdit={setEditingMember}
+          onDelete={handleDelete}
+          onWhatsApp={sendWelcomeMessage}
+        />
+      )}
     </div>
   );
 };
