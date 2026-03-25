@@ -15,6 +15,7 @@ const CheckinPage = () => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [memberData, setMemberData] = useState(null);
+  const [workout, setWorkout] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [debug, setDebug] = useState(null);
 
@@ -159,6 +160,23 @@ const CheckinPage = () => {
           editedBy: null,
           createdAt: serverTimestamp()
         });
+        const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
+        const baseSchedule = scheduleSnap.docs.map(d => d.data());
+
+        if (baseSchedule.length > 0 && member.workoutStartDate) {
+          const start = member.workoutStartDate.toDate();
+          start.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const diffTime = today.getTime() - start.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 0) {
+            const cycleIndex = diffDays % baseSchedule.length;
+            setWorkout(baseSchedule[cycleIndex]);
+          }
+        }
+
         setMemberData({ name: member.name, entryTime });
         setPageState('success_entry');
       } else {
@@ -374,9 +392,19 @@ const CheckinPage = () => {
             <h2 className="text-[#4ade80] text-[28px] font-bold tracking-[3px] mb-2 uppercase">ENTRY</h2>
             <p className="text-white text-[26px] font-bold mb-1">{memberData.name}</p>
             <p className="text-[#a3a3a3] text-[15px] mb-4">{time}</p>
-            <p className="text-[#a3a3a3] text-[14px]">Welcome! Have a great workout 💪</p>
+            
+            {workout ? (
+              <div className="bg-black/20 border border-white/10 rounded-lg p-4 w-full my-4 text-center">
+                <p className="text-primary text-sm font-bold tracking-widest uppercase">Today's Workout</p>
+                <p className="text-white font-bold text-lg mt-1">{workout.title}</p>
+                <p className="text-xs text-muted-foreground">{workout.muscles}</p>
+              </div>
+            ) : (
+              <p className="text-[#a3a3a3] text-[14px]">Welcome! Have a great workout 💪</p>
+            )}
+
             <button 
-              onClick={() => { setPhone(''); setPageState('form'); }}
+              onClick={() => { setPhone(''); setPageState('form'); setWorkout(null); }}
               className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
             >
               Done / Mark Another
