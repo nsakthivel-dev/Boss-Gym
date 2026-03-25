@@ -160,25 +160,31 @@ const CheckinPage = () => {
           editedBy: null,
           createdAt: serverTimestamp()
         });
-        const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
-        const baseSchedule = scheduleSnap.docs.map(d => d.data());
-
-        if (baseSchedule.length > 0 && member.workoutStartDate) {
-          const start = member.workoutStartDate.toDate();
-          start.setHours(0, 0, 0, 0);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const diffTime = today.getTime() - start.getTime();
-          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-          if (diffDays >= 0) {
-            const cycleIndex = diffDays % baseSchedule.length;
-            setWorkout(baseSchedule[cycleIndex]);
-          }
-        }
-
         setMemberData({ name: member.name, entryTime });
         setPageState('success_entry');
+
+        // Optional: Fetch workout info for the success screen
+        try {
+          const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
+          const baseSchedule = scheduleSnap.docs.map(d => d.data());
+
+          if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
+            const start = member.workoutStartDate.toDate();
+            start.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const diffTime = today.getTime() - start.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays >= 0) {
+              const cycleIndex = diffDays % baseSchedule.length;
+              setWorkout(baseSchedule[cycleIndex]);
+            }
+          }
+        } catch (workoutErr) {
+          console.error("Error fetching workout for check-in:", workoutErr);
+          // Don't crash the whole check-in process if workout fetch fails
+        }
       } else {
         // Exit flow
         const openSession = { id: sessionSnapshot.docs[0].id, ...sessionSnapshot.docs[0].data() };
