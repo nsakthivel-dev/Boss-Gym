@@ -103,23 +103,29 @@ const CheckinPage = () => {
       const memberDoc = querySnapshot.docs[0];
       const member = { id: memberDoc.id, ...memberDoc.data() };
 
-        // Fetch workout schedule
-        const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
-        const baseSchedule = scheduleSnap.docs.map(d => d.data());
-
         let todaysWorkout = null;
-        if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
-          const start = member.workoutStartDate.toDate();
-          start.setHours(0, 0, 0, 0);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const diffTime = today.getTime() - start.getTime();
-          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        try {
+          // Fetch workout schedule - simple fetch to avoid index requirements for orderBy
+          const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
+          const baseSchedule = scheduleSnap.docs
+            .map(d => d.data())
+            .sort((a, b) => a.day - b.day);
 
-          if (diffDays >= 0) {
-            const cycleIndex = diffDays % baseSchedule.length;
-            todaysWorkout = baseSchedule[cycleIndex];
+          if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
+            const start = member.workoutStartDate.toDate();
+            start.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const diffTime = today.getTime() - start.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays >= 0) {
+              const cycleIndex = diffDays % baseSchedule.length;
+              todaysWorkout = baseSchedule[cycleIndex];
+            }
           }
+        } catch (workoutErr) {
+          console.error("Workout fetch failed:", workoutErr);
         }
 
         // Step 6: Check expiry
