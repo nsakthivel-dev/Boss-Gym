@@ -103,8 +103,27 @@ const CheckinPage = () => {
       const memberDoc = querySnapshot.docs[0];
       const member = { id: memberDoc.id, ...memberDoc.data() };
 
-      // Step 6: Check expiry
-      const today = new Date();
+        // Fetch workout schedule
+        const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
+        const baseSchedule = scheduleSnap.docs.map(d => d.data());
+
+        let todaysWorkout = null;
+        if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
+          const start = member.workoutStartDate.toDate();
+          start.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const diffTime = today.getTime() - start.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 0) {
+            const cycleIndex = diffDays % baseSchedule.length;
+            todaysWorkout = baseSchedule[cycleIndex];
+          }
+        }
+
+        // Step 6: Check expiry
+        const today = new Date();
       today.setHours(0, 0, 0, 0);
       const endDate = member.endDate.toDate();
       if (endDate < today) {
@@ -161,30 +180,8 @@ const CheckinPage = () => {
           createdAt: serverTimestamp()
         });
         setMemberData({ name: member.name, entryTime });
+        setWorkout(todaysWorkout);
         setPageState('success_entry');
-
-        // Optional: Fetch workout info for the success screen
-        try {
-          const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
-          const baseSchedule = scheduleSnap.docs.map(d => d.data());
-
-          if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
-            const start = member.workoutStartDate.toDate();
-            start.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const diffTime = today.getTime() - start.getTime();
-            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays >= 0) {
-              const cycleIndex = diffDays % baseSchedule.length;
-              setWorkout(baseSchedule[cycleIndex]);
-            }
-          }
-        } catch (workoutErr) {
-          console.error("Error fetching workout for check-in:", workoutErr);
-          // Don't crash the whole check-in process if workout fetch fails
-        }
       } else {
         // Exit flow
         const openSession = { id: sessionSnapshot.docs[0].id, ...sessionSnapshot.docs[0].data() };
