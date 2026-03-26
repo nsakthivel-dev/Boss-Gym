@@ -1,10 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserLocalPersistence } from "firebase/auth";
-import { 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
-} from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 // Log configuration status (subtle for debugging)
 const hasConfig = !!import.meta.env.VITE_FIREBASE_API_KEY;
@@ -23,18 +19,16 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase with safety
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-} catch (err) {
-  console.error("Firebase Initialization Failed:", err);
-}
+const app = initializeApp(firebaseConfig);
 
-export const auth = app ? initializeAuth(app, {
+export const auth = initializeAuth(app, {
   persistence: browserLocalPersistence
-}) : null;
+});
 
-export const db = app ? initializeFirestore(app, {
-  // Simple persistent cache without complex tab manager for better stability
-  localCache: persistentLocalCache()
-}) : null;
+// Force Long Polling to prevent net::ERR_ABORTED on Firestore listeners
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
+});
+
+
