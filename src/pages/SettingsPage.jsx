@@ -8,6 +8,7 @@ import {
   Database, 
   Save, 
   Globe,
+  Palette,
   Smartphone,
   Mail,
   Lock,
@@ -76,7 +77,8 @@ const SettingsPage = () => {
     notifyExpiry: true,
     notifyAttendance: true,
     browserNotifications: true,
-    whatsappWelcome: true
+    whatsappWelcome: true,
+    theme: 'gold'
   });
 
   useEffect(() => {
@@ -138,6 +140,7 @@ const SettingsPage = () => {
   const tabs = [
     { id: 'general', label: 'General', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
   ];
 
   if (loading) return (
@@ -309,6 +312,43 @@ const SettingsPage = () => {
                   checked={settings.whatsappWelcome}
                   onChange={(val) => updateSetting('whatsappWelcome', val)}
                 />
+              </SettingSection>
+
+              <div className="flex justify-end pt-4">
+                <button 
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 bg-primary text-black font-black px-8 py-3 rounded-sm uppercase text-xs tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'appearance' && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <SettingSection 
+                title="Theme & Styling" 
+                description="Customize the dashboard look"
+              >
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <button 
+                    onClick={() => updateSetting('theme', 'gold')}
+                    className={`p-4 border rounded-xl text-left transition-all ${settings.theme === 'gold' ? 'border-primary bg-primary/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
+                  >
+                    <div className="w-6 h-6 bg-primary rounded-full mb-2" />
+                    <span className={`text-xs font-bold uppercase tracking-widest ${settings.theme === 'gold' ? 'text-white' : 'text-[#555]'}`}>Elite Gold (Default)</span>
+                  </button>
+                  <button 
+                    onClick={() => updateSetting('theme', 'blue')}
+                    className={`p-4 border rounded-xl text-left transition-all ${settings.theme === 'blue' ? 'border-blue-500 bg-blue-500/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
+                  >
+                    <div className="w-6 h-6 bg-blue-500 rounded-full mb-2" />
+                    <span className={`text-xs font-bold uppercase tracking-widest ${settings.theme === 'blue' ? 'text-white' : 'text-[#555]'}`}>Iron Blue</span>
+                  </button>
+                </div>
               </SettingSection>
 
               <div className="flex justify-end pt-4">
