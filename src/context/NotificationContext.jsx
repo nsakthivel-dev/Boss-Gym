@@ -11,6 +11,10 @@ export const NotificationProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!db) {
+      setLoading(false);
+      return;
+    }
     // Fetch membership alerts (expiring in 7 days or already expired)
     const membersRef = collection(db, 'members');
     

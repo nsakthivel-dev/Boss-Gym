@@ -8,10 +8,19 @@ import {
   getTodayString
 } from "./notifications"
 
-const GYM_NAME = import.meta.env.VITE_GYM_NAME || "BOSS GYM"
+const getGymName = async () => {
+  try {
+    const docRef = doc(db, "settings", "config");
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? docSnap.data().gymName : "BOSS GYM";
+  } catch (err) {
+    return "BOSS GYM";
+  }
+};
 
 export async function checkAndNotifyExpiring() {
   try {
+    const gymName = await getGymName();
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayStr = getTodayString()
@@ -88,7 +97,7 @@ export async function checkAndNotifyExpiring() {
     // Send summary notification first (appears at top)
     if (expiringMembers.length > 0 || expiredMembers.length > 0) {
       sendBrowserNotification(
-        `🏋️ ${GYM_NAME} — Daily Alert`,
+        `🏋️ ${gymName} — Daily Alert`,
         `${expiringMembers.length} expiring soon, ${expiredMembers.length} already expired. Check dashboard.`
       )
     }

@@ -1,6 +1,5 @@
 // Opens WhatsApp with pre-filled membership expiry alert
-export function sendExpiryAlert(member, daysLeft) {
-  const gymName = import.meta.env.VITE_GYM_NAME || "BOSS GYM"
+export function sendExpiryAlert(member, daysLeft, gymName = "BOSS GYM") {
   const expiryDate = member.endDate?.toDate?.() ? member.endDate.toDate().toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -26,8 +25,7 @@ ${gymName} Team 🏋️`
 }
 
 // Opens WhatsApp with pre-filled membership expired alert
-export function sendExpiredAlert(member) {
-  const gymName = import.meta.env.VITE_GYM_NAME || "BOSS GYM"
+export function sendExpiredAlert(member, gymName = "BOSS GYM") {
   const planInfo = member.planName || (member.price ? `₹${member.price} / ${member.durationDays}d` : "Gym");
 
   const message = `Hi ${member.name}! 👋
@@ -47,8 +45,7 @@ ${gymName} Team 🏋️`
 }
 
 // Opens WhatsApp with pre-filled welcome message for new member
-export function sendWelcomeMessage(member) {
-  const gymName = import.meta.env.VITE_GYM_NAME || "BOSS GYM"
+export function sendWelcomeMessage(member, gymName = "BOSS GYM") {
   const expiryDate = member.endDate?.toDate?.() ? member.endDate.toDate().toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",

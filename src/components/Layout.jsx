@@ -3,9 +3,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { auth, db } from '../firebase/config';
+import { useSettings } from '../context/SettingsContext';
+import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
   Users, 
@@ -29,29 +29,11 @@ const Layout = () => {
   const { userRole } = useAuth();
   const { alerts, alertCount } = useNotification();
   const navigate = useNavigate();
+  const { settings: gymSettings } = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [gymSettings, setGymSettings] = useState({ gymName: 'Boss Gym', theme: 'gold' });
   const notificationRef = useRef(null);
-
-  // Subscribe to gym settings for real-time name and theme updates
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'config'), (doc) => {
-      if (doc.exists()) {
-        setGymSettings(doc.data());
-        
-        // Apply theme globally
-        const theme = doc.data().theme || 'gold';
-        if (theme === 'blue') {
-          document.documentElement.classList.add('theme-blue');
-        } else {
-          document.documentElement.classList.remove('theme-blue');
-        }
-      }
-    });
-    return () => unsub();
-  }, []);
 
   // Close notifications on click outside
   useEffect(() => {

@@ -4,6 +4,8 @@ import {
   collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
 } from 'firebase/firestore';
+import { useNotification } from '../context/NotificationContext';
+import { useSettings } from '../context/SettingsContext';
 import {
   Users, Plus, Search, X, Download, Loader2, Eye, Edit, Trash2, ChevronLeft, ChevronRight,
   QrCode, MessageCircle, Check, TrendingUp, Wallet, ShieldCheck, MoreVertical, ExternalLink
@@ -121,6 +123,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp }) =
 };
 
 const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
+  const { settings: gymSettings } = useSettings();
   const [form, setForm] = useState({
     name: editingMember?.name || '',
     phone: editingMember?.phone || '',
@@ -198,7 +201,7 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
           </div>
           <div className="flex flex-col gap-4">
             <button
-              onClick={() => { sendWelcomeMessage(successMember); onClose(); }}
+              onClick={() => { sendWelcomeMessage(successMember, gymSettings?.gymName); onClose(); }}
               className="w-full bg-[#25D366] text-white font-black py-4 rounded-sm flex items-center justify-center gap-3 hover:bg-[#25D366]/90 transition-all uppercase text-[10px] tracking-[0.2em]"
             >
               <MessageCircle size={20} /> Send Welcome WhatsApp
@@ -281,6 +284,7 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
 };
 
 const Members = () => {
+  const { settings: gymSettings } = useSettings();
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -510,7 +514,21 @@ const Members = () => {
           onClose={() => setViewMember(null)} 
           onEdit={setEditingMember}
           onDelete={handleDelete}
-          onWhatsApp={sendWelcomeMessage}
+          onWhatsApp={(m) => {
+            if (m.status === 'expired') {
+              sendExpiredAlert(m, gymSettings?.gymName);
+            } else {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const endDate = m.endDate.toDate();
+              const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+              if (daysLeft <= 7) {
+                sendExpiryAlert(m, daysLeft, gymSettings?.gymName);
+              } else {
+                sendWelcomeMessage(m, gymSettings?.gymName);
+              }
+            }
+          }}
         />
       )}
     </div>

@@ -1,8 +1,10 @@
 import React from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Download } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const WallQRModal = ({ onClose }) => {
+  const { settings: gymSettings } = useSettings();
   const checkinURL = "https://boss-gym.onrender.com/checkin";
 
 
@@ -29,7 +31,7 @@ const WallQRModal = ({ onClose }) => {
     ctx.font = "bold 18px Inter, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(
-      import.meta.env.VITE_GYM_NAME || "GYM",
+      gymSettings?.gymName || "GYM",
       exportCanvas.width / 2,
       canvas.height + padding + 35
     );

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import { useNotification } from '../context/NotificationContext';
+import { useSettings } from '../context/SettingsContext';
 import {
   collection, query, where, getDocs, onSnapshot,
   getCountFromServer, Timestamp
@@ -48,6 +49,7 @@ const StatCard = ({ label, value, icon, color }) => {
 
 const Dashboard = () => {
   const { alerts: expiryAlerts, alertCount } = useNotification();
+  const { settings: gymSettings } = useSettings();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({ total: 0, presentToday: 0, totalToday: 0 });
@@ -323,10 +325,11 @@ const Dashboard = () => {
                         {daysLeft}d left
                       </span>
                       <button
-                        onClick={() => sendExpiryAlert(m, daysLeft)}
-                        className="bg-[#25D366] text-white p-1.5 rounded-lg hover:bg-[#25D366]/80 flex items-center gap-1 text-[10px] font-bold"
+                        onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
+                        className="bg-primary/10 text-primary px-3 py-1.5 rounded flex items-center gap-1.5 hover:bg-primary/20 transition-colors"
                       >
-                        <MessageCircle size={14} /> Alert
+                        <MessageCircle size={14} />
+                        WhatsApp
                       </button>
                     </div>
                   </div>

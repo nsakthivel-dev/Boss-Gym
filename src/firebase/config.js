@@ -35,7 +35,6 @@ export const auth = app ? initializeAuth(app, {
 }) : null;
 
 export const db = app ? initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+  // Simple persistent cache without complex tab manager for better stability
+  localCache: persistentLocalCache()
 }) : null;

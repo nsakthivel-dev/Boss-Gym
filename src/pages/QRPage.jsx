@@ -1,9 +1,11 @@
 import React from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Download, QrCode } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const QRPage = () => {
-  const gymName = import.meta.env.VITE_GYM_NAME || 'GYMCORE';
+  const { settings: gymSettings } = useSettings();
+  const gymName = gymSettings?.gymName || 'GYMCORE';
   const qrUrl = 'https://boss-gym.onrender.com/checkin';
 
   const downloadQR = () => {
