@@ -3,17 +3,18 @@ import {
   MessageCircle, 
   Phone, 
   Mail, 
-  Globe, 
-  BookOpen, 
   ChevronRight,
-  ExternalLink,
   LifeBuoy,
-  FileText,
-  Video
+  AlertTriangle,
+  Lightbulb,
+  ShieldCheck,
+  Code,
+  Zap,
+  Clock
 } from 'lucide-react';
 
 const SupportPage = () => {
-  const ContactCard = ({ icon: Icon, title, description, value, actionLabel, color }) => (
+  const ContactCard = ({ icon: Icon, title, description, value, color }) => (
     <div className="bg-card border border-border rounded-xl p-6 group hover:border-primary/30 transition-all duration-300">
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${color} bg-opacity-10 group-hover:scale-110 transition-transform`}>
         <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
@@ -29,19 +30,6 @@ const SupportPage = () => {
     </div>
   );
 
-  const ResourceItem = ({ title, duration, type }) => (
-    <div className="flex items-center justify-between py-4 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111] px-4 -mx-4 rounded-lg transition-colors cursor-pointer group">
-      <div className="flex items-center gap-4">
-        {type === 'video' ? <Video size={16} className="text-primary" /> : <FileText size={16} className="text-[#555]" />}
-        <div>
-          <h4 className="text-white text-xs font-bold uppercase tracking-widest group-hover:text-primary transition-colors">{title}</h4>
-          <p className="text-[10px] text-[#444] font-bold uppercase tracking-widest mt-0.5">{duration}</p>
-        </div>
-      </div>
-      <ExternalLink size={14} className="text-[#333] group-hover:text-white transition-colors" />
-    </div>
-  );
-
   return (
     <div className="max-w-5xl mx-auto space-y-12">
       {/* Header Section */}
@@ -51,7 +39,7 @@ const SupportPage = () => {
           <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Support Center</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter leading-none">How can we help?</h1>
-        <p className="text-muted text-sm uppercase tracking-widest font-bold max-w-xl mx-auto">Get expert assistance and resources for your gym management system</p>
+        <p className="text-muted text-sm uppercase tracking-widest font-bold max-w-xl mx-auto">Direct technical assistance from Lupus Venture</p>
       </div>
 
       {/* Contact Grid */}
@@ -79,59 +67,56 @@ const SupportPage = () => {
         />
       </div>
 
-      {/* Resources Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Knowledge Base */}
-        <div className="bg-card border border-border rounded-xl p-8">
-          <div className="flex items-center justify-between mb-8">
+      {/* New Bottom Section: Our Commitment */}
+      <div className="bg-[#0d0d0d] border border-primary/20 rounded-2xl p-8 md:p-12 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-primary/30" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
-              <BookOpen size={20} className="text-primary" />
-              <h2 className="text-xl font-black text-white uppercase tracking-tight">Quick Guides</h2>
+              <ShieldCheck size={24} className="text-primary" />
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Lupus Venture Commitment</h2>
             </div>
-            <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">View All</button>
-          </div>
-          <div className="space-y-2">
-            <ResourceItem title="Getting Started with Attendance" duration="5 min read" type="article" />
-            <ResourceItem title="Managing Member Plans" duration="8 min video" type="video" />
-            <ResourceItem title="QR Code System Setup" duration="3 min read" type="article" />
-            <ResourceItem title="Generating Revenue Reports" duration="12 min video" type="video" />
-            <ResourceItem title="Staff Role Management" duration="6 min read" type="article" />
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-            <div className="w-1.5 h-6 bg-primary" />
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-4">
-            {[
-              { q: "How do I reset a member's QR code?", a: "Go to the Members page, select the member, and click the Regenerate QR button in their profile settings." },
-              { q: "Can I use the app offline?", a: "Yes, the system has built-in offline support for check-ins, which will sync to the cloud once connection is restored." },
-              { q: "How to add multiple gym branches?", a: "Multi-branch support is available in our Enterprise plan. Please contact our sales team for an upgrade." }
-            ].map((faq, i) => (
-              <div key={i} className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-6 hover:border-[#222] transition-colors">
-                <h4 className="text-white text-xs font-black uppercase tracking-widest mb-2">{faq.q}</h4>
-                <p className="text-[#555] text-[10px] font-bold uppercase tracking-widest leading-relaxed">{faq.a}</p>
+            <p className="text-[#888] text-sm font-medium leading-relaxed max-w-2xl">
+              We are dedicated to providing the most reliable gym management experience. Our team at Lupus Venture monitors your system 24/7 to ensure zero downtime and peak performance for your business.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Zap size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Performance</span>
+                </div>
+                <p className="text-white text-xs font-bold uppercase tracking-widest">99.9% Uptime</p>
               </div>
-            ))}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Code size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Development</span>
+                </div>
+                <p className="text-white text-xs font-bold uppercase tracking-widest">Weekly Updates</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Clock size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Support</span>
+                </div>
+                <p className="text-white text-xs font-bold uppercase tracking-widest">Instant Fixes</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center bg-[#111] border border-[#1a1a1a] rounded-xl p-8 space-y-6">
+            <div className="text-center">
+              <p className="text-[#444] text-[10px] font-black uppercase tracking-[0.3em] mb-2">Technical Partner</p>
+              <h3 className="text-white font-black text-xl tracking-tighter uppercase">Lupus Venture</h3>
+            </div>
+            <button className="w-full bg-primary text-black font-black py-4 rounded-sm uppercase text-[10px] tracking-[0.2em] hover:scale-105 transition-transform shadow-xl shadow-primary/10">
+              Raise Priority Ticket
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Footer Support */}
-      <div className="bg-primary p-8 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <h3 className="text-black font-black text-2xl uppercase tracking-tighter">Need more help?</h3>
-          <p className="text-black/70 text-xs font-bold uppercase tracking-widest mt-1">Lupus Venture is here to resolve any issues with your website.</p>
-        </div>
-        <button className="bg-black text-primary font-black px-10 py-4 rounded-sm uppercase text-xs tracking-[0.2em] hover:scale-105 transition-all shadow-2xl">
-          Raise Ticket
-        </button>
       </div>
     </div>
   );
 };
 
 export default SupportPage;
+
