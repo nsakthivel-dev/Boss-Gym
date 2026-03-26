@@ -9,14 +9,11 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import { seedDatabase } from '../utils/seed';
 import {
-  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, QrCode, MessageCircle, Bell, CalendarCheck
+  Users, UserCheck, UserX, AlertTriangle, Clock, Loader2, MessageCircle, Bell, CalendarCheck
 } from 'lucide-react';
 import { requestNotificationPermission } from "../utils/notifications"
 import { checkAndNotifyExpiring } from "../utils/alertChecker"
 import { sendExpiryAlert } from '../utils/whatsapp';
-import WallQRModal from '../components/WallQRModal';
-
-import { QRCodeCanvas } from 'qrcode.react';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -55,7 +52,6 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, presentToday: 0, totalToday: 0 });
   const [liveInside, setLiveInside] = useState([]);
   const [todaySessions, setTodaySessions] = useState([]);
-  const [showQRModal, setShowQRModal] = useState(false);
 
   // Live refresh for duration display
   useEffect(() => {
@@ -146,13 +142,6 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-muted text-sm mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <button 
-          onClick={() => setShowQRModal(true)}
-          className="flex items-center gap-2 bg-transparent border border-[#2a2a2a] text-[#e8c97e] px-4 py-2 rounded-lg text-sm hover:border-[#e8c97e] transition-colors"
-        >
-          <QrCode size={16} />
-          Wall QR Code
-        </button>
       </div>
 
       {error && (
@@ -339,10 +328,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-
-      {showQRModal && (
-        <WallQRModal onClose={() => setShowQRModal(false)} />
-      )}
     </div>
   );
 };
