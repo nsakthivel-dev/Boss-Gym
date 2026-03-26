@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -16,38 +17,44 @@ import Reports from './pages/Reports';
 import Schedule from './pages/Schedule';
 import QRPage from './pages/QRPage';
 import CheckinPage from './pages/CheckinPage';
+import SettingsPage from './pages/SettingsPage';
+import SupportPage from './pages/SupportPage';
 
 
 function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <NotificationProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          <Route path="/checkin" element={<CheckinPage />} />
+            <Route path="/checkin" element={<CheckinPage />} />
 
-          {/* Protected Routes inside Layout */}
+            {/* Protected Routes inside Layout */}
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/members" element={<Members />} />
-              <Route path="/attendance" element={<Attendance />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/schedule" element={<Schedule />} />
-              <Route path="/qr" element={<QRPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/members" element={<Members />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/qr" element={<QRPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/support" element={<SupportPage />} />
 
+              </Route>
             </Route>
-          </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

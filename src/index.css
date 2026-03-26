@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #e8c97e;
+}
+
+.theme-blue {
+  --color-primary: #3b82f6;
+}
+
 @layer base {
   body {
     @apply bg-background text-white font-sans m-0 p-0 antialiased;

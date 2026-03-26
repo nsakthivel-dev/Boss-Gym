@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
+import { useNotification } from '../context/NotificationContext';
 import {
   collection, query, where, getDocs, onSnapshot,
   getCountFromServer, Timestamp
@@ -46,14 +47,13 @@ const StatCard = ({ label, value, icon, color }) => {
 };
 
 const Dashboard = () => {
+  const { alerts: expiryAlerts, alertCount } = useNotification();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({ total: 0, presentToday: 0, totalToday: 0 });
   const [liveInside, setLiveInside] = useState([]);
   const [todaySessions, setTodaySessions] = useState([]);
-  const [expiryAlerts, setExpiryAlerts] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [alertCount, setAlertCount] = useState(0);
 
   // Live refresh for duration display
   useEffect(() => {
@@ -75,18 +75,6 @@ const Dashboard = () => {
     initAlerts();
   }, []);
 
-  // Calculate alert count for the bell and panel
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const count = expiryAlerts.filter(m => {
-      const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
-      const daysLeft = Math.ceil((endDate - today) / 86400000);
-      return daysLeft <= 3;
-    }).length;
-    setAlertCount(count);
-  }, [expiryAlerts]);
-
   useEffect(() => {
     const init = async () => {
       try {
@@ -106,8 +94,6 @@ const Dashboard = () => {
   const fetchStats = async () => {
     try {
       const today = todayStr();
-      const now = new Date();
-      const in7Days = new Date(now.getTime() + 7 * 86400000);
 
       // 1. Total members count (Lightweight)
       const membersCountSnap = await getCountFromServer(collection(db, 'members'));
@@ -123,18 +109,6 @@ const Dashboard = () => {
         presentToday: uniqueMembersToday.size,
         totalToday: sessionsTodaySnap.size,
       });
-
-      // 4. Expiry/Expired Alerts
-      const membersRef = collection(db, 'members');
-      const membersSnap = await getDocs(membersRef);
-      const alerts = membersSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(m => {
-          if (!m.endDate) return false;
-          const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
-          return endDate <= in7Days;
-        });
-      setExpiryAlerts(alerts);
     } catch (err) {
       console.error("Dashboard Stats Fetch Error:", err);
     }
@@ -177,42 +151,6 @@ const Dashboard = () => {
           <QrCode size={16} />
           Wall QR Code
         </button>
-        <div style={{ position: "relative", display: "inline-block" }}>
-          <button
-            style={{
-              background: "transparent",
-              border: "1px solid #2a2a2a",
-              borderRadius: "8px",
-              padding: "8px",
-              cursor: "pointer",
-              color: alertCount > 0 ? "#fbbf24" : "#a3a3a3",
-              display: "flex",
-              alignItems: "center"
-            }}
-            title="Membership Alerts"
-          >
-            <Bell size={18} />
-          </button>
-          {alertCount > 0 && (
-            <span style={{
-              position: "absolute",
-              top: "-6px",
-              right: "-6px",
-              background: "#f87171",
-              color: "white",
-              borderRadius: "50%",
-              width: "18px",
-              height: "18px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}>
-              {alertCount}
-            </span>
-          )}
-        </div>
       </div>
 
       {error && (

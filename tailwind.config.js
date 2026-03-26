@@ -11,7 +11,7 @@ export default {
         card: '#1a1a1a',
         secondary: '#222222',
         border: '#2a2a2a',
-        primary: '#e8c97e',
+        primary: 'var(--color-primary, #e8c97e)',
         muted: '#a3a3a3',
         success: '#4ade80',
         error: '#f87171',

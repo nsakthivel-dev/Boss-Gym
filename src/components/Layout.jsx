@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../firebase/config';
+import { useNotification } from '../context/NotificationContext';
+import { auth, db } from '../firebase/config';
 import { signOut } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,9 +27,42 @@ import WallQRModal from './WallQRModal';
 
 const Layout = () => {
   const { userRole } = useAuth();
+  const { alerts, alertCount } = useNotification();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [gymSettings, setGymSettings] = useState({ gymName: 'Boss Gym', theme: 'gold' });
+  const notificationRef = useRef(null);
+
+  // Subscribe to gym settings for real-time name and theme updates
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'config'), (doc) => {
+      if (doc.exists()) {
+        setGymSettings(doc.data());
+        
+        // Apply theme globally
+        const theme = doc.data().theme || 'gold';
+        if (theme === 'blue') {
+          document.documentElement.classList.add('theme-blue');
+        } else {
+          document.documentElement.classList.remove('theme-blue');
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Close notifications on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
 
   const handleLogout = async () => {
@@ -61,7 +96,7 @@ const Layout = () => {
       <div className="md:hidden flex items-center justify-between p-4 bg-[#0a0a0a] border-b border-[#1a1a1a]">
         <div className="flex items-center gap-2">
           <Dumbbell className="text-primary" />
-          <span className="font-bold text-lg tracking-widest uppercase text-primary">Boss Gym</span>
+          <span className="font-bold text-lg tracking-widest uppercase text-primary">{gymSettings.gymName || 'Boss Gym'}</span>
         </div>
         <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors">
           {mobileMenuOpen ? <X /> : <Menu />}
@@ -76,7 +111,7 @@ const Layout = () => {
       `}>
         <div className="h-full flex flex-col">
           <div className="hidden md:flex flex-col gap-1 p-8">
-            <span className="font-bold text-xl tracking-[0.2em] text-primary uppercase leading-tight">Boss Gym</span>
+            <span className="font-bold text-xl tracking-[0.2em] text-primary uppercase leading-tight">{gymSettings.gymName || 'Boss Gym'}</span>
             <span className="text-[10px] tracking-[0.3em] text-[#555] font-bold uppercase">Elite Management</span>
           </div>
 
@@ -117,14 +152,20 @@ const Layout = () => {
             </button>
 
             <div className="space-y-1">
-              <button className="flex items-center gap-4 px-2 py-2 text-[#666] hover:text-white w-full text-left transition-colors group">
+              <NavLink 
+                to="/settings"
+                className={({ isActive }) => `flex items-center gap-4 px-2 py-2 w-full text-left transition-colors group ${isActive ? 'text-primary' : 'text-[#666] hover:text-white'}`}
+              >
                 <Settings size={18} className="group-hover:text-white" />
                 <span className="text-xs font-bold tracking-widest uppercase">Settings</span>
-              </button>
-              <button className="flex items-center gap-4 px-2 py-2 text-[#666] hover:text-white w-full text-left transition-colors group">
+              </NavLink>
+              <NavLink 
+                to="/support"
+                className={({ isActive }) => `flex items-center gap-4 px-2 py-2 w-full text-left transition-colors group ${isActive ? 'text-primary' : 'text-[#666] hover:text-white'}`}
+              >
                 <HelpCircle size={18} className="group-hover:text-white" />
                 <span className="text-xs font-bold tracking-widest uppercase">Support</span>
-              </button>
+              </NavLink>
               <button 
                 onClick={handleLogout}
                 className="flex items-center gap-4 px-2 py-2 text-[#666] hover:text-error w-full text-left transition-colors group"
@@ -154,13 +195,82 @@ const Layout = () => {
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 text-[#888]">
-              <button className="hover:text-info transition-colors relative group">
-                <Bell size={20} />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0a0a0a] group-hover:bg-red-400"></span>
-              </button>
-              <button className="hover:text-warning transition-colors">
-                <Calendar size={20} />
-              </button>
+              <div className="relative" ref={notificationRef}>
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`transition-all duration-200 relative group p-2 border rounded-lg ${
+                    showNotifications 
+                      ? 'bg-primary/10 border-primary text-primary' 
+                      : alertCount > 0 
+                        ? 'border-warning/30 text-warning hover:border-warning' 
+                        : 'border-[#1a1a1a] text-[#888] hover:border-[#333] hover:text-white'
+                  }`}
+                >
+                  <Bell size={20} />
+                  {alertCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">
+                      {alertCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-3 w-80 bg-[#111] border border-[#1a1a1a] rounded-lg shadow-2xl z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-4 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0d0d0d]">
+                      <h3 className="text-xs font-bold text-primary uppercase tracking-widest">Notifications</h3>
+                      <span className="text-[10px] text-[#555] font-bold uppercase">{alerts.length} Total</span>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {alerts.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <p className="text-[#444] text-xs font-bold uppercase tracking-widest">No notifications</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-[#1a1a1a]">
+                          {alerts.map((alert) => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const endDate = alert.endDate.toDate?.() ?? new Date(alert.endDate);
+                            const daysLeft = Math.ceil((endDate - today) / 86400000);
+                            
+                            return (
+                              <div key={alert.id} className="p-4 hover:bg-[#151515] transition-colors cursor-default">
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                  <p className="text-sm font-bold text-white uppercase tracking-tight">{alert.name}</p>
+                                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                    daysLeft < 0 ? 'bg-red-500/10 text-red-500' : 
+                                    daysLeft <= 3 ? 'bg-amber-500/10 text-amber-500' : 
+                                    'bg-blue-500/10 text-blue-500'
+                                  }`}>
+                                    {daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Today' : `${daysLeft}d left`}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-[#666] font-bold uppercase tracking-widest">
+                                  {alert.planName || (alert.price ? `₹${alert.price} / ${alert.durationDays}d` : 'Gym Membership')}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {alerts.length > 0 && (
+                      <div className="p-3 bg-[#0d0d0d] border-t border-[#1a1a1a]">
+                        <button 
+                          onClick={() => {
+                            navigate('/');
+                            setShowNotifications(false);
+                          }}
+                          className="w-full py-2 text-[10px] font-bold text-primary uppercase tracking-widest hover:bg-primary/5 rounded transition-colors"
+                        >
+                          View All Alerts
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="h-6 w-[1px] bg-[#1a1a1a]"></div>
             <div className="flex items-center gap-3">

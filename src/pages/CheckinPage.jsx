@@ -18,25 +18,38 @@ const CheckinPage = () => {
   const [workout, setWorkout] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [debug, setDebug] = useState(null);
-
-  const gymLat = parseFloat(import.meta.env.VITE_GYM_LATITUDE || "0");
-  const gymLng = parseFloat(import.meta.env.VITE_GYM_LONGITUDE || "0");
-  const gymRadius = parseInt(import.meta.env.VITE_GYM_RADIUS_METERS || "150");
-  const gymName = import.meta.env.VITE_GYM_NAME || 'GYMCORE';
-
+  const [gymSettings, setGymSettings] = useState(null);
 
   useEffect(() => {
-    if (pageState === 'locating') {
+    const fetchGymSettings = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'config');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setGymSettings(docSnap.data());
+        }
+      } catch (err) {
+        console.error("Error fetching gym settings:", err);
+      }
+    };
+    fetchGymSettings();
+  }, []);
+
+  useEffect(() => {
+    if (pageState === 'locating' && gymSettings) {
       verifyLocation();
     }
-  }, [pageState]);
-
+  }, [pageState, gymSettings]);
 
   const verifyLocation = () => {
     if (!navigator.geolocation) {
       setPageState('location_error');
       return;
     }
+
+    const gymLat = parseFloat(gymSettings?.latitude || 0);
+    const gymLng = parseFloat(gymSettings?.longitude || 0);
+    const gymRadius = parseInt(gymSettings?.radius || 150);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -46,7 +59,10 @@ const CheckinPage = () => {
         setDebug({
           dist: Math.round(distance),
           lat: latitude.toFixed(6),
-          lng: longitude.toFixed(6)
+          lng: longitude.toFixed(6),
+          gymLat,
+          gymLng,
+          gymRadius
         });
 
         if (distance <= gymRadius) {
@@ -229,7 +245,7 @@ const CheckinPage = () => {
 
   const renderHeader = () => (
     <div className="text-center mb-8">
-      <h1 className="text-[#e8c97e] text-[22px] font-bold uppercase tracking-tight">{gymName}</h1>
+      <h1 className="text-[#e8c97e] text-[22px] font-bold uppercase tracking-tight">{gymSettings?.gymName || 'GYMCORE'}</h1>
       <p className="text-[#a3a3a3] text-[13px]">Gym Attendance</p>
       <p className="text-[#a3a3a3] text-[13px] mt-1">
         {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
@@ -326,11 +342,11 @@ const CheckinPage = () => {
             {debug && (
               <div className="mt-4 p-3 bg-black/20 rounded-lg border border-border/50 text-left">
                 <p className="text-[#a3a3a3] text-[10px] font-mono">DEBUG INFO:</p>
-                <p className="text-white text-[11px] font-mono mt-1">Dist: {debug.dist}m (Max {gymRadius}m)</p>
+                <p className="text-white text-[11px] font-mono mt-1">Dist: {debug.dist}m (Max {debug.gymRadius}m)</p>
                 <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lat: {debug.lat}</p>
                 <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lng: {debug.lng}</p>
                 <p className="text-[#a3a3a3] text-[11px] font-mono mt-1 italic">
-                  Gym: {gymLat || 'NOT SET'}, {gymLng || 'NOT SET'}
+                  Gym: {debug.gymLat || 'NOT SET'}, {debug.gymLng || 'NOT SET'}
                 </p>
 
               </div>
