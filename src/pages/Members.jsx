@@ -381,35 +381,35 @@ const Members = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden">
-          <TrendingUp size={20} className="text-info/40 mb-6 group-hover:text-info transition-colors" />
-          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-2">Active Retention</p>
-          <p className="text-4xl font-black text-info">{activeRetention}%</p>
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-info">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden">
+          <TrendingUp size={16} className="text-info/40 mb-3 md:mb-6 group-hover:text-info transition-colors md:w-5 md:h-5" />
+          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1 md:mb-2">Retention</p>
+          <p className="text-xl md:text-4xl font-black text-info">{activeRetention}%</p>
+          <div className="absolute top-0 right-0 p-2 md:p-4 opacity-5 group-hover:opacity-10 transition-opacity text-info hidden md:block">
             <TrendingUp size={80} />
           </div>
         </div>
 
-        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden">
-          <Wallet size={20} className="text-[#333] mb-6" />
-          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-2">Revenue (30d)</p>
-          <p className="text-4xl font-black text-primary font-mono">₹{(totalRevenue / 1000).toFixed(1)}k</p>
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-primary">
+        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden">
+          <Wallet size={16} className="text-[#333] mb-3 md:mb-6 md:w-5 md:h-5" />
+          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1 md:mb-2">Revenue</p>
+          <p className="text-xl md:text-4xl font-black text-primary font-mono">₹{(totalRevenue / 1000).toFixed(1)}k</p>
+          <div className="absolute top-0 right-0 p-2 md:p-4 opacity-5 group-hover:opacity-10 transition-opacity text-primary hidden md:block">
             <Wallet size={80} />
           </div>
         </div>
 
-        <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden md:col-span-1">
-          <ShieldCheck size={20} className={`${isSystemOperational ? 'text-success/40' : 'text-error/40'} mb-2 group-hover:text-success transition-colors`} />
-          <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">System Status</p>
-          <p className={`text-lg font-bold ${isSystemOperational ? 'text-success' : 'text-error'} leading-tight uppercase tracking-tight`}>
-            {isSystemOperational ? 'System Operational' : 'System Degraded'}
+        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden col-span-2 md:col-span-1">
+          <ShieldCheck size={16} className={`${isSystemOperational ? 'text-success/40' : 'text-error/40'} mb-1 md:mb-2 group-hover:text-success transition-colors md:w-5 md:h-5`} />
+          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-0.5 md:mb-1">System Status</p>
+          <p className={`text-sm md:text-lg font-bold ${isSystemOperational ? 'text-success' : 'text-error'} leading-tight uppercase tracking-tight`}>
+            {isSystemOperational ? 'Operational' : 'Degraded'}
           </p>
-          <p className="text-[#444] text-[10px] mt-2 font-bold uppercase tracking-wider">
-            {isSystemOperational ? 'Access Points: Check OK' : 'Check Connection'}
+          <p className="text-[#444] text-[8px] md:text-[10px] mt-1 font-bold uppercase tracking-wider">
+            {isSystemOperational ? 'Access: OK' : 'Check Conn.'}
           </p>
-          <div className={`absolute top-1/2 right-0 -translate-y-1/2 p-4 opacity-10 ${isSystemOperational ? 'text-success' : 'text-error'}`}>
+          <div className={`absolute top-1/2 right-0 -translate-y-1/2 p-2 md:p-4 opacity-10 ${isSystemOperational ? 'text-success' : 'text-error'} hidden md:block`}>
             <ShieldCheck size={120} />
           </div>
         </div>

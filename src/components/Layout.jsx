@@ -75,26 +75,38 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans text-white">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-[#0a0a0a] border-b border-[#1a1a1a]">
-        <div className="flex items-center gap-2">
-          <Dumbbell className="text-primary" />
-          <span className="font-bold text-lg tracking-widest uppercase text-primary">{gymSettings.gymName || 'Boss Gym'}</span>
+      <div className="md:hidden flex items-center justify-between p-4 bg-[#0a0a0a] border-b border-[#1a1a1a] relative h-16">
+        <div className="flex items-center gap-2 z-10">
+          <Dumbbell className="text-primary shrink-0 w-5 h-5" />
         </div>
-        <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors">
-          {mobileMenuOpen ? <X /> : <Menu />}
+        
+        {/* Centered Name */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12">
+          <span className="font-black text-sm tracking-[0.15em] uppercase text-primary whitespace-nowrap overflow-hidden">
+            {gymSettings.gymName || 'Boss Gym'}
+          </span>
+        </div>
+
+        <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors shrink-0 z-10 p-2">
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-[#0a0a0a] border-r border-[#1a1a1a] transform transition-transform duration-150 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] transform transition-transform duration-150 ease-in-out
         md:relative md:translate-x-0
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="h-full flex flex-col">
-          <div className="hidden md:flex flex-col gap-1 p-8">
-            <span className="font-bold text-xl tracking-[0.2em] text-primary uppercase leading-tight">{gymSettings.gymName || 'Boss Gym'}</span>
-            <span className="text-[10px] tracking-[0.3em] text-[#555] font-bold uppercase">Elite Management</span>
+          <div className="hidden md:flex flex-col gap-2 p-10 border-b border-[#1a1a1a]/50 mb-4">
+            <div className="flex items-center gap-3">
+              <Dumbbell className="text-primary w-6 h-6 shrink-0" />
+              <span className="font-black text-lg tracking-[0.05em] text-primary uppercase leading-tight">
+                {gymSettings.gymName || 'Boss Gym'}
+              </span>
+            </div>
+            <span className="text-[9px] tracking-[0.4em] text-[#333] font-black uppercase">Elite Management</span>
           </div>
 
           <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">

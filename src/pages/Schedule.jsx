@@ -131,7 +131,7 @@ const Schedule = () => {
                   setIsModalEditing(false);
                 }
               }}
-              className={`aspect-[4/3] p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
+              className={`aspect-square md:aspect-[4/3] p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
                 workout 
                   ? workout.isRest 
                     ? 'bg-[#0d0d0d] border-[#1a1a1a] hover:border-info/30' 
@@ -140,16 +140,17 @@ const Schedule = () => {
               } ${isToday ? 'scale-105 border-primary shadow-[0_0_20px_rgba(232,201,126,0.1)] z-10' : ''}`}
             >
               <div className="flex items-center justify-between w-full">
-                <span className={`text-[9px] md:text-[11px] font-black ${isToday ? 'text-primary' : 'text-[#333]'}`}>{date.getDate()}</span>
+                <span className={`text-[10px] md:text-[11px] font-black ${isToday ? 'text-primary' : 'text-[#333]'}`}>{date.getDate()}</span>
                 {workout && (
-                  <span className={`text-[7px] md:text-[8px] font-black uppercase tracking-widest ${workout.isRest ? 'text-info/40' : 'text-primary/30'}`}>
-                    Day {workout.day}
+                  <span className={`text-[6px] md:text-[8px] font-black uppercase tracking-tighter md:tracking-widest ${workout.isRest ? 'text-info/40' : 'text-primary/30'}`}>
+                    <span className="md:hidden">D{workout.day}</span>
+                    <span className="hidden md:inline">Day {workout.day}</span>
                   </span>
                 )}
               </div>
               {workout && (
                 <div className="w-full truncate text-left pt-1">
-                  <p className={`text-[7px] md:text-[10px] font-black uppercase tracking-[0.1em] truncate ${workout.isRest ? 'text-info/80' : 'text-primary'}`}>
+                  <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-tight md:tracking-[0.1em] truncate ${workout.isRest ? 'text-info/80' : 'text-primary'}`}>
                     <span className="md:hidden">{workout.isRest ? 'R' : workout.title.charAt(0)}</span>
                     <span className="hidden md:inline">{workout.isRest ? 'Recovery' : workout.title.replace(' WORKOUT', '')}</span>
                   </p>
@@ -282,42 +283,44 @@ const Schedule = () => {
         </div>
       ) : (
         /* Calendar View (Full width) */
-        <div className="flex-1 flex flex-col items-center">
-          <div className="w-full max-w-5xl bg-[#111] border border-[#1a1a1a] rounded-sm p-4 md:p-10 flex flex-col shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-[#1a1a1a] gap-4">
-              <div>
-                <p className="text-primary/30 text-[9px] font-black tracking-[0.4em] uppercase mb-2">Member Schedule</p>
-                <h2 className="text-2xl md:text-3xl font-black text-primary uppercase tracking-[0.05em] leading-none">{selectedMember.name}</h2>
+        <div className="flex-1 flex flex-col items-center w-full">
+          <div className="w-full lg:max-w-5xl bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4">
+              <div className="text-center md:text-left">
+                <p className="text-primary/30 text-[8px] md:text-[9px] font-black tracking-[0.4em] uppercase mb-1 md:mb-2">Member Schedule</p>
+                <h2 className="text-xl md:text-3xl font-black text-primary uppercase tracking-[0.05em] leading-tight md:leading-none">{selectedMember.name}</h2>
               </div>
               
-              <div className="flex items-center gap-6">
-                <div className="flex items-center bg-black/40 border border-[#1a1a1a] p-1 rounded-sm">
+              <div className="flex items-center justify-between md:justify-end gap-3 md:gap-6">
+                <div className="flex items-center bg-black/40 border border-[#1a1a1a] p-0.5 md:p-1 rounded-sm flex-1 md:flex-none">
                   <button 
                     onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                    className="p-2 text-[#444] hover:text-primary transition-colors"
+                    className="p-1.5 md:p-2 text-[#444] hover:text-primary transition-colors"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={18} className="md:w-5 md:h-5 w-4 h-4" />
                   </button>
-                  <h3 className="text-primary font-black text-xs md:text-sm uppercase tracking-[0.2em] min-w-[100px] md:min-w-[140px] text-center">
-                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  <h3 className="text-primary font-black text-[10px] md:text-sm uppercase tracking-[0.1em] md:tracking-[0.2em] flex-1 md:min-w-[140px] text-center">
+                    {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
                   </h3>
                   <button 
                     onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-                    className="p-2 text-[#444] hover:text-primary transition-colors"
+                    className="p-1.5 md:p-2 text-[#444] hover:text-primary transition-colors"
                   >
-                    <ChevronRight size={18} />
+                    <ChevronRight size={18} className="md:w-5 md:h-5 w-4 h-4" />
                   </button>
                 </div>
                 <button 
                   onClick={() => setCurrentDate(new Date())}
-                  className="text-[9px] font-black text-[#333] uppercase tracking-[0.3em] hover:text-primary transition-all px-2 py-3 border-l border-[#1a1a1a]"
+                  className="text-[9px] font-black text-[#333] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:text-primary transition-all px-3 py-2 md:py-3 border-l border-[#1a1a1a]"
                 >
                   Today
                 </button>
               </div>
             </div>
-            <div className="flex-1">
-              {renderCalendar()}
+            <div className="flex-1 overflow-x-auto">
+              <div className="min-w-[300px]">
+                {renderCalendar()}
+              </div>
             </div>
           </div>
         </div>

@@ -32,13 +32,13 @@ const formatDuration = (ms) => {
 const StatCard = ({ label, value, icon, color }) => {
   const IconComponent = icon;
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-        <IconComponent className="w-6 h-6" />
+    <div className="bg-card border border-border rounded-xl p-3 md:p-5 flex items-center gap-3 md:gap-4 overflow-hidden">
+      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+        <IconComponent className="w-5 h-5 md:w-6 md:h-6" />
       </div>
-      <div>
-        <p className="text-muted text-sm">{label}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
+      <div className="min-w-0">
+        <p className="text-muted text-[10px] md:text-sm uppercase tracking-wider md:tracking-normal truncate">{label}</p>
+        <p className="text-lg md:text-2xl font-bold text-white truncate">{value}</p>
       </div>
     </div>
   );
@@ -149,11 +149,11 @@ const Dashboard = () => {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard label="Total Members" value={stats.total} icon={Users} color="bg-info/10 text-info" />
         <StatCard label="Unique Today" value={stats.presentToday} icon={UserCheck} color="bg-success/10 text-success" />
         <StatCard label="Currently Inside" value={liveInside.length} icon={Clock} color="bg-primary/10 text-primary" />
-        <StatCard label="Total Visits Today" value={stats.totalToday} icon={CalendarCheck || Users} color="bg-warning/10 text-warning" />
+        <StatCard label="Total Visits" value={stats.totalToday} icon={CalendarCheck || Users} color="bg-warning/10 text-warning" />
       </div>
 
       {/* Alert Panel */}
