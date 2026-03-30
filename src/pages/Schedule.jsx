@@ -108,15 +108,15 @@ const Schedule = () => {
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
     
     return (
-      <div className="grid grid-cols-7 gap-1 md:gap-3">
+      <div className="grid grid-cols-7 gap-1.5 md:gap-4 p-1">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
-          <div key={idx} className="text-center text-[9px] md:text-[11px] font-black text-[#222] uppercase py-3 tracking-[0.2em]">
+          <div key={idx} className="text-center text-[10px] md:text-[11px] font-black text-[#222] uppercase py-3 tracking-[0.2em]">
             <span className="hidden md:inline">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][idx]}</span>
             <span className="md:hidden">{d}</span>
           </div>
         ))}
         {days.map((date, i) => {
-          if (!date) return <div key={`empty-${i}`} className="aspect-square md:h-28 bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
+          if (!date) return <div key={`empty-${i}`} className="aspect-square md:h-32 bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
           
           const workout = getDayWorkout(date, selectedMember);
           const isToday = date.toDateString() === new Date().toDateString();
@@ -131,7 +131,7 @@ const Schedule = () => {
                   setIsModalEditing(false);
                 }
               }}
-              className={`aspect-square md:h-28 p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
+              className={`aspect-square md:h-32 p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
                 workout 
                   ? workout.isRest 
                     ? 'bg-[#0d0d0d] border-[#1a1a1a] hover:border-info/30' 
@@ -284,8 +284,8 @@ const Schedule = () => {
       ) : (
         /* Calendar View (Full width) */
         <div className="flex flex-col items-center w-full">
-          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4">
+          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm px-2 py-6 md:p-10 flex flex-col shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4 px-2 md:px-0">
               <div className="text-center md:text-left">
                 <p className="text-primary/30 text-[8px] md:text-[9px] font-black tracking-[0.4em] uppercase mb-1 md:mb-2">Member Schedule</p>
                 <h2 className="text-xl md:text-3xl font-black text-primary uppercase tracking-[0.05em] leading-tight md:leading-none">{selectedMember.name}</h2>
