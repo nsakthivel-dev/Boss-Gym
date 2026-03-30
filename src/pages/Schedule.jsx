@@ -283,8 +283,8 @@ const Schedule = () => {
         </div>
       ) : (
         /* Calendar View (Full width) */
-        <div className="flex-1 flex flex-col items-center w-full">
-          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl overflow-hidden">
+        <div className="flex flex-col items-center w-full">
+          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4">
               <div className="text-center md:text-left">
                 <p className="text-primary/30 text-[8px] md:text-[9px] font-black tracking-[0.4em] uppercase mb-1 md:mb-2">Member Schedule</p>
@@ -317,7 +317,7 @@ const Schedule = () => {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-x-auto">
+            <div className="overflow-x-auto">
               <div className="min-w-[300px]">
                 {renderCalendar()}
               </div>
