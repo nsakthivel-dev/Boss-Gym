@@ -116,7 +116,7 @@ const Schedule = () => {
           </div>
         ))}
         {days.map((date, i) => {
-          if (!date) return <div key={`empty-${i}`} className="aspect-square bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
+          if (!date) return <div key={`empty-${i}`} className="aspect-square md:h-28 bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
           
           const workout = getDayWorkout(date, selectedMember);
           const isToday = date.toDateString() === new Date().toDateString();
@@ -131,7 +131,7 @@ const Schedule = () => {
                   setIsModalEditing(false);
                 }
               }}
-              className={`aspect-square md:aspect-[4/3] p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
+              className={`aspect-square md:h-28 p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
                 workout 
                   ? workout.isRest 
                     ? 'bg-[#0d0d0d] border-[#1a1a1a] hover:border-info/30' 
@@ -284,7 +284,7 @@ const Schedule = () => {
       ) : (
         /* Calendar View (Full width) */
         <div className="flex-1 flex flex-col items-center w-full">
-          <div className="w-full lg:max-w-5xl bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl overflow-hidden">
+          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm p-3 md:p-10 flex flex-col shadow-2xl overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4">
               <div className="text-center md:text-left">
                 <p className="text-primary/30 text-[8px] md:text-[9px] font-black tracking-[0.4em] uppercase mb-1 md:mb-2">Member Schedule</p>
