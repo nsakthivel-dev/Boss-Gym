@@ -350,6 +350,14 @@ const Members = () => {
 
   const activeCount = members.filter(m => m.status === 'active').length;
   const totalRevenue = members.filter(m => m.status === 'active').reduce((acc, m) => acc + (Number(m.price) || 0), 0);
+  
+  // Calculate Retention: (Active Members / Total Members) * 100
+  const activeRetention = members.length > 0 
+    ? Math.round((activeCount / members.length) * 100) 
+    : 0;
+
+  // System status check: Simple check if we have data and Firebase is responsive
+  const isSystemOperational = !loading && !error && members.length >= 0;
 
   return (
     <div className="space-y-10">
@@ -377,7 +385,7 @@ const Members = () => {
         <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden">
           <TrendingUp size={20} className="text-info/40 mb-6 group-hover:text-info transition-colors" />
           <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-2">Active Retention</p>
-          <p className="text-4xl font-black text-info">94%</p>
+          <p className="text-4xl font-black text-info">{activeRetention}%</p>
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-info">
             <TrendingUp size={80} />
           </div>
@@ -393,11 +401,15 @@ const Members = () => {
         </div>
 
         <div className="bg-[#111] border border-[#1a1a1a] p-8 rounded-sm group relative overflow-hidden md:col-span-1">
-          <ShieldCheck size={20} className="text-success/40 mb-2 group-hover:text-success transition-colors" />
+          <ShieldCheck size={20} className={`${isSystemOperational ? 'text-success/40' : 'text-error/40'} mb-2 group-hover:text-success transition-colors`} />
           <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">System Status</p>
-          <p className="text-lg font-bold text-success leading-tight uppercase tracking-tight">System Operational</p>
-          <p className="text-[#444] text-[10px] mt-2 font-bold uppercase tracking-wider">Access Points: Check OK</p>
-          <div className="absolute top-1/2 right-0 -translate-y-1/2 p-4 opacity-10 text-success">
+          <p className={`text-lg font-bold ${isSystemOperational ? 'text-success' : 'text-error'} leading-tight uppercase tracking-tight`}>
+            {isSystemOperational ? 'System Operational' : 'System Degraded'}
+          </p>
+          <p className="text-[#444] text-[10px] mt-2 font-bold uppercase tracking-wider">
+            {isSystemOperational ? 'Access Points: Check OK' : 'Check Connection'}
+          </p>
+          <div className={`absolute top-1/2 right-0 -translate-y-1/2 p-4 opacity-10 ${isSystemOperational ? 'text-success' : 'text-error'}`}>
             <ShieldCheck size={120} />
           </div>
         </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase/config';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { useAuth } from '../context/AuthContext';
 import { 
   Settings, 
   Bell, 
@@ -14,57 +16,70 @@ import {
   Lock,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  KeyRound
 } from 'lucide-react';
 
 const SettingSection = ({ title, description, children }) => (
-  <div className="bg-card border border-border rounded-xl p-6 mb-6">
-    <div className="mb-6">
-      <h3 className="text-white font-bold text-lg uppercase tracking-tight">{title}</h3>
-      <p className="text-muted text-xs font-medium uppercase tracking-widest mt-1">{description}</p>
+  <div className="bg-[#111] border border-[#1a1a1a] rounded-sm p-8 mb-8 shadow-2xl relative overflow-hidden group">
+    <div className="absolute top-0 left-0 w-1 h-full bg-primary/10 group-hover:bg-primary transition-colors" />
+    <div className="mb-10">
+      <h3 className="text-primary font-black text-xl uppercase tracking-tight">{title}</h3>
+      <p className="text-[#555] text-[10px] font-bold uppercase tracking-[0.3em] mt-2">{description}</p>
     </div>
-    <div className="space-y-6">
+    <div className="space-y-8">
       {children}
     </div>
   </div>
 );
 
 const InputGroup = ({ label, description, type = "text", placeholder, value, onChange }) => (
-  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 border-b border-[#1a1a1a] last:border-0">
-    <div className="flex-1">
-      <label className="text-sm font-bold text-white uppercase tracking-widest block">{label}</label>
-      <p className="text-[10px] text-[#555] font-bold uppercase tracking-[0.2em] mt-1">{description}</p>
+  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 py-6 border-b border-[#1a1a1a]/50 last:border-0 group/input">
+    <div className="flex-1 max-w-md">
+      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block group-hover/input:text-primary/60 transition-colors mb-2">{label}</label>
+      <p className="text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
     </div>
-    <input 
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="bg-[#0a0a0a] border border-[#1a1a1a] text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:border-primary transition-colors md:w-64"
-    />
+    <div className="w-full md:w-80">
+      <input 
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
+      />
+    </div>
   </div>
 );
 
 const ToggleGroup = ({ label, description, checked, onChange }) => (
-  <div className="flex items-center justify-between gap-4 py-4 border-b border-[#1a1a1a] last:border-0">
+  <div className="flex items-start justify-between gap-8 py-6 border-b border-[#1a1a1a]/50 last:border-0 group/toggle">
     <div className="flex-1">
-      <label className="text-sm font-bold text-white uppercase tracking-widest block">{label}</label>
-      <p className="text-[10px] text-[#555] font-bold uppercase tracking-[0.2em] mt-1">{description}</p>
+      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block group-hover/toggle:text-primary/60 transition-colors mb-2">{label}</label>
+      <p className="text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
     </div>
     <button 
       onClick={() => onChange(!checked)}
-      className={`w-12 h-6 rounded-full relative transition-colors ${checked ? 'bg-primary' : 'bg-[#1a1a1a]'}`}
+      className={`w-14 h-7 rounded-sm relative transition-all duration-300 shrink-0 ${checked ? 'bg-primary/20 border border-primary/30' : 'bg-[#0a0a0a] border border-[#1a1a1a]'}`}
     >
-      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${checked ? 'right-1' : 'left-1'}`} />
+      <div className={`absolute top-1 w-5 h-5 rounded-sm transition-all duration-300 shadow-xl ${checked ? 'right-1 bg-primary' : 'left-1 bg-[#222]'}`} />
     </button>
   </div>
 );
 
 const SettingsPage = () => {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  
+  // Password Reset State
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const [resetting, setResetting] = useState(false);
 
   const [settings, setSettings] = useState({
     gymName: 'Boss Gym',
@@ -128,6 +143,38 @@ const SettingsPage = () => {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+      return showFeedback('error', 'New passwords do not match');
+    }
+    if (passwords.new.length < 6) {
+      return showFeedback('error', 'Password must be at least 6 characters');
+    }
+
+    setResetting(true);
+    try {
+      // Re-authenticate
+      const credential = EmailAuthProvider.credential(currentUser.email, passwords.current);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update Password
+      await updatePassword(currentUser, passwords.new);
+      
+      showFeedback('success', 'Password updated successfully');
+      setPasswords({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      console.error("Password update error:", err);
+      if (err.code === 'auth/wrong-password') {
+        showFeedback('error', 'Incorrect current password');
+      } else {
+        showFeedback('error', 'Failed to update password');
+      }
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const showFeedback = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
@@ -151,39 +198,40 @@ const SettingsPage = () => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex justify-between items-start">
+    <div className="max-w-6xl mx-auto space-y-12">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#1a1a1a]">
         <div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Settings</h1>
-          <p className="text-muted text-sm mt-1 uppercase tracking-widest font-bold">Configure your gym management system</p>
+          <h1 className="text-4xl font-black text-primary uppercase tracking-tight">Settings</h1>
+          <p className="text-[#555] text-xs font-bold mt-2 uppercase tracking-[0.3em]">Configure your gym management system</p>
         </div>
         {message.text && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300 ${
+          <div className={`flex items-center gap-3 px-6 py-3 rounded-sm animate-in fade-in slide-in-from-top-2 duration-300 ${
             message.type === 'success' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'
           }`}>
             {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            <span className="text-[10px] font-bold uppercase tracking-widest">{message.text}</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{message.text}</span>
           </div>
         )}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-12">
         {/* Tabs Sidebar */}
-        <aside className="md:w-64 space-y-1">
+        <aside className="lg:w-72 space-y-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 group ${
+                className={`w-full flex items-center gap-5 px-8 py-5 rounded-sm transition-all duration-300 group relative overflow-hidden ${
                   activeTab === tab.id 
-                    ? 'bg-primary/10 text-primary border border-primary/20' 
-                    : 'text-[#555] hover:text-white hover:bg-[#111]'
+                    ? 'bg-[#111] text-primary border border-[#1a1a1a]' 
+                    : 'text-[#333] hover:text-primary/60 hover:bg-[#0a0a0a]'
                 }`}
               >
-                <Icon size={18} className={activeTab === tab.id ? 'text-primary' : 'group-hover:text-white'} />
-                <span className="text-xs font-bold uppercase tracking-widest">{tab.label}</span>
+                {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
+                <Icon size={20} className={activeTab === tab.id ? 'text-primary' : 'group-hover:text-primary/60 transition-colors'} />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em]">{tab.label}</span>
               </button>
             );
           })}
@@ -192,61 +240,95 @@ const SettingsPage = () => {
         {/* Main Settings Content */}
         <div className="flex-1">
           {activeTab === 'general' && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <SettingSection 
-                title="Gym Information" 
-                description="Global settings for your facility"
+                title="Branding" 
+                description="Customize your gym's identity"
               >
                 <InputGroup 
                   label="Gym Name" 
-                  description="Display name for your business"
+                  description="The public name of your gym as shown to members"
                   value={settings.gymName}
                   onChange={(val) => updateSetting('gymName', val)}
                 />
-                <InputGroup 
-                  label="Contact Email" 
-                  description="Primary administrative contact"
-                  value={settings.contactEmail}
-                  onChange={(val) => updateSetting('contactEmail', val)}
-                />
-                <InputGroup 
-                  label="Phone Number" 
-                  description="Official business contact"
-                  value={settings.phoneNumber}
-                  onChange={(val) => updateSetting('phoneNumber', val)}
-                />
-                <InputGroup 
-                  label="Address" 
-                  description="Physical location of the gym"
-                  value={settings.address}
-                  onChange={(val) => updateSetting('address', val)}
-                />
+              </SettingSection>
+
+              <SettingSection 
+                title="Account Security" 
+                description="Technical settings for account access"
+              >
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 border-b border-[#1a1a1a]/50">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Current Password</label>
+                      <input 
+                        type="password"
+                        placeholder="••••••••"
+                        value={passwords.current}
+                        onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">New Password</label>
+                      <input 
+                        type="password"
+                        placeholder="••••••••"
+                        value={passwords.new}
+                        onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="flex-1 max-w-xs space-y-3">
+                      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Confirm New Password</label>
+                      <input 
+                        type="password"
+                        placeholder="••••••••"
+                        value={passwords.confirm}
+                        onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
+                      />
+                    </div>
+                    <button 
+                      onClick={handleResetPassword}
+                      disabled={resetting || !passwords.current || !passwords.new}
+                      className="bg-[#111] border border-[#1a1a1a] text-primary px-10 py-5 rounded-sm uppercase text-[10px] font-black tracking-[0.3em] hover:bg-white hover:text-black transition-all shadow-2xl disabled:opacity-50 flex items-center gap-3"
+                    >
+                      {resetting ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                      Update Password
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-[#444] font-bold uppercase tracking-widest">Used for technical and administrative access</p>
+                </div>
               </SettingSection>
 
               <SettingSection 
                 title="Location Settings" 
                 description="Configure gym geolocation for check-ins"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white uppercase tracking-widest block">Latitude</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 border-b border-[#1a1a1a]/50">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Latitude</label>
                     <input 
                       type="text"
                       placeholder="e.g. 11.911158"
                       value={settings.latitude}
                       onChange={(e) => updateSetting('latitude', e.target.value)}
-                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
                     />
                     <p className="text-[9px] text-[#444] font-bold uppercase tracking-widest">GPS latitude coordinate</p>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white uppercase tracking-widest block">Longitude</label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Longitude</label>
                     <input 
                       type="text"
                       placeholder="e.g. 79.634744"
                       value={settings.longitude}
                       onChange={(e) => updateSetting('longitude', e.target.value)}
-                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-4 py-3 rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
                     />
                     <p className="text-[9px] text-[#444] font-bold uppercase tracking-widest">GPS longitude coordinate</p>
                   </div>
@@ -254,7 +336,7 @@ const SettingsPage = () => {
                 <div className="pt-4">
                   <InputGroup 
                     label="Check-in Radius" 
-                    description="Allowed distance in meters"
+                    description="Maximum allowed distance in meters for valid check-ins"
                     type="number"
                     placeholder="150"
                     value={settings.radius}
@@ -263,13 +345,13 @@ const SettingsPage = () => {
                 </div>
               </SettingSection>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-8">
                 <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-primary text-black font-black px-8 py-3 rounded-sm uppercase text-xs tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
                 >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -277,7 +359,7 @@ const SettingsPage = () => {
           )}
 
           {activeTab === 'notifications' && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <SettingSection 
                 title="System Alerts" 
                 description="Manage how you receive updates"
@@ -314,13 +396,13 @@ const SettingsPage = () => {
                 />
               </SettingSection>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-8">
                 <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-primary text-black font-black px-8 py-3 rounded-sm uppercase text-xs tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
                 >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -328,36 +410,42 @@ const SettingsPage = () => {
           )}
 
           {activeTab === 'appearance' && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <SettingSection 
                 title="Theme & Styling" 
                 description="Customize the dashboard look"
               >
-                <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
                   <button 
                     onClick={() => updateSetting('theme', 'gold')}
-                    className={`p-4 border rounded-xl text-left transition-all ${settings.theme === 'gold' ? 'border-primary bg-primary/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
+                    className={`p-8 border rounded-sm text-left transition-all relative group/theme ${settings.theme === 'gold' ? 'border-primary bg-primary/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
                   >
-                    <div className="w-6 h-6 bg-primary rounded-full mb-2" />
-                    <span className={`text-xs font-bold uppercase tracking-widest ${settings.theme === 'gold' ? 'text-white' : 'text-[#555]'}`}>Elite Gold (Default)</span>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-primary rounded-sm shadow-xl" />
+                      {settings.theme === 'gold' && <div className="w-2 h-2 bg-primary rounded-full" />}
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${settings.theme === 'gold' ? 'text-white' : 'text-[#333] group-hover/theme:text-primary/60'}`}>Elite Gold (Default)</span>
                   </button>
                   <button 
                     onClick={() => updateSetting('theme', 'blue')}
-                    className={`p-4 border rounded-xl text-left transition-all ${settings.theme === 'blue' ? 'border-blue-500 bg-blue-500/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
+                    className={`p-8 border rounded-sm text-left transition-all relative group/theme ${settings.theme === 'blue' ? 'border-blue-500 bg-blue-500/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
                   >
-                    <div className="w-6 h-6 bg-blue-500 rounded-full mb-2" />
-                    <span className={`text-xs font-bold uppercase tracking-widest ${settings.theme === 'blue' ? 'text-white' : 'text-[#555]'}`}>Iron Blue</span>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-10 h-10 bg-blue-500 rounded-sm shadow-xl" />
+                      {settings.theme === 'blue' && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${settings.theme === 'blue' ? 'text-white' : 'text-[#333] group-hover/theme:text-blue-500/60'}`}>Iron Blue</span>
                   </button>
                 </div>
               </SettingSection>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-8">
                 <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-primary text-black font-black px-8 py-3 rounded-sm uppercase text-xs tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
                 >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
