@@ -181,7 +181,7 @@ const Layout = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#0a0a0a]">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#0a0a0a] no-scrollbar">
         {/* Top Header */}
         <header className="hidden md:flex items-center justify-between px-8 py-4 border-b border-[#1a1a1a]">
           <div className="flex-1 max-w-xl">

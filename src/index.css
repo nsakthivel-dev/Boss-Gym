@@ -31,3 +31,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a3a3a3;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

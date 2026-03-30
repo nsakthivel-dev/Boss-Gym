@@ -317,7 +317,7 @@ const Schedule = () => {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-hidden no-scrollbar">
               <div className="min-w-[300px]">
                 {renderCalendar()}
               </div>
