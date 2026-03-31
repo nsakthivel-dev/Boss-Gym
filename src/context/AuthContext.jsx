@@ -27,12 +27,21 @@ export const AuthProvider = ({ children }) => {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-            const role = docSnap.data().role;
-            setUserRole(role);
-            if (role === 'admin') seedDatabase();
+            const userData = docSnap.data();
+            // Check if user is the specific admin by email
+            if (user.email === 'nsakthiveldev@gmail.com') {
+              setUserRole('admin');
+              seedDatabase();
+            } else {
+              setUserRole(userData.role || 'user');
+            }
           } else {
-            // Default to admin for new non-role based accounts
-            setUserRole('admin');
+            // New user, check if it's the specific admin
+            if (user.email === 'nsakthiveldev@gmail.com') {
+              setUserRole('admin');
+            } else {
+              setUserRole('user');
+            }
           }
         } else {
           setCurrentUser(null);

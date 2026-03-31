@@ -35,10 +35,11 @@ const Register = () => {
       // 2. Send Verification Email
       await sendEmailVerification(user);
 
-      // 3. Create User Document in Firestore (default to admin as it's not role-based selection)
+      // 3. Create User Document in Firestore
+      const isSystemAdmin = email === 'nsakthiveldev@gmail.com';
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
-        role: 'admin',
+        role: isSystemAdmin ? 'admin' : 'user',
         createdAt: Timestamp.now(),
       });
 

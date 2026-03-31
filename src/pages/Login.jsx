@@ -14,10 +14,10 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in as admin
   React.useEffect(() => {
     if (currentUser) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [currentUser, navigate]);
 
@@ -35,7 +35,7 @@ const Login = () => {
         return;
       }
 
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       switch (err.code) {
         case 'auth/user-not-found':
@@ -118,10 +118,23 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-border text-center">
+          <div className="mt-6 pt-6 border-t border-border flex flex-col gap-4 text-center">
             <p className="text-muted text-xs">
               Don't have an account? <Link to="/register" className="text-primary hover:underline">Create Account</Link>
             </p>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-border/50"></div>
+              <span className="text-[10px] font-black text-[#333] uppercase tracking-widest">Or</span>
+              <div className="flex-1 h-px bg-border/50"></div>
+            </div>
+
+            <button 
+              onClick={() => navigate('/')}
+              className="text-[10px] font-black text-primary uppercase tracking-[0.2em] hover:text-white transition-colors"
+            >
+              Skip Login & View Website
+            </button>
           </div>
         </div>
 
