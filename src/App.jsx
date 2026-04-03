@@ -79,7 +79,7 @@ function App() {
               </Route>
 
               {/* Protected Admin Routes */}
-              <Route element={<ProtectedRoute />}>
+              <Route element={<ProtectedRoute adminOnly={true} />}>
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/members" element={<Members />} />

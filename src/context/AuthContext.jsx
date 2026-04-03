@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { seedDatabase } from '../utils/seed';
 
@@ -23,25 +23,14 @@ export const AuthProvider = ({ children }) => {
       try {
         if (user) {
           setCurrentUser(user);
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
           
-          if (docSnap.exists()) {
-            const userData = docSnap.data();
-            // Check if user is the specific admin by email
-            if (user.email === 'nsakthiveldev@gmail.com') {
-              setUserRole('admin');
-              seedDatabase();
-            } else {
-              setUserRole(userData.role || 'user');
-            }
+          // Role-based access: Only this specific email can be an admin
+          if (user.email === 'nsakthiveldev@gmail.com') {
+            setUserRole('admin');
+            seedDatabase();
           } else {
-            // New user, check if it's the specific admin
-            if (user.email === 'nsakthiveldev@gmail.com') {
-              setUserRole('admin');
-            } else {
-              setUserRole('user');
-            }
+            // All other users are allowed to log in but get 'user' role
+            setUserRole('user');
           }
         } else {
           setCurrentUser(null);

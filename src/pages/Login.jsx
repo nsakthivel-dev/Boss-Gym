@@ -7,19 +7,23 @@ import { Dumbbell, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userRole } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in as admin
+  // Redirect if already logged in
   React.useEffect(() => {
-    if (currentUser) {
-      navigate('/dashboard', { replace: true });
+    if (currentUser && userRole) {
+      if (userRole === 'admin') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, userRole, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -35,7 +39,7 @@ const Login = () => {
         return;
       }
 
-      navigate('/dashboard');
+      // Role check is handled by useEffect above when state updates
     } catch (err) {
       switch (err.code) {
         case 'auth/user-not-found':
