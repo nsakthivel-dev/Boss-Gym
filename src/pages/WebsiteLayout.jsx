@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dumbbell, 
   LogOut,
@@ -6,9 +6,11 @@ import {
   Facebook,
   Twitter,
   MapPin,
-  Phone
+  Phone,
+  Menu,
+  X
 } from 'lucide-react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -16,6 +18,19 @@ import { signOut } from 'firebase/auth';
 const WebsiteLayout = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
     try {
@@ -84,9 +99,71 @@ const WebsiteLayout = () => {
                 Login
               </NavLink>
             )}
+
+            {/* Mobile Menu Button */}
+            <button 
+              className="lg:hidden text-primary p-2 hover:bg-white/5 rounded-sm transition-all"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={24} />
+            </button>
           </div>
         </div>
       </nav>
+
+      {/* Mobile Navigation Overlay */}
+      <div className={`fixed inset-0 z-[100] bg-black transition-all duration-500 lg:hidden ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className="absolute top-0 right-0 p-8">
+          <button 
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 text-primary hover:bg-white/5 rounded-sm transition-all"
+          >
+            <X size={32} />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center h-full gap-8">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
+              <Dumbbell className="text-black w-6 h-6" />
+            </div>
+            <span className="font-black text-2xl tracking-[0.1em] uppercase">NEW BOSS GYM</span>
+          </div>
+
+          {navItems.map(item => (
+            <NavLink 
+              key={item.label} 
+              to={item.path} 
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) => `text-xl font-black uppercase tracking-[0.3em] transition-all ${isActive ? 'text-primary scale-110' : 'text-[#444] hover:text-primary'}`}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+
+          <div className="mt-12">
+            {currentUser ? (
+              <button 
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 text-error/60 font-black uppercase tracking-widest text-sm hover:text-error transition-all"
+              >
+                <LogOut size={18} /> Logout
+              </button>
+            ) : (
+              <NavLink 
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="bg-primary text-black px-12 py-4 rounded-sm font-black uppercase text-sm tracking-widest hover:bg-white transition-all"
+              >
+                Login
+              </NavLink>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 pt-20">
@@ -128,12 +205,18 @@ const WebsiteLayout = () => {
                 <span className="absolute -bottom-2 left-0 w-8 h-[1px] bg-primary/30" />
               </h4>
               <ul className="space-y-4">
-                {['About Us', 'Services', 'Workout Plans', 'Gallery', 'Careers'].map(item => (
-                  <li key={item}>
-                    <a href="#" className="text-[#555] text-[10px] font-bold uppercase tracking-[0.2em] hover:text-white hover:translate-x-2 transition-all duration-300 flex items-center gap-3 group">
+                {[
+                  { label: 'About Us', path: '/about' },
+                  { label: 'Services', path: '/services' },
+                  { label: 'Workout Plans', path: '/plans' },
+                  { label: 'Gallery', path: '/gallery' },
+                  { label: 'Contact', path: '/contact' }
+                ].map(item => (
+                  <li key={item.label}>
+                    <Link to={item.path} className="text-[#555] text-[10px] font-bold uppercase tracking-[0.2em] hover:text-white hover:translate-x-2 transition-all duration-300 flex items-center gap-3 group">
                       <span className="w-1.5 h-[1px] bg-[#222] group-hover:w-4 group-hover:bg-primary transition-all" />
-                      {item}
-                    </a>
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
