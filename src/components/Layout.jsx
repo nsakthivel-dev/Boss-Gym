@@ -57,7 +57,7 @@ const Layout = () => {
   };
 
   const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Members', icon: Users, path: '/members' },
 
     { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
