@@ -12,11 +12,13 @@ import {
 } from 'lucide-react';
 import { NavLink, useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
 
 const WebsiteLayout = () => {
   const { currentUser } = useAuth();
+  const { settings: gymSettings } = useSettings();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -60,7 +62,7 @@ const WebsiteLayout = () => {
               <div className="bg-primary p-1.5 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)] group-hover:scale-110 transition-transform">
                 <Dumbbell className="text-black w-5 h-5" />
               </div>
-              <span className="font-black text-lg tracking-[0.1em] uppercase">NEW BOSS GYM</span>
+              <span className="font-black text-lg tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
             </NavLink>
           </div>
           
@@ -124,11 +126,11 @@ const WebsiteLayout = () => {
 
         <div className="flex flex-col items-center justify-center h-full gap-8">
           <div className="flex items-center gap-3 mb-12">
-            <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
-              <Dumbbell className="text-black w-6 h-6" />
+              <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
+                <Dumbbell className="text-black w-6 h-6" />
+              </div>
+              <span className="font-black text-2xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
             </div>
-            <span className="font-black text-2xl tracking-[0.1em] uppercase">NEW BOSS GYM</span>
-          </div>
 
           {navItems.map(item => (
             <NavLink 
@@ -184,7 +186,7 @@ const WebsiteLayout = () => {
                 <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.15)]">
                   <Dumbbell className="text-black w-5 h-5" />
                 </div>
-                <span className="font-black text-xl tracking-[0.1em] uppercase">NEW BOSS GYM</span>
+                <span className="font-black text-xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
               </div>
               <p className="text-[#555] max-w-sm text-xs font-medium leading-relaxed mb-8 uppercase tracking-wide">
                 Redefining the standard of fitness. Our mission is to provide an elite management experience for every individual's fitness journey.
@@ -256,7 +258,7 @@ const WebsiteLayout = () => {
             <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
               <div className="text-center md:text-left">
                 <p className="text-[10px] font-bold text-[#333] uppercase tracking-[0.3em]">
-                  © 2026 NEW BOSS GYM
+                  © {new Date().getFullYear()} {gymSettings.gymName || 'Boss Gym'}
                 </p>
                 <p className="text-[9px] font-medium text-[#222] uppercase tracking-[0.2em]">
                   Elite Management. All Rights Reserved.

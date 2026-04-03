@@ -1,8 +1,10 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext';
 
 const Home = () => {
+  const { settings: gymSettings } = useSettings();
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
@@ -30,7 +32,7 @@ const Home = () => {
         </h1>
         
         <p className="max-w-xl mx-auto text-[#666] text-sm md:text-lg font-medium leading-relaxed mb-12 animate-boss-reveal opacity-0" style={{ animationDelay: '800ms' }}>
-          Experience the pinnacle of fitness at New Boss Gym. We combine world-class equipment with elite coaching to help you dominate your goals.
+          Experience the pinnacle of fitness at {gymSettings.gymName || 'Boss Gym'}. We combine world-class equipment with elite coaching to help you dominate your goals.
         </p>
         
         <div className="flex flex-col md:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-500">

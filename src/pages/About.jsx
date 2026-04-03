@@ -1,7 +1,9 @@
 import React from 'react';
 import { Dumbbell } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const About = () => {
+  const { settings: gymSettings } = useSettings();
   return (
     <section className="py-32 relative overflow-hidden">
       <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24">
@@ -29,7 +31,7 @@ const About = () => {
             <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-6">Our Philosophy</h2>
             <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-10 leading-none">WE DON'T JUST TRAIN, <br /> WE MANAGE GROWTH</h3>
             <p className="text-[#888] text-lg leading-relaxed mb-10 font-medium">
-              New Boss Gym isn't your average fitness center. We operate on a principle of "Elite Management" — treating your fitness journey with the same precision and dedication as a high-performance business.
+              {gymSettings.gymName || 'Boss Gym'} isn't your average fitness center. We operate on a principle of "Elite Management" — treating your fitness journey with the same precision and dedication as a high-performance business.
             </p>
             
             <div className="space-y-6 mb-12">

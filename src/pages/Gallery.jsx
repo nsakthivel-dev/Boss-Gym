@@ -1,6 +1,8 @@
 import React from 'react';
+import { useSettings } from '../context/SettingsContext';
 
 const Gallery = () => {
+  const { settings: gymSettings } = useSettings();
   const images = [
     "/photos/WhatsApp Image 2026-03-31 at 9.38.40 PM.jpeg",
     "/photos/WhatsApp Image 2026-03-31 at 9.38.43 PM.jpeg",
@@ -37,7 +39,7 @@ const Gallery = () => {
                 className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-end p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">New Boss Gym · Elite Training</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">{gymSettings.gymName || 'Boss Gym'} · Elite Training</p>
               </div>
             </div>
           ))}
@@ -45,7 +47,7 @@ const Gallery = () => {
 
         <div className="mt-20 p-12 bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm text-center">
           <h4 className="text-xl font-black uppercase tracking-tight mb-4">Visit Us in Person</h4>
-          <p className="text-[#555] text-sm mb-8 max-w-md mx-auto">The best way to experience New Boss Gym is to walk through our doors. Schedule a free tour today.</p>
+          <p className="text-[#555] text-sm mb-8 max-w-md mx-auto">The best way to experience {gymSettings.gymName || 'Boss Gym'} is to walk through our doors. Schedule a free tour today.</p>
           <button className="bg-primary text-black px-10 py-4 rounded-sm font-black uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all">
             Schedule Tour
           </button>

@@ -3,11 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Dumbbell, LogIn, Loader2 } from 'lucide-react';
-
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 
 const Login = () => {
   const { currentUser, userRole } = useAuth();
+  const { settings: gymSettings } = useSettings();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,7 +67,7 @@ const Login = () => {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center mb-4">
             <Dumbbell className="w-9 h-9 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Boss Gym</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">{gymSettings.gymName || 'Boss Gym'}</h1>
           <p className="text-muted text-sm mt-1">Attendance Management System</p>
         </div>
 
@@ -143,7 +144,7 @@ const Login = () => {
         </div>
 
         <p className="text-muted text-center text-xs mt-6">
-          © {new Date().getFullYear()} Boss Gym. All rights reserved.
+          © {new Date().getFullYear()} {gymSettings.gymName || 'Boss Gym'}. All rights reserved.
         </p>
       </div>
     </div>

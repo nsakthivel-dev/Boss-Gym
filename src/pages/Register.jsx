@@ -4,9 +4,11 @@ import { auth, db } from '../firebase/config';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { Dumbbell, UserPlus, Loader2, Mail } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { settings: gymSettings } = useSettings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -100,7 +102,7 @@ const Register = () => {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center mb-4">
             <Dumbbell className="w-9 h-9 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Boss Gym</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">{gymSettings.gymName || 'Boss Gym'}</h1>
           <p className="text-muted text-sm mt-1">Create your management account</p>
         </div>
 
@@ -173,7 +175,7 @@ const Register = () => {
         </div>
 
         <p className="text-muted text-center text-xs mt-6">
-          © {new Date().getFullYear()} Boss Gym. All rights reserved.
+          © {new Date().getFullYear()} {gymSettings.gymName || 'Boss Gym'}. All rights reserved.
         </p>
       </div>
     </div>
