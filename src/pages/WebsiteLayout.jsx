@@ -237,7 +237,7 @@ const WebsiteLayout = () => {
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-[#333] uppercase tracking-[0.3em] mb-1">Location</p>
-                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">123 Elite Street, Fitness City</p>
+                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">{gymSettings.address || '123 Elite Street, Fitness City'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-5 group">
@@ -246,7 +246,7 @@ const WebsiteLayout = () => {
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-[#333] uppercase tracking-[0.3em] mb-1">Phone</p>
-                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">+91 98765 43210</p>
+                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">{gymSettings.phoneNumber || '+91 98765 43210'}</p>
                   </div>
                 </div>
               </div>
@@ -282,15 +282,15 @@ const WebsiteLayout = () => {
                 </a>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-8">
               <a 
-                href="mailto:touch@lupusventure.com" 
+                href={`mailto:${gymSettings.contactEmail || 'touch@lupusventure.com'}`} 
                 className="group flex flex-col items-center lg:items-end gap-1"
               >
                 <span className="text-[8px] font-black text-[#333] uppercase tracking-[0.4em]">Get in touch</span>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary group-hover:text-white transition-all duration-500 flex items-center gap-2">
-                  touch@lupusventure.com
+                  {gymSettings.contactEmail || 'touch@lupusventure.com'}
                   <div className="w-6 h-[1px] bg-primary/30 group-hover:w-10 group-hover:bg-primary transition-all duration-500" />
                 </span>
               </a>

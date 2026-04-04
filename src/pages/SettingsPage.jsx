@@ -22,7 +22,7 @@ import {
 
 const SettingSection = ({ title, description, children }) => (
   <div className="bg-[#111] border border-[#1a1a1a] rounded-sm p-8 mb-8 shadow-2xl relative overflow-hidden group">
-    <div className="absolute top-0 left-0 w-1 h-full bg-primary/10 group-hover:bg-primary transition-colors" />
+    <div className="absolute top-0 left-0 w-1 h-full bg-[#e8c97e]/10 group-hover:bg-[#e8c97e] transition-colors" />
     <div className="mb-10">
       <h3 className="text-primary font-black text-xl uppercase tracking-tight">{title}</h3>
       <p className="text-[#555] text-[10px] font-bold uppercase tracking-[0.3em] mt-2">{description}</p>
@@ -229,7 +229,7 @@ const SettingsPage = () => {
                     : 'text-[#333] hover:text-primary/60 hover:bg-[#0a0a0a]'
                 }`}
               >
-                {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
+                {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#e8c97e]" />}
                 <Icon size={20} className={activeTab === tab.id ? 'text-primary' : 'group-hover:text-primary/60 transition-colors'} />
                 <span className="text-[10px] font-black uppercase tracking-[0.3em]">{tab.label}</span>
               </button>
@@ -250,6 +250,26 @@ const SettingsPage = () => {
                   description="The public name of your gym as shown to members"
                   value={settings.gymName}
                   onChange={(val) => updateSetting('gymName', val)}
+                />
+                <InputGroup 
+                  label="Contact Email" 
+                  description="The official support or contact email address"
+                  type="email"
+                  value={settings.contactEmail}
+                  onChange={(val) => updateSetting('contactEmail', val)}
+                />
+                <InputGroup 
+                  label="Phone Number" 
+                  description="Primary contact number for inquiries"
+                  type="tel"
+                  value={settings.phoneNumber}
+                  onChange={(val) => updateSetting('phoneNumber', val)}
+                />
+                <InputGroup 
+                  label="Address" 
+                  description="Physical location of the gym"
+                  value={settings.address}
+                  onChange={(val) => updateSetting('address', val)}
                 />
               </SettingSection>
 
@@ -418,13 +438,13 @@ const SettingsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
                   <button 
                     onClick={() => updateSetting('theme', 'gold')}
-                    className={`p-8 border rounded-sm text-left transition-all relative group/theme ${settings.theme === 'gold' ? 'border-primary bg-primary/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
+                    className={`p-8 border rounded-sm text-left transition-all relative group/theme ${settings.theme === 'gold' ? 'border-[#e8c97e] bg-[#e8c97e]/5' : 'border-[#1a1a1a] hover:border-[#333]'}`}
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <div className="w-10 h-10 bg-primary rounded-sm shadow-xl" />
-                      {settings.theme === 'gold' && <div className="w-2 h-2 bg-primary rounded-full" />}
+                      <div className="w-10 h-10 bg-[#e8c97e] rounded-sm shadow-xl" />
+                      {settings.theme === 'gold' && <div className="w-2 h-2 bg-[#e8c97e] rounded-full" />}
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${settings.theme === 'gold' ? 'text-white' : 'text-[#333] group-hover/theme:text-primary/60'}`}>Elite Gold (Default)</span>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${settings.theme === 'gold' ? 'text-white' : 'text-[#333] group-hover/theme:text-[#e8c97e]/60'}`}>Elite Gold (Default)</span>
                   </button>
                   <button 
                     onClick={() => updateSetting('theme', 'blue')}
