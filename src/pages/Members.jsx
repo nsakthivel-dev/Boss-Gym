@@ -359,6 +359,41 @@ const Members = () => {
   // System status check: Simple check if we have data and Firebase is responsive
   const isSystemOperational = !loading && !error && members.length >= 0;
 
+  const handleExport = () => {
+    if (filtered.length === 0) return;
+    
+    // Define headers
+    const headers = ['Name', 'Phone', 'Plan', 'Duration', 'Start Date', 'End Date', 'Status'];
+    
+    // Format rows
+    const rows = filtered.map(m => [
+      m.name,
+      m.phone,
+      m.price,
+      m.durationDays,
+      m.startDate?.toDate?.().toLocaleDateString('en-GB') || '',
+      m.endDate?.toDate?.().toLocaleDateString('en-GB') || '',
+      m.status
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `members_list_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-10">
       {/* Header */}
@@ -368,7 +403,10 @@ const Members = () => {
           <p className="text-[#555] text-xs font-bold tracking-[0.2em] mt-2 uppercase">{activeCount} Total Active Subscription</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-[#111] border border-[#1a1a1a] text-primary px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2">
+          <button 
+            onClick={handleExport}
+            className="bg-[#111] border border-[#1a1a1a] text-primary px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2"
+          >
             Export List
           </button>
           <button 

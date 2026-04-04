@@ -1,64 +1,90 @@
-# Boss Gym Management System
+# 🏋️ Boss Gym - Elite Management & Marketing Platform
 
-A premium React + Firebase application for gym management, featuring attendance tracking, QR-based scanning, and membership management.
-
-## Our Client
-
-**Lupus Venture** is the technical developer and service provider for **Boss Gym**, a high-end fitness center looking to modernize its operations. Boss Gym needed a digital solution to replace manual logbooks and fragmented spreadsheets with a unified, real-time management platform.
-
-## Goals
-
-Boss Gym's primary goals were to:
-- **Streamline Attendance**: Transition to a fully automated QR-based check-in and check-out system.
-- **Member Retention**: Provide a seamless experience for members while maintaining clear visibility into membership expiries.
-- **Operational Efficiency**: Automate daily maintenance tasks and provide real-time dashboard analytics on gym occupancy and membership stats.
-- **Reliability & Scalability**: Ensure 99.9% uptime and zero data loss with real-time synchronization via Firebase.
-
-## Challenges & Solutions
-
-### 1. The "Forget to Exit" Challenge
-**The Problem**: Many members would check in via the QR scanner but forget to scan out when leaving. This resulted in "ghost" sessions that inflated occupancy stats and made it impossible to track average workout durations accurately.
-**Our Solution**: We implemented a **Midnight Cleanup Utility** (`src/utils/cleanup.js`). This automated background process identifies any sessions still marked as "open" at the end of the day and gracefully closes them, marking them with a "no-exit" status for admin review.
-
-### 2. Robust QR-Based Entry/Exit
-**The Problem**: Early versions of the scanner struggled with varying lighting conditions and tablet-based hardware limitations, leading to frustration during peak gym hours.
-**Our Solution**: We built a dedicated, kiosk-mode **QR Scanner Page** (`src/pages/QRPage.jsx`) using `html5-qrcode`. This optimized the scanning engine for tablet-mounted cameras and implemented a multi-stage check-in flow that provides instant visual and audio feedback to the member.
-
-### 3. Membership Expiry Monitoring
-**The Problem**: Manually tracking hundreds of memberships with varying durations (1, 3, 6, 12 months) was prone to error, leading to missed revenue and awkward member interactions.
-**Our Solution**: We developed a specialized **Alert Checker** (`src/utils/alertChecker.js`) that runs every time the dashboard is loaded. It automatically categorizes memberships into "active," "expiring soon," and "expired," providing the admin with actionable notifications at a glance.
+A premium, full-stack React + Firebase application designed for high-end fitness centers. This platform provides a dual-purpose experience: a sophisticated **Public Marketing Website** for prospective members and a robust **Private Admin Dashboard** for gym operations.
 
 ---
 
-## Tech Stack
+## 🚀 Overview
 
-- **Frontend**: React.js with Vite
-- **Styling**: Tailwind CSS & Lucide Icons
-- **Backend**: Firebase Authentication & Cloud Firestore
-- **Utilities**: `html5-qrcode` (Scanning), `recharts` (Analytics), `tesseract.js` (OCR)
+Boss Gym is a modern solution developed to replace manual logbooks and fragmented spreadsheets. It offers a unified, real-time management platform built with a "Mobile-First" and "Elite" design philosophy.
 
-## Getting Started
+### 🌐 Public Website
+A high-conversion landing page and marketing suite featuring:
+- **Dynamic Branding**: Gym name and contact details update globally from the admin settings.
+- **Service Showcases**: Detailed pages for About Us, Services, Workout Plans, and a Gallery.
+- **Member Access**: Secure login and registration for members to browse plans and view gym info.
+- **Optimized UX**: Smooth navigation with automatic "Scroll to Top" and a fully responsive mobile menu.
 
-### 1. Installation
+### 📊 Admin Dashboard
+A comprehensive management suite (restricted to authorized administrators):
+- **Real-time Analytics**: Visual insights into total members, daily attendance, and occupancy using **Recharts**.
+- **Member Management**: Create, edit, and track memberships with automatic expiry status (Active, Expiring Soon, Expired).
+- **QR Attendance System**: Automated check-in/check-out via a dedicated kiosk-mode QR scanner.
+- **Global Settings**: Real-time customization of gym branding, themes (Gold/Blue), and location coordinates.
+- **Midnight Cleanup**: Automated background utility that closes "ghost" sessions left open by members.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [Lucide React Icons](https://lucide.dev/)
+- **Database & Auth**: [Firebase](https://firebase.google.com/) (Firestore & Authentication)
+- **Routing**: [React Router 7](https://reactrouter.com/)
+- **QR Technology**: `html5-qrcode` (Scanning) & `qrcode.react` (Generation)
+- **Data Visualization**: [Recharts](https://recharts.org/)
+- **Utilities**: `Tesseract.js` (OCR), `Compromise` (NLP), `WhatsApp Integration` (Alerts)
+
+---
+
+## 🔐 Security & Access Control
+
+The platform implements **Role-Based Access Control (RBAC)**:
+- **Super Admin**: Only the authorized email (`nsakthiveldev@gmail.com`) is granted full dashboard access.
+- **Authorized Redirection**: Users are automatically routed based on their role—Admins to the Dashboard, regular users to the Website.
+- **Route Protection**: All administrative pages are guarded by a specialized `ProtectedRoute` component to prevent unauthorized access.
+
+---
+
+## 📦 Installation & Setup
+
+### 1. Prerequisites
+- Node.js (Latest LTS)
+- Firebase Project
+
+### 2. Clone and Install
 ```bash
+git clone <repository-url>
+cd gym-app
 npm install
 ```
 
-### 2. Configuration
+### 3. Environment Configuration
 Create a `.env` file in the root with your Firebase credentials:
 ```env
-VITE_FIREBASE_API_KEY=your_key
-VITE_FIREBASE_AUTH_DOMAIN=your_domain
-VITE_FIREBASE_PROJECT_ID=your_id
-VITE_FIREBASE_STORAGE_BUCKET=your_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_id
-VITE_FIREBASE_APP_ID=your_id
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
-### 3. Run locally
+### 4. Development
 ```bash
 npm run dev
 ```
 
 ---
-*Developed by Lupus Venture*
+
+## 📐 Project Structure
+
+- `src/pages/`: Contains all route-level components (Website & Dashboard).
+- `src/components/`: Reusable UI elements, including the `Layout` and `ProtectedRoute`.
+- `src/context/`: State management for Authentication, Notifications, and Global Settings.
+- `src/utils/`: Core business logic for cleanup, alert checking, and third-party integrations.
+- `src/firebase/`: Firebase initialization and service configuration.
+
+---
+*Developed by **Lupus Venture***
