@@ -31,13 +31,13 @@ const Gallery = () => {
           <p className="text-[#555] max-w-xl mx-auto font-medium">Take a tour of our elite facilities and modern training environment.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
           {images.map((src, index) => (
-            <div key={index} className="aspect-square bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
+            <div key={index} className="break-inside-avoid mb-4 bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
               <img 
                 src={src} 
                 alt={`Gallery ${index + 1}`} 
-                className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700"
+                className="w-full h-auto opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-end p-6">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">{gymSettings.gymName || 'Boss Gym'} · Elite Training</p>
