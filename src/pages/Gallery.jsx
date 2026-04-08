@@ -4,21 +4,22 @@ import { useSettings } from '../context/SettingsContext';
 const Gallery = () => {
   const { settings: gymSettings } = useSettings();
   const images = [
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.40 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.43 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.44 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.45 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.46 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.47 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.48 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.52 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.53 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.55 PM.jpeg",
-    "/photos/WhatsApp Image 2026-03-31 at 9.38.56 PM.jpeg",
-    "/photos/anastase-maragos-7kEpUPB8vNk-unsplash.jpg",
-    "/photos/rodrigo-s-2mz9IKab7DE-unsplash.jpg",
-    "/photos/sven-mieke-jO6vBWX9h9Y-unsplash.jpg",
-    "/photos/victor-freitas-WvDYdXDzkhs-unsplash.jpg"
+    "/photos/1000076797.jpg",
+    "/photos/1000076800.jpg",
+    "/photos/1000076803.jpg",
+    "/photos/1000076806.jpg",
+    "/photos/1000076809.jpg",
+    "/photos/1000076812.jpg",
+    "/photos/1000076815.jpg",
+    "/photos/1000076818.jpg",
+    "/photos/1000076821.jpg",
+    "/photos/1000076824.jpg",
+    "/photos/1000076827.jpg",
+    "/photos/1000076830.jpg",
+    "/photos/1000076833.jpg",
+    "/photos/1000076836.jpg",
+    "/photos/1000076839.jpg",
+    "/photos/1000076845.jpg"
   ];
 
   return (
