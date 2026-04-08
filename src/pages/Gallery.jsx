@@ -3,15 +3,24 @@ import { useSettings } from '../context/SettingsContext';
 
 const Gallery = () => {
   const { settings: gymSettings } = useSettings();
-  const imageModules = import.meta.glob('../assets/photos/gallery/*.{png,jpg,jpeg,SVG,webp}', { 
-    eager: true, 
-    as: 'url' 
-  });
-  
-  // Sort numeric filenames correctly
-  const images = Object.keys(imageModules)
-    .sort()
-    .map(key => imageModules[key]);
+  const images = [
+    "/photos/gallery/1000076797.jpg",
+    "/photos/gallery/1000076800.jpg",
+    "/photos/gallery/1000076803.jpg",
+    "/photos/gallery/1000076806.jpg",
+    "/photos/gallery/1000076809.jpg",
+    "/photos/gallery/1000076812.jpg",
+    "/photos/gallery/1000076815.jpg",
+    "/photos/gallery/1000076818.jpg",
+    "/photos/gallery/1000076821.jpg",
+    "/photos/gallery/1000076824.jpg",
+    "/photos/gallery/1000076827.jpg",
+    "/photos/gallery/1000076830.jpg",
+    "/photos/gallery/1000076833.jpg",
+    "/photos/gallery/1000076836.jpg",
+    "/photos/gallery/1000076839.jpg",
+    "/photos/gallery/1000076845.jpg"
+  ];
 
   return (
     <section className="py-32 relative min-h-screen">
