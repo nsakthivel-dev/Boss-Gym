@@ -2,7 +2,6 @@ import React from 'react';
 import { ChevronRight, Shield, Zap, Target, Award, Users, Trophy, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
-import heroImage from '../assets/photos/1000076845.jpg';
 
 const Home = () => {
   const { settings: gymSettings } = useSettings();
@@ -43,7 +42,7 @@ const Home = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img 
-            src={heroImage} 
+            src="/photos/victor-freitas-WvDYdXDzkhs-unsplash.jpg" 
             alt="Gym Background" 
             className="w-full h-full object-cover opacity-30 scale-100 animate-in fade-in duration-1000"
           />

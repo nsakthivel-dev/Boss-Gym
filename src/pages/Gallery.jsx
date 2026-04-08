@@ -3,7 +3,7 @@ import { useSettings } from '../context/SettingsContext';
 
 const Gallery = () => {
   const { settings: gymSettings } = useSettings();
-  const imageModules = import.meta.glob('../assets/photos/*.{png,jpg,jpeg,SVG,webp}', { 
+  const imageModules = import.meta.glob('../assets/photos/gallery/*.{png,jpg,jpeg,SVG,webp}', { 
     eager: true, 
     as: 'url' 
   });
