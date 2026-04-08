@@ -34,7 +34,9 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      if (!user.emailVerified) {
+      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.toLowerCase().trim();
+      const isSystemAdmin = user.email?.toLowerCase().trim() === adminEmail;
+      if (!user.emailVerified && !isSystemAdmin) {
         setError('Please verify your email before logging in.');
         await auth.signOut();
         return;

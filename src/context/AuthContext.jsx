@@ -24,13 +24,23 @@ export const AuthProvider = ({ children }) => {
         if (user) {
           setCurrentUser(user);
           
-          // Role-based access: Only this specific email can be an admin
-          if (user.email === 'nsakthiveldev@gmail.com') {
+          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.toLowerCase().trim();
+          const isSystemAdmin = user.email?.toLowerCase().trim() === adminEmail;
+          
+          // 1. Check Firestore for role
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().role || 'user');
+          } else if (isSystemAdmin) {
+            // Fallback for new admin without a document yet
             setUserRole('admin');
-            seedDatabase();
           } else {
-            // All other users are allowed to log in but get 'user' role
             setUserRole('user');
+          }
+
+          // 2. Trigger seed only for the system admin
+          if (isSystemAdmin) {
+            seedDatabase();
           }
         } else {
           setCurrentUser(null);
