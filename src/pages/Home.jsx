@@ -1,10 +1,11 @@
-import React from 'react';
-import { ChevronRight, Shield, Zap, Target, Award, Users, Trophy, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronRight, Shield, Zap, Target, Award, Users, Trophy, Star, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 
 const Home = () => {
   const { settings: gymSettings } = useSettings();
+  const [showMaster, setShowMaster] = useState(false);
   
   const features = [
     {
@@ -42,11 +43,12 @@ const Home = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img 
-            src="/photos/victor-freitas-WvDYdXDzkhs-unsplash.jpg" 
+            src="/photos/anastase-maragos-7kEpUPB8vNk-unsplash.jpg" 
             alt="Gym Background" 
-            className="w-full h-full object-cover opacity-30 scale-100 animate-in fade-in duration-1000"
+            className="w-full h-full object-cover opacity-50 scale-100 animate-in fade-in duration-1000"
+            style={{ objectPosition: 'center 20%' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/60 via-transparent to-[#050505]" />
         </div>
 
         {/* Animated Background Elements */}
@@ -144,6 +146,68 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Floating "Master" Button - Redesigned FAB */}
+      <div className="fixed bottom-10 right-10 z-[100]">
+        <button 
+          onClick={() => setShowMaster(true)}
+          className="relative group flex items-center justify-center"
+        >
+          {/* Pulsing Outer Glow */}
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse group-hover:bg-primary/40 transition-all duration-700" />
+          
+          {/* Button Core */}
+          <div className="relative w-16 h-16 bg-[#0a0a0a] border border-primary/30 rounded-full flex items-center justify-center text-primary group-hover:scale-110 group-hover:border-primary group-hover:text-white transition-all duration-500 shadow-2xl">
+            <Trophy size={28} className="animate-in fade-in zoom-in duration-1000" />
+          </div>
+
+          {/* Floating Tooltip */}
+          <div className="absolute right-full mr-6 py-3 px-6 bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm whitespace-nowrap opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-500 pointer-events-none">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Show The Master</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Master Modal Overlay - Redesigned for better image placement */}
+      {showMaster && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          {/* Backdrop with standard blurred effect */}
+          <div 
+            className="absolute inset-0 bg-black/90 backdrop-blur-md animate-in fade-in duration-500"
+            onClick={() => setShowMaster(false)}
+          />
+          
+          {/* Modal Content - Zoomed out and centered */}
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center animate-in zoom-in-95 slide-in-from-bottom-10 duration-700">
+            {/* Standard Top-Right Close Button */}
+            <button 
+              onClick={() => setShowMaster(false)}
+              className="absolute -top-12 right-0 md:-right-12 text-white/40 hover:text-primary transition-all duration-300 p-2"
+            >
+              <X size={32} strokeWidth={1.5} />
+            </button>
+            
+            {/* Image Container - Focused on visibility */}
+            <div className="w-full h-full flex flex-col items-center">
+              <div className="relative border border-white/5 rounded-sm overflow-hidden bg-black/40 p-1">
+                <img 
+                  src="/photos/gallery/1000076836.jpg" 
+                  alt="The Master" 
+                  className="max-h-[75vh] w-auto object-contain block mx-auto"
+                />
+                {/* Subtle overlay details */}
+                <div className="absolute inset-0 pointer-events-none border border-primary/5" />
+              </div>
+              
+              <div className="mt-10 text-center space-y-3">
+                <div className="w-12 h-[1px] bg-primary/30 mx-auto" />
+                <h4 className="text-primary text-[11px] font-black uppercase tracking-[1em] pl-[1em]">The Master</h4>
+                <p className="text-[#444] text-[9px] font-bold uppercase tracking-[0.4em]">Elite Leadership · Champion Legacy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,9 +14,9 @@ const DEFAULT_7_DAY_CYCLE = [
   { day: 2, title: 'BACK WORKOUT', muscles: 'Lats · Traps · Lower Back', isRest: false },
   { day: 3, title: 'SHOULDER', muscles: 'Deltoids · Rear Delts', isRest: false },
   { day: 4, title: 'BICEPS', muscles: 'Biceps Brachii · Brachialis', isRest: false },
-  { day: 5, title: 'LEGS', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false },
+  { day: 5, title: 'LEGS DAY', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false },
   { day: 6, title: 'TRICEPS', muscles: 'Long Head · Lateral Head · Medial Head', isRest: false },
-  { day: 7, title: 'REST', muscles: 'Recovery & Stretching', isRest: true }
+  { day: 7, title: 'REST DAY', muscles: 'Recovery & Stretching', isRest: true }
 ].map(item => ({
   ...item,
   exercises: [
@@ -51,11 +51,12 @@ const Schedule = () => {
       const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
       let scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Auto-migrate if it's the old 30-day schedule or empty
-      if (scheduleData.length === 0 || scheduleData.length === 30) {
-        console.log("Migrating to 7-day cycle...");
+      // Auto-migrate if it's the old 30-day schedule, empty, or old 7-day schedule
+      const isOld7Day = scheduleData.length === 7 && scheduleData.some(d => d.day === 5 && d.title === 'LEGS');
+      if (scheduleData.length === 0 || scheduleData.length === 30 || isOld7Day) {
+        console.log("Migrating to new 7-day cycle...");
         // Clear existing if any
-        if (scheduleData.length === 30) {
+        if (scheduleData.length === 30 || isOld7Day) {
           for (const d of scheduleSnap.docs) {
             await deleteDoc(doc(db, 'workout_schedule', d.id));
           }
@@ -568,7 +569,7 @@ const Schedule = () => {
                         onChange={e => {
                           const newSched = [...baseSchedule];
                           newSched[idx].isRest = e.target.checked;
-                          newSched[idx].title = e.target.checked ? "REST DAY" : "PUSH DAY";
+                          newSched[idx].title = e.target.checked ? "REST DAY" : "NEW WORKOUT";
                           setBaseSchedule(newSched);
                         }}
                         className="w-4 h-4 accent-primary" 

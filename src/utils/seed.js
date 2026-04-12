@@ -19,7 +19,7 @@ export const seedDatabase = async () => {
 
     // Seed Plans
     const planData = [
-      { name: 'Monthly', durationDays: 30, price: 999, active: true, createdAt: Timestamp.fromDate(new Date(now.getTime() - dayMs * 60)) },
+      { name: 'Monthly', durationDays: 30, price: 800, active: true, createdAt: Timestamp.fromDate(new Date(now.getTime() - dayMs * 60)) },
       { name: 'Quarterly', durationDays: 90, price: 2499, active: true, createdAt: Timestamp.fromDate(new Date(now.getTime() - dayMs * 60)) },
       { name: 'Yearly', durationDays: 365, price: 7999, active: true, createdAt: Timestamp.fromDate(new Date(now.getTime() - dayMs * 60)) },
     ];

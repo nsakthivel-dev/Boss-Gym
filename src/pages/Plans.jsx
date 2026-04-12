@@ -18,7 +18,7 @@ const Plans = () => {
             
             <div className="flex items-baseline justify-center gap-1 mb-12">
               <span className="text-2xl font-black uppercase tracking-tighter">₹</span>
-              <span className="text-8xl font-black uppercase tracking-tighter leading-none">600</span>
+              <span className="text-8xl font-black uppercase tracking-tighter leading-none">800</span>
             </div>
             
             <div className="space-y-6 mb-16 flex-1">

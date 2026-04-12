@@ -11,7 +11,7 @@ const About = () => {
           <div className="relative">
             <div className="aspect-[4/5] bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
               <img 
-                src="/photos/WhatsApp Image 2026-03-31 at 9.38.46 PM.jpeg" 
+                src="/photos/gallery/1000076818.jpg" 
                 alt="About Gym" 
                 className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000"
               />
