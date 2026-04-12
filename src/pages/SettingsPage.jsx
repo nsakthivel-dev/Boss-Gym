@@ -385,6 +385,12 @@ const SettingsPage = () => {
 
                 <div className="pt-4">
                   <InputGroup 
+                    label="Check-in URL" 
+                    description="The URL used for the QR code (automatically detects your domain)"
+                    value={`${window.location.origin}/checkin`}
+                    onChange={() => {}} // Read-only
+                  />
+                  <InputGroup 
                     label="Check-in Radius" 
                     description="Maximum allowed distance in meters for valid check-ins"
                     type="number"
