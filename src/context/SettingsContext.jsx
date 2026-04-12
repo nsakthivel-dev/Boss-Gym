@@ -12,7 +12,7 @@ export const SettingsProvider = ({ children }) => {
     theme: 'gold',
     latitude: 11.9111586,
     longitude: 79.6347447,
-    radius: 150
+    radius: 500
   });
   const [loading, setLoading] = useState(true);
 

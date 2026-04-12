@@ -3,6 +3,7 @@ import { db, auth } from '../firebase/config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { 
   Settings, 
   Bell, 
@@ -17,7 +18,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  KeyRound
+  KeyRound,
+  MapPin
 } from 'lucide-react';
 
 const SettingSection = ({ title, description, children }) => (
@@ -68,6 +70,7 @@ const ToggleGroup = ({ label, description, checked, onChange }) => (
 
 const SettingsPage = () => {
   const { currentUser } = useAuth();
+  const { settings: contextSettings, loading: contextLoading } = useSettings();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,7 +91,7 @@ const SettingsPage = () => {
     address: '123 Elite Street, Fitness City',
     latitude: 11.9111586,
     longitude: 79.6347447,
-    radius: 150,
+    radius: 500,
     notifyExpiry: true,
     notifyAttendance: true,
     browserNotifications: true,
@@ -97,27 +100,11 @@ const SettingsPage = () => {
   });
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      const docRef = doc(db, 'settings', 'config');
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        setSettings(prev => ({ ...prev, ...docSnap.data() }));
-      } else {
-        // Initialize settings if they don't exist
-        await setDoc(docRef, settings);
-      }
-    } catch (err) {
-      console.error("Error fetching settings:", err);
-      showFeedback('error', 'Failed to load settings');
-    } finally {
+    if (!contextLoading && contextSettings) {
+      setSettings(prev => ({ ...prev, ...contextSettings }));
       setLoading(false);
     }
-  };
+  }, [contextLoading, contextSettings]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -125,12 +112,12 @@ const SettingsPage = () => {
     try {
       const docRef = doc(db, 'settings', 'config');
       
-      // Ensure numeric fields are saved as numbers
+      // Ensure numeric fields are saved as numbers and cleaned
       const dataToSave = {
         ...settings,
-        latitude: parseFloat(settings.latitude) || 0,
-        longitude: parseFloat(settings.longitude) || 0,
-        radius: parseInt(settings.radius) || 150
+        latitude: Number(settings.latitude) || 0,
+        longitude: Number(settings.longitude) || 0,
+        radius: Number(settings.radius) || 500
       };
 
       await setDoc(docRef, dataToSave, { merge: true });
@@ -343,33 +330,65 @@ const SettingsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 border-b border-[#1a1a1a]/50">
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Latitude</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. 11.911158"
-                      value={settings.latitude}
-                      onChange={(e) => updateSetting('latitude', e.target.value)}
-                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
-                    />
+                    <div className="relative group">
+                      <input 
+                        type="text"
+                        placeholder="e.g. 11.911158"
+                        value={settings.latitude}
+                        onChange={(e) => updateSetting('latitude', e.target.value)}
+                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
+                      />
+                    </div>
                     <p className="text-[9px] text-[#444] font-bold uppercase tracking-widest">GPS latitude coordinate</p>
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block mb-2">Longitude</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. 79.634744"
-                      value={settings.longitude}
-                      onChange={(e) => updateSetting('longitude', e.target.value)}
-                      className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
-                    />
+                    <div className="relative group">
+                      <input 
+                        type="text"
+                        placeholder="e.g. 79.634744"
+                        value={settings.longitude}
+                        onChange={(e) => updateSetting('longitude', e.target.value)}
+                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all"
+                      />
+                    </div>
                     <p className="text-[9px] text-[#444] font-bold uppercase tracking-widest">GPS longitude coordinate</p>
                   </div>
                 </div>
+
+                <div className="flex justify-start py-4">
+                  <button 
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        setSaving(true);
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            updateSetting('latitude', pos.coords.latitude.toFixed(6));
+                            updateSetting('longitude', pos.coords.longitude.toFixed(6));
+                            setSaving(false);
+                            showFeedback('success', 'Location updated to current position');
+                          },
+                          (err) => {
+                            console.error(err);
+                            setSaving(false);
+                            showFeedback('error', 'Failed to get current location');
+                          }
+                        );
+                      }
+                    }}
+                    className="flex items-center gap-3 text-primary text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors"
+                  >
+                    <MapPin size={14} />
+                    Use Current Location
+                  </button>
+                </div>
+
                 <div className="pt-4">
                   <InputGroup 
                     label="Check-in Radius" 
                     description="Maximum allowed distance in meters for valid check-ins"
                     type="number"
-                    placeholder="150"
+                    placeholder="500"
                     value={settings.radius}
                     onChange={(val) => updateSetting('radius', parseInt(val) || 0)}
                   />

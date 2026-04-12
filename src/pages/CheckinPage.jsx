@@ -10,7 +10,10 @@ import {
   LogOut, Hourglass, Loader2 
 } from 'lucide-react';
 
+import { useSettings } from '../context/SettingsContext';
+
 const CheckinPage = () => {
+  const { settings: gymSettings, loading: settingsLoading } = useSettings();
   const [pageState, setPageState] = useState('locating');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -18,28 +21,12 @@ const CheckinPage = () => {
   const [workout, setWorkout] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [debug, setDebug] = useState(null);
-  const [gymSettings, setGymSettings] = useState(null);
 
   useEffect(() => {
-    const fetchGymSettings = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'config');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setGymSettings(docSnap.data());
-        }
-      } catch (err) {
-        console.error("Error fetching gym settings:", err);
-      }
-    };
-    fetchGymSettings();
-  }, []);
-
-  useEffect(() => {
-    if (pageState === 'locating' && gymSettings) {
+    if (pageState === 'locating' && !settingsLoading && gymSettings) {
       verifyLocation();
     }
-  }, [pageState, gymSettings]);
+  }, [pageState, settingsLoading, gymSettings]);
 
   const verifyLocation = () => {
     if (!navigator.geolocation) {
@@ -49,7 +36,7 @@ const CheckinPage = () => {
 
     const gymLat = parseFloat(gymSettings?.latitude || 0);
     const gymLng = parseFloat(gymSettings?.longitude || 0);
-    const gymRadius = parseInt(gymSettings?.radius || 150);
+    const gymRadius = parseFloat(gymSettings?.radius || 500);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -90,7 +77,7 @@ const CheckinPage = () => {
           setPageState("location_error");
         }
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
 
     );
   };
