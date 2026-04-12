@@ -83,7 +83,7 @@ const SettingsPage = () => {
 
   const [settings, setSettings] = useState({
     gymName: 'Boss Gym',
-    contactEmail: 'admin@bossgym.com',
+    contactEmail: 'touch@lupusventure.com',
     phoneNumber: '+91 98765 43210',
     address: '123 Elite Street, Fitness City',
     latitude: 11.9111586,
@@ -254,7 +254,7 @@ const SettingsPage = () => {
                 />
                 <InputGroup 
                   label="Contact Email" 
-                  description="The official support or contact email address"
+                  description="The email shown on the Contact page for members to reach out"
                   type="email"
                   value={settings.contactEmail}
                   onChange={(val) => updateSetting('contactEmail', val)}

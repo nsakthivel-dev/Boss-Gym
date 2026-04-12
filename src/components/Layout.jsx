@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
@@ -29,11 +29,17 @@ const Layout = () => {
   const { userRole } = useAuth();
   const { alerts, alertCount } = useNotification();
   const navigate = useNavigate();
+  const location = useLocation();
   const { settings: gymSettings } = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // Close notifications on click outside
   useEffect(() => {
@@ -48,6 +54,7 @@ const Layout = () => {
 
 
   const handleLogout = async () => {
+    setMobileMenuOpen(false);
     try {
       await signOut(auth);
       navigate('/login');

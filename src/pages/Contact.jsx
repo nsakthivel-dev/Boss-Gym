@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Twitter, MessageCircle } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const Contact = () => {
+  const { settings: gymSettings } = useSettings();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,9 +35,9 @@ const Contact = () => {
           {/* Contact Info */}
           <div className="space-y-8">
             {[
-              { icon: MapPin, title: "Headquarters", content: "123 Elite Street, Fitness City, State 56789" },
-              { icon: Phone, title: "Direct Line", content: "+91 98765 43210" },
-              { icon: Mail, title: "Official Email", content: "hello@newbossgym.com" },
+              { icon: MapPin, title: "Headquarters", content: gymSettings.address || "123 Elite Street, Fitness City, State 56789" },
+              { icon: Phone, title: "Direct Line", content: gymSettings.phoneNumber || "+91 98765 43210" },
+              { icon: Mail, title: "Official Email", content: gymSettings.contactEmail || "hello@newbossgym.com" },
               { icon: Clock, title: "Elite Hours", content: "Mon - Sat: 5:00 AM - 10:00 PM" }
             ].map((item, i) => (
               <div 
@@ -95,7 +97,7 @@ const Contact = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-[#111] border border-[#1a1a1a] px-6 py-4 rounded-sm text-xs font-bold text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]" 
-                  placeholder="e.g. admin@bossgym.com" 
+                  placeholder="e.g. touch@lupusventure.com" 
                 />
               </div>
               <div className="space-y-2 group/input">

@@ -10,7 +10,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { NavLink, useNavigate, Outlet, Link } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { auth } from '../firebase/config';
@@ -20,7 +20,13 @@ const WebsiteLayout = () => {
   const { currentUser } = useAuth();
   const { settings: gymSettings } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -35,6 +41,7 @@ const WebsiteLayout = () => {
   }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
+    setMobileMenuOpen(false);
     try {
       await signOut(auth);
       navigate('/login');
@@ -285,12 +292,12 @@ const WebsiteLayout = () => {
 
             <div className="flex items-center gap-8">
               <a 
-                href={`mailto:${gymSettings.contactEmail || 'touch@lupusventure.com'}`} 
+                href="mailto:touch@lupusventure.com" 
                 className="group flex flex-col items-center lg:items-end gap-1"
               >
                 <span className="text-[8px] font-black text-[#333] uppercase tracking-[0.4em]">Get in touch</span>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary group-hover:text-white transition-all duration-500 flex items-center gap-2">
-                  {gymSettings.contactEmail || 'touch@lupusventure.com'}
+                  touch@lupusventure.com
                   <div className="w-6 h-[1px] bg-primary/30 group-hover:w-10 group-hover:bg-primary transition-all duration-500" />
                 </span>
               </a>
