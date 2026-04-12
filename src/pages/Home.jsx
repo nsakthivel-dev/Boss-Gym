@@ -179,30 +179,41 @@ const Home = () => {
           
           {/* Modal Content - Zoomed out and centered */}
           <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center animate-in zoom-in-95 slide-in-from-bottom-10 duration-700">
-            {/* Standard Top-Right Close Button */}
+            {/* Accessible Close Button - Top Right */}
             <button 
               onClick={() => setShowMaster(false)}
-              className="absolute -top-12 right-0 md:-right-12 text-white/40 hover:text-primary transition-all duration-300 p-2"
+              className="absolute -top-14 right-0 text-white/60 hover:text-primary transition-all duration-300 p-3 bg-white/5 md:bg-transparent rounded-full md:rounded-none z-[1100]"
+              aria-label="Close Master View"
             >
-              <X size={32} strokeWidth={1.5} />
+              <X size={28} strokeWidth={2} />
             </button>
             
             {/* Image Container - Focused on visibility */}
             <div className="w-full h-full flex flex-col items-center">
-              <div className="relative border border-white/5 rounded-sm overflow-hidden bg-black/40 p-1">
+              <div 
+                className="relative border border-white/5 rounded-sm overflow-hidden bg-black/40 p-1 cursor-pointer"
+                onClick={() => setShowMaster(false)}
+              >
                 <img 
                   src="/photos/gallery/1000076836.jpg" 
                   alt="The Master" 
-                  className="max-h-[75vh] w-auto object-contain block mx-auto"
+                  className="max-h-[65vh] md:max-h-[75vh] w-auto object-contain block mx-auto"
                 />
                 {/* Subtle overlay details */}
                 <div className="absolute inset-0 pointer-events-none border border-primary/5" />
               </div>
               
-              <div className="mt-10 text-center space-y-3">
+              <div className="mt-6 md:mt-10 text-center space-y-3">
                 <div className="w-12 h-[1px] bg-primary/30 mx-auto" />
                 <h4 className="text-primary text-[11px] font-black uppercase tracking-[1em] pl-[1em]">The Master</h4>
-                <p className="text-[#444] text-[9px] font-bold uppercase tracking-[0.4em]">Elite Leadership · Champion Legacy</p>
+                
+                {/* Mobile-Friendly Close Button at Bottom */}
+                <button 
+                  onClick={() => setShowMaster(false)}
+                  className="mt-4 px-8 py-3 bg-[#111] border border-[#1a1a1a] text-primary text-[10px] font-black uppercase tracking-[0.3em] rounded-sm hover:bg-primary hover:text-black transition-all"
+                >
+                  Close Photo
+                </button>
               </div>
             </div>
           </div>
