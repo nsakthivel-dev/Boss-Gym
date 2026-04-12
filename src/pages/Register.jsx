@@ -38,7 +38,7 @@ const Register = () => {
       await sendEmailVerification(user);
 
       // 3. Create User Document in Firestore
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.toLowerCase().trim();
+      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
       const isSystemAdmin = email.toLowerCase().trim() === adminEmail;
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,

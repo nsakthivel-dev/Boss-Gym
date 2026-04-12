@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         if (user) {
           setCurrentUser(user);
           
-          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.toLowerCase().trim();
+          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
           const isSystemAdmin = user.email?.toLowerCase().trim() === adminEmail;
           
           // 1. Check Firestore for role
