@@ -21,47 +21,47 @@ import {
 } from 'lucide-react';
 
 const SettingSection = ({ title, description, children }) => (
-  <div className="bg-[#111] border border-[#1a1a1a] rounded-sm p-8 mb-8 shadow-2xl relative overflow-hidden group">
+  <div className="bg-[#111] border border-[#1a1a1a] rounded-sm p-6 md:p-8 mb-6 shadow-2xl relative overflow-hidden group">
     <div className="absolute top-0 left-0 w-1 h-full bg-[#e8c97e]/10 group-hover:bg-[#e8c97e] transition-colors" />
-    <div className="mb-10">
-      <h3 className="text-primary font-black text-xl uppercase tracking-tight">{title}</h3>
-      <p className="text-[#555] text-[10px] font-bold uppercase tracking-[0.3em] mt-2">{description}</p>
+    <div className="mb-6 md:mb-10">
+      <h3 className="text-primary font-black text-lg md:text-xl uppercase tracking-tight">{title}</h3>
+      <p className="text-[#555] text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] mt-2">{description}</p>
     </div>
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {children}
     </div>
   </div>
 );
 
 const InputGroup = ({ label, description, type = "text", placeholder, value, onChange }) => (
-  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 py-6 border-b border-[#1a1a1a]/50 last:border-0 group/input">
+  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 md:gap-6 py-4 md:py-6 border-b border-[#1a1a1a]/50 last:border-0 group/input">
     <div className="flex-1 max-w-md">
-      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block group-hover/input:text-primary/60 transition-colors mb-2">{label}</label>
-      <p className="text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
+      <label className="text-[9px] md:text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] md:tracking-[0.3em] block group-hover/input:text-primary/60 transition-colors mb-1 md:mb-2">{label}</label>
+      <p className="text-[9px] md:text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
     </div>
-    <div className="w-full md:w-80">
+    <div className="w-full md:w-72 lg:w-80">
       <input 
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-5 py-4 rounded-sm text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
+        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] text-white px-4 md:px-5 py-3 md:py-4 rounded-sm text-[10px] md:text-xs font-bold tracking-widest focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#222]"
       />
     </div>
   </div>
 );
 
 const ToggleGroup = ({ label, description, checked, onChange }) => (
-  <div className="flex items-start justify-between gap-8 py-6 border-b border-[#1a1a1a]/50 last:border-0 group/toggle">
+  <div className="flex items-start justify-between gap-6 md:gap-8 py-4 md:py-6 border-b border-[#1a1a1a]/50 last:border-0 group/toggle">
     <div className="flex-1">
-      <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] block group-hover/toggle:text-primary/60 transition-colors mb-2">{label}</label>
-      <p className="text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
+      <label className="text-[9px] md:text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] md:tracking-[0.3em] block group-hover/toggle:text-primary/60 transition-colors mb-1 md:mb-2">{label}</label>
+      <p className="text-[9px] md:text-[10px] text-[#444] font-bold uppercase tracking-widest leading-relaxed">{description}</p>
     </div>
     <button 
       onClick={() => onChange(!checked)}
-      className={`w-14 h-7 rounded-sm relative transition-all duration-300 shrink-0 ${checked ? 'bg-primary/20 border border-primary/30' : 'bg-[#0a0a0a] border border-[#1a1a1a]'}`}
+      className={`w-12 h-6 md:w-14 md:h-7 rounded-sm relative transition-all duration-300 shrink-0 ${checked ? 'bg-primary/20 border border-primary/30' : 'bg-[#0a0a0a] border border-[#1a1a1a]'}`}
     >
-      <div className={`absolute top-1 w-5 h-5 rounded-sm transition-all duration-300 shadow-xl ${checked ? 'right-1 bg-primary' : 'left-1 bg-[#222]'}`} />
+      <div className={`absolute top-1 w-4 h-4 md:w-5 md:h-5 rounded-sm transition-all duration-300 shadow-xl ${checked ? 'right-1 bg-primary' : 'left-1 bg-[#222]'}`} />
     </button>
   </div>
 );
@@ -199,11 +199,12 @@ const SettingsPage = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-[#1a1a1a]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-[#1a1a1a]">
         <div>
           <h1 className="text-4xl font-black text-primary uppercase tracking-tight">Settings</h1>
           <p className="text-[#555] text-xs font-bold mt-2 uppercase tracking-[0.3em]">Configure your gym management system</p>
         </div>
+        
         {message.text && (
           <div className={`flex items-center gap-3 px-6 py-3 rounded-sm animate-in fade-in slide-in-from-top-2 duration-300 ${
             message.type === 'success' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20'
@@ -216,22 +217,22 @@ const SettingsPage = () => {
 
       <div className="flex flex-col lg:flex-row gap-12">
         {/* Tabs Sidebar */}
-        <aside className="lg:w-72 space-y-2">
+        <aside className="lg:w-64 space-y-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-5 px-8 py-5 rounded-sm transition-all duration-300 group relative overflow-hidden ${
+                className={`w-full flex items-center gap-4 px-6 py-4 rounded-sm transition-all duration-300 group relative overflow-hidden ${
                   activeTab === tab.id 
                     ? 'bg-[#111] text-primary border border-[#1a1a1a]' 
                     : 'text-[#333] hover:text-primary/60 hover:bg-[#0a0a0a]'
                 }`}
               >
                 {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#e8c97e]" />}
-                <Icon size={20} className={activeTab === tab.id ? 'text-primary' : 'group-hover:text-primary/60 transition-colors'} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em]">{tab.label}</span>
+                <Icon size={18} className={activeTab === tab.id ? 'text-primary' : 'group-hover:text-primary/60 transition-colors'} />
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em]">{tab.label}</span>
               </button>
             );
           })}
@@ -271,6 +272,16 @@ const SettingsPage = () => {
                   value={settings.address}
                   onChange={(val) => updateSetting('address', val)}
                 />
+                <div className="flex justify-end pt-4">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-black px-6 py-3 rounded-sm uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-black transition-all group"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} className="group-hover:scale-110 transition-transform" />}
+                    Save Branding
+                  </button>
+                </div>
               </SettingSection>
 
               <SettingSection 
@@ -363,18 +374,17 @@ const SettingsPage = () => {
                     onChange={(val) => updateSetting('radius', parseInt(val) || 0)}
                   />
                 </div>
+                <div className="flex justify-end pt-8">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-black px-6 py-3 rounded-sm uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-black transition-all group"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} className="group-hover:scale-110 transition-transform" />}
+                    Save Location
+                  </button>
+                </div>
               </SettingSection>
-
-              <div className="flex justify-end pt-8">
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
             </div>
           )}
 
@@ -402,6 +412,16 @@ const SettingsPage = () => {
                   checked={settings.browserNotifications}
                   onChange={(val) => updateSetting('browserNotifications', val)}
                 />
+                <div className="flex justify-end pt-6">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-black px-6 py-3 rounded-sm uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-black transition-all group"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} className="group-hover:scale-110 transition-transform" />}
+                    Save Alerts
+                  </button>
+                </div>
               </SettingSection>
 
               <SettingSection 
@@ -414,18 +434,17 @@ const SettingsPage = () => {
                   checked={settings.whatsappWelcome}
                   onChange={(val) => updateSetting('whatsappWelcome', val)}
                 />
+                <div className="flex justify-end pt-6">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-black px-6 py-3 rounded-sm uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-black transition-all group"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} className="group-hover:scale-110 transition-transform" />}
+                    Save WhatsApp
+                  </button>
+                </div>
               </SettingSection>
-
-              <div className="flex justify-end pt-8">
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
             </div>
           )}
 
@@ -457,18 +476,17 @@ const SettingsPage = () => {
                     <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${settings.theme === 'blue' ? 'text-white' : 'text-[#333] group-hover/theme:text-blue-500/60'}`}>Iron Blue</span>
                   </button>
                 </div>
+                <div className="flex justify-end pt-6">
+                  <button 
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-black px-6 py-3 rounded-sm uppercase text-[9px] tracking-[0.2em] hover:bg-primary hover:text-black transition-all group"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} className="group-hover:scale-110 transition-transform" />}
+                    Save Theme
+                  </button>
+                </div>
               </SettingSection>
-
-              <div className="flex justify-end pt-8">
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-3 bg-primary text-black font-black px-10 py-5 rounded-sm uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all shadow-2xl shadow-primary/10 disabled:opacity-50 group"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
             </div>
           )}
         </div>

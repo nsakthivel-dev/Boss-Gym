@@ -139,7 +139,10 @@ const Layout = () => {
 
           <div className="p-6 space-y-4 border-t border-[#1a1a1a]">
             <button 
-              onClick={() => navigate('/members')}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/members');
+              }}
               className="w-full bg-[#d1d5db] text-black font-bold py-3 rounded-sm flex items-center justify-center gap-2 hover:bg-[#e5e7eb] transition-colors uppercase text-xs tracking-widest"
             >
               <Plus size={16} /> Add Member
@@ -148,6 +151,7 @@ const Layout = () => {
             <div className="space-y-1">
               <NavLink 
                 to="/settings"
+                onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) => `flex items-center gap-4 px-2 py-2 w-full text-left transition-colors group ${isActive ? 'text-primary' : 'text-[#666] hover:text-white'}`}
               >
                 <Settings size={18} className="group-hover:text-white" />
@@ -155,6 +159,7 @@ const Layout = () => {
               </NavLink>
               <NavLink 
                 to="/support"
+                onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) => `flex items-center gap-4 px-2 py-2 w-full text-left transition-colors group ${isActive ? 'text-primary' : 'text-[#666] hover:text-white'}`}
               >
                 <HelpCircle size={18} className="group-hover:text-white" />
