@@ -6,7 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 const QRPage = () => {
   const { settings: gymSettings } = useSettings();
   const gymName = gymSettings?.gymName || 'GYMCORE';
-  const qrUrl = 'https://boss-gym.onrender.com/checkin';
+  const qrUrl = `${window.location.origin}/checkin`;
 
   const downloadQR = () => {
     const canvas = document.getElementById('qr-canvas');

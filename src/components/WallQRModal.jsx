@@ -5,7 +5,7 @@ import { useSettings } from '../context/SettingsContext';
 
 const WallQRModal = ({ onClose }) => {
   const { settings: gymSettings } = useSettings();
-  const checkinURL = "https://boss-gym.onrender.com/checkin";
+  const checkinURL = `${window.location.origin}/checkin`;
 
 
   const downloadQR = () => {
