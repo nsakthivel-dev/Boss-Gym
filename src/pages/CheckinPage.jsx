@@ -111,16 +111,19 @@ const CheckinPage = () => {
           // Fetch workout schedule - simple fetch to avoid index requirements for orderBy
           const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
           const baseSchedule = scheduleSnap.docs
-            .map(d => d.data())
+            .map(d => ({ id: d.id, ...d.data() }))
             .sort((a, b) => a.day - b.day);
 
-          if (baseSchedule.length > 0 && member.workoutStartDate && typeof member.workoutStartDate.toDate === 'function') {
+          if (baseSchedule.length > 0 && member.workoutStartDate) {
+            // Normalize both dates to midnight for accurate day difference
             const start = member.workoutStartDate.toDate();
             start.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const diffTime = today.getTime() - start.getTime();
-            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            
+            const diffTime = todayDate.getTime() - start.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
             if (diffDays >= 0) {
               const cycleIndex = diffDays % baseSchedule.length;

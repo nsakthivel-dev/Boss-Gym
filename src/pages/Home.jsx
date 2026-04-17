@@ -44,7 +44,7 @@ const Home = () => {
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img 
             src="/photos/anastase-maragos-7kEpUPB8vNk-unsplash.jpg" 
-            alt="Gym Background" 
+            alt="New Boss Gym in Muthaliyarpet Pondicherry" 
             className="w-full h-full object-cover opacity-50 scale-100 animate-in fade-in duration-1000"
             style={{ objectPosition: 'center 20%' }}
           />
@@ -56,17 +56,20 @@ const Home = () => {
         <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
         
         <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10 text-center">
-          <div className="inline-block px-4 py-1 bg-[#111]/50 backdrop-blur-sm border border-[#1a1a1a] rounded-full mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
-            <span className="text-[9px] font-black text-primary uppercase tracking-[0.4em]">Elite Management & Training</span>
+          <div className="inline-block px-5 py-2 bg-primary/10 backdrop-blur-md border border-primary/20 rounded-full mb-10 animate-in fade-in slide-in-from-top-4 duration-1000">
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.5em]">Elite Fitness Destination</span>
           </div>
           
-          <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter mb-8 leading-[0.85] flex flex-col overflow-hidden">
-            <span className="animate-boss-reveal opacity-0" style={{ animationDelay: '200ms' }}>UNLEASH YOUR</span>
-            <span className="text-primary text-outline-primary animate-boss-reveal opacity-0" style={{ animationDelay: '500ms' }}>INNER BOSS</span>
+          <h1 className="text-5xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter mb-10 leading-[0.85] flex flex-col items-center overflow-hidden">
+            <span className="animate-boss-reveal opacity-0" style={{ animationDelay: '200ms' }}>New Boss Gym</span>
+            <span className="text-primary text-outline-primary animate-boss-reveal opacity-0 mt-2" style={{ animationDelay: '500ms' }}>Best Gym in Muthaliyarpet</span>
           </h1>
           
-          <p className="max-w-xl mx-auto text-[#666] text-sm md:text-lg font-medium leading-relaxed mb-12 animate-boss-reveal opacity-0" style={{ animationDelay: '800ms' }}>
-            Experience the pinnacle of fitness at {gymSettings.gymName || 'Boss Gym'}. We combine world-class equipment with elite coaching to help you dominate your goals.
+          <p className="max-w-3xl mx-auto text-[#888] text-sm md:text-lg font-medium leading-relaxed mb-12 animate-boss-reveal opacity-0 px-4" style={{ animationDelay: '800ms' }}>
+            Experience the ultimate fitness transformation at <span className="text-white">New Boss Gym</span>, the premier <span className="text-white">fitness center in Pondicherry</span>. 
+            Located conveniently near <span className="text-white">100ft Road</span>, we specialize in <span className="text-white">weight training</span>, <span className="text-white">cardio</span>, 
+            and <span className="text-white">personal training</span>. Our expert trainers provide personalized <span className="text-white">diet guidance</span> to help you 
+            dominate your fitness goals in <span className="text-white">Muthaliyarpet</span>.
           </p>
           
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-500">
@@ -86,16 +89,17 @@ const Home = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-[#080808] border-y border-white/5">
-        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
+      <section className="py-24 bg-[#050505] border-y border-white/5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(232,201,126,0.05),transparent_70%)]" />
+        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8">
             {stats.map((stat, i) => (
               <div key={i} className="flex flex-col items-center text-center group">
-                <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-sm text-primary group-hover:scale-110 transition-transform">
+                <div className="mb-6 p-4 bg-white/[0.03] border border-white/10 rounded-full text-primary group-hover:scale-110 group-hover:bg-primary group-hover:text-black transition-all duration-500">
                   {stat.icon}
                 </div>
-                <h4 className="text-4xl font-black text-white mb-2 tracking-tighter">{stat.value}</h4>
-                <p className="text-[10px] font-black text-[#444] uppercase tracking-[0.3em]">{stat.label}</p>
+                <h4 className="text-5xl md:text-6xl font-black text-white mb-3 tracking-tighter tabular-nums">{stat.value}</h4>
+                <p className="text-[10px] font-black text-[#666] uppercase tracking-[0.4em] group-hover:text-primary transition-colors">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -103,23 +107,24 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-32 relative overflow-hidden">
+      <section className="py-32 relative overflow-hidden bg-[#080808]">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px] pointer-events-none" />
         
         <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10">
           <div className="text-center mb-24">
-            <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-6">Why Choose Us</h2>
-            <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">THE ELITE <br /> EXPERIENCE</h3>
+            <h2 className="text-primary text-[10px] font-black tracking-[0.6em] uppercase mb-6">Premium Standards</h2>
+            <h3 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none">THE BOSS <br /> <span className="text-outline-white">EXPERIENCE</span></h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
             {features.map((feature, i) => (
-              <div key={i} className="p-10 bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm hover:border-primary/30 transition-all group">
-                <div className="mb-8 p-4 bg-primary/10 border border-primary/20 w-fit rounded-sm group-hover:rotate-12 transition-transform">
+              <div key={i} className="p-12 bg-[#0a0a0a] border border-white/5 hover:bg-[#111] hover:border-primary/20 transition-all duration-500 group relative">
+                <div className="absolute top-0 left-0 w-1 h-0 bg-primary group-hover:h-full transition-all duration-500" />
+                <div className="mb-10 p-5 bg-primary/10 border border-primary/20 w-fit rounded-sm group-hover:bg-primary group-hover:text-black transition-all duration-500">
                   {feature.icon}
                 </div>
-                <h4 className="text-xl font-black uppercase tracking-tight text-white mb-4">{feature.title}</h4>
-                <p className="text-sm text-[#555] font-medium leading-relaxed">{feature.desc}</p>
+                <h4 className="text-xl font-black uppercase tracking-tight text-white mb-4 group-hover:text-primary transition-colors">{feature.title}</h4>
+                <p className="text-sm text-[#555] font-medium leading-relaxed group-hover:text-[#888] transition-colors">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -127,22 +132,30 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 bg-primary relative overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-95" />
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-primary opacity-10 blur-[100px] -rotate-12 translate-x-1/2" />
+      <section className="py-40 bg-black relative overflow-hidden">
+        <div className="absolute inset-0">
+          <img 
+            src="/photos/victor-freitas-WvDYdXDzkhs-unsplash.jpg" 
+            alt="New Boss Gym Background" 
+            className="w-full h-full object-cover opacity-20 grayscale"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
+        </div>
         
-        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10 text-center">
-          <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-8">Ready to Start?</h2>
-          <h3 className="text-4xl md:text-7xl font-black uppercase tracking-tighter text-white mb-12 leading-tight">
-            BECOME THE <br /> BOSS OF YOUR BODY
-          </h3>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-            <Link to="/contact" className="w-full md:w-auto bg-primary text-black px-16 py-6 rounded-sm font-black uppercase text-sm tracking-[0.3em] hover:bg-white transition-all shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
-              Join the Elite
-            </Link>
-            <Link to="/about" className="text-white text-[10px] font-black uppercase tracking-[0.4em] hover:text-primary transition-colors flex items-center gap-3 group">
-              Our Story <ChevronRight size={16} className="group-hover:translate-x-2 transition-transform" />
-            </Link>
+        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10">
+          <div className="max-w-3xl">
+            <h2 className="text-primary text-[10px] font-black tracking-[0.6em] uppercase mb-8">Ready to Start?</h2>
+            <h3 className="text-5xl md:text-8xl font-black uppercase tracking-tighter text-white mb-12 leading-[0.9]">
+              BECOME THE <br /> <span className="text-primary">BOSS</span> OF YOUR <br /> OWN BODY
+            </h3>
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <Link to="/contact" className="w-full md:w-auto bg-primary text-black px-16 py-6 rounded-sm font-black uppercase text-sm tracking-[0.3em] hover:bg-white transition-all shadow-[0_20px_40px_rgba(232,201,126,0.2)] text-center">
+                Join the Elite
+              </Link>
+              <Link to="/about" className="text-white text-[11px] font-black uppercase tracking-[0.5em] hover:text-primary transition-colors flex items-center gap-4 group">
+                Our Philosophy <div className="w-12 h-px bg-primary/30 group-hover:w-20 group-hover:bg-primary transition-all" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -196,7 +209,7 @@ const Home = () => {
               >
                 <img 
                   src="/photos/gallery/1000076836.jpg" 
-                  alt="The Master" 
+                  alt="New Boss Gym in Muthaliyarpet Pondicherry" 
                   className="max-h-[65vh] md:max-h-[75vh] w-auto object-contain block mx-auto"
                 />
                 {/* Subtle overlay details */}

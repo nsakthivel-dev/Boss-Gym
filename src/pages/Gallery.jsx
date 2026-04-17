@@ -36,7 +36,7 @@ const Gallery = () => {
             <div key={index} className="break-inside-avoid mb-4 bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
               <img 
                 src={src} 
-                alt={`Gallery ${index + 1}`} 
+                alt="New Boss Gym in Muthaliyarpet Pondicherry" 
                 className="w-full h-auto opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-end p-6">

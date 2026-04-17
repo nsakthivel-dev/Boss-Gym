@@ -27,8 +27,8 @@ const Contact = () => {
       <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24">
         <div className="text-center mb-16 animate-boss-reveal opacity-0" style={{ animationDelay: '100ms' }}>
           <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-4">Get in Touch</h2>
-          <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-4 leading-none">START YOUR <br /> <span className="text-outline-primary">EVOLUTION</span></h3>
-          <p className="text-[#555] max-w-xl mx-auto text-sm font-medium">Ready to dominate? Our elite team is standing by to manage your fitness journey.</p>
+          <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-4 leading-none">START YOUR <br /> <span className="text-outline-primary">EVOLUTION</span> AT NEW BOSS GYM</h3>
+          <p className="text-[#555] max-w-xl mx-auto text-sm font-medium">Ready to dominate? Our elite team is standing by to manage your fitness journey at the best gym in Muthaliyarpet, Pondicherry.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 xl:gap-32 items-start">

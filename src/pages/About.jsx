@@ -12,7 +12,7 @@ const About = () => {
             <div className="aspect-[4/5] bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
               <img 
                 src="/photos/gallery/1000076818.jpg" 
-                alt="About Gym" 
+                alt="New Boss Gym in Muthaliyarpet Pondicherry" 
                 className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
@@ -29,9 +29,13 @@ const About = () => {
           
           <div>
             <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-6">Our Philosophy</h2>
-            <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-10 leading-none">WE DON'T JUST TRAIN, <br /> WE MANAGE GROWTH</h3>
+            <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-10 leading-none">BEST GYM IN MUTHALIYARPET, <br /> PONDICHERRY</h3>
             <p className="text-[#888] text-lg leading-relaxed mb-10 font-medium">
-              {gymSettings.gymName || 'Boss Gym'} isn't your average fitness center. We operate on a principle of "Elite Management" — treating your fitness journey with the same precision and dedication as a high-performance business.
+              {gymSettings.gymName || 'New Boss Gym'} is the best gym near 100ft Road, Pondicherry. We are not just a fitness center; we are a dedicated community focused on personal training and weight training.
+            </p>
+            
+            <p className="text-[#555] leading-relaxed mb-10 font-medium">
+              Our gym in Muthaliyarpet offers a wide range of services including cardio, strength training, and expert diet guidance. Whether you're looking for a gym in Pondicherry or a personal training gym, we provide the elite management you need for your growth.
             </p>
             
             <div className="space-y-6 mb-12">

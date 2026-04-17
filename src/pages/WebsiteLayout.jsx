@@ -85,25 +85,25 @@ const WebsiteLayout = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             {currentUser ? (
-              <>
-                <div className="hidden md:flex flex-col items-end mr-2">
-                  <span className="text-[8px] font-black text-[#444] uppercase tracking-widest leading-none">Logged in as</span>
-                  <span className="text-[10px] font-bold text-primary truncate max-w-[120px]">{currentUser?.email}</span>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:block text-right">
+                  <p className="text-[7px] font-black text-[#444] uppercase tracking-[0.2em] mb-0.5">Account</p>
+                  <p className="text-[10px] font-bold text-white truncate max-w-[150px]">{currentUser?.email}</p>
                 </div>
                 <button 
                   onClick={handleLogout}
-                  className="p-2.5 rounded-sm bg-[#111] border border-[#1a1a1a] hover:border-error/30 hover:text-error transition-all group"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:border-primary/50 hover:text-primary transition-all group"
                   title="Logout"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={16} className="group-hover:scale-110 transition-transform" />
                 </button>
-              </>
+              </div>
             ) : (
               <NavLink 
                 to="/login"
-                className="bg-primary text-black px-6 py-2 rounded-sm font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all"
+                className="bg-primary text-black px-8 py-2.5 rounded-sm font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_5px_15px_rgba(232,201,126,0.2)]"
               >
                 Login
               </NavLink>
@@ -190,13 +190,13 @@ const WebsiteLayout = () => {
             {/* Logo & Description */}
             <div className="md:col-span-5">
               <div className="flex items-center gap-4 mb-6">
-                <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.15)]">
+                <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
                   <Dumbbell className="text-black w-5 h-5" />
                 </div>
-                <span className="font-black text-xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
+                <span className="font-black text-2xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'New Boss Gym'}</span>
               </div>
-              <p className="text-[#555] max-w-sm text-xs font-medium leading-relaxed mb-8 uppercase tracking-wide">
-                Redefining the standard of fitness. Our mission is to provide an elite management experience for every individual's fitness journey.
+              <p className="text-[#555] max-w-sm text-[10px] font-bold leading-loose mb-10 uppercase tracking-[0.15em]">
+                Redefining the standard of fitness in Pondicherry. Experience the best gym near 100ft Road with elite coaching and modern facilities.
               </p>
               <div className="flex items-center gap-3">
                 {[Instagram, Facebook, Twitter].map((Icon, i) => (

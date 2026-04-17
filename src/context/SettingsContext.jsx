@@ -8,11 +8,14 @@ export const useSettings = () => useContext(SettingsContext);
 
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
-    gymName: 'Boss Gym',
+    gymName: 'New Boss Gym',
     theme: 'gold',
     latitude: 11.9111586,
     longitude: 79.6347447,
-    radius: 500
+    radius: 500,
+    address: 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
+    phoneNumber: '+91 98765 43210',
+    contactEmail: 'hello@newbossgym.com'
   });
   const [loading, setLoading] = useState(true);
 
