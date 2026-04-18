@@ -83,22 +83,21 @@ const Layout = () => {
     <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans text-white">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-3 bg-[#0a0a0a] border-b border-[#1a1a1a] relative h-14">
-        <div className="flex items-center gap-2 z-10">
+        <div className="flex items-center gap-2 z-10 w-12">
           <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors shrink-0 z-10 p-1">
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <Dumbbell className="text-primary shrink-0 w-5 h-5" />
         </div>
         
         {/* Centered Name */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-20">
-          <span className="font-black text-xs tracking-[0.1em] uppercase text-primary whitespace-nowrap overflow-hidden">
+        <div className="flex-1 flex items-center justify-center px-2">
+          <span className="font-black text-xs tracking-[0.1em] uppercase text-primary whitespace-nowrap overflow-hidden text-center">
             {gymSettings.gymName || 'Boss Gym'}
           </span>
         </div>
 
         {/* Notification Bell for Mobile */}
-        <div className="relative z-10" ref={notificationRef}>
+        <div className="relative z-10 w-12 flex justify-end">
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
             className={`transition-all duration-200 relative p-1.5 border rounded-md ${
