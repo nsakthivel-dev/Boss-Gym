@@ -86,3 +86,19 @@
 .animate-elite-glow {
   animation: elite-glow 4s ease-in-out infinite;
 }
+
+/* PWA Install Prompt Animation */
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+}

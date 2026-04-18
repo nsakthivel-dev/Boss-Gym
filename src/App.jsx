@@ -6,6 +6,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // Pages
 import Login from './pages/Login';
@@ -95,6 +96,9 @@ function App() {
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            
+            {/* PWA Install Prompt */}
+            <PWAInstallPrompt />
           </BrowserRouter>
         </NotificationProvider>
       </SettingsProvider>
