@@ -136,11 +136,11 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-muted text-sm mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-muted text-xs md:text-sm mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
       </div>
 
@@ -162,18 +162,18 @@ const Dashboard = () => {
           background: "#2d2000",
           border: "1px solid #fbbf24",
           borderRadius: "10px",
-          padding: "16px 20px",
-        }}>
+          padding: "12px 16px",
+        }} className="md:p-4 md:py-4">
           <div style={{
             color: "#fbbf24",
             fontWeight: "bold",
-            fontSize: "14px",
-            marginBottom: "12px",
+            fontSize: "12px",
+            marginBottom: "10px",
             display: "flex",
             alignItems: "center",
             gap: "8px"
-          }}>
-            ⚠️ Membership Alerts — Action Required
+          }} className="text-sm md:text-base">
+            ⚠️ Membership Alerts
           </div>
 
           {expiryAlerts
@@ -195,30 +195,31 @@ const Dashboard = () => {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  padding: "10px 0",
-                  borderBottom: "1px solid #2a2a2a"
-                }}>
-                  <div>
-                    <div style={{ color: "white", fontWeight: "600", fontSize: "14px" }}>
+                  padding: "8px 0",
+                  borderBottom: "1px solid #2a2a2a",
+                  gap: "8px"
+                }} className="flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div style={{ color: "white", fontWeight: "600", fontSize: "13px" }} className="truncate">
                       {member.name}
                     </div>
-                    <div style={{ color: "#a3a3a3", fontSize: "12px" }}>
+                    <div style={{ color: "#a3a3a3", fontSize: "11px" }} className="truncate">
                       {member.planName || (member.price ? `₹${member.price} / ${member.durationDays}d` : 'Gym')}
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="shrink-0">
                     <span style={{
                       color: daysLeft < 0 ? "#f87171" : daysLeft === 0 ? "#f87171" : "#fbbf24",
-                      fontSize: "13px",
+                      fontSize: "12px",
                       fontWeight: "bold"
-                    }}>
+                    }} className="whitespace-nowrap">
                       {daysLeft < 0
                         ? "Expired"
                         : daysLeft === 0
-                        ? "Expires Today"
+                        ? "Today"
                         : daysLeft === 1
-                        ? "Expires Tomorrow"
-                        : `${daysLeft} days left`}
+                        ? "Tomorrow"
+                        : `${daysLeft}d left`}
                     </span>
                   </div>
                 </div>
@@ -228,27 +229,27 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
         {/* Currently Inside Live Panel */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-card border border-border rounded-xl p-4 md:p-5">
+          <h2 className="font-semibold text-white mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse inline-block"></span>
             Currently Inside
           </h2>
           {liveInside.length === 0 ? (
             <p className="text-muted text-sm text-center py-6">No members currently inside.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {liveInside.map(s => {
                 const entry = s.entryTime?.toDate?.();
                 const durationMs = entry ? Date.now() - entry.getTime() : 0;
                 return (
-                  <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
-                    <div>
-                      <p className="text-white font-medium text-sm">{s.memberName}</p>
-                      <p className="text-muted text-xs">Entry: {formatTime(s.entryTime)}</p>
+                  <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-3 py-2.5 md:px-4 md:py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-medium text-xs md:text-sm truncate">{s.memberName}</p>
+                      <p className="text-muted text-[10px] md:text-xs">Entry: {formatTime(s.entryTime)}</p>
                     </div>
-                    <span className="text-primary text-xs font-semibold bg-primary/10 px-2 py-1 rounded-full">
+                    <span className="text-primary text-[10px] md:text-xs font-semibold bg-primary/10 px-2 py-1 rounded-full shrink-0 ml-2">
                       {formatDuration(durationMs)}
                     </span>
                   </div>
@@ -259,25 +260,25 @@ const Dashboard = () => {
         </div>
 
         {/* Today Attendance Panel */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-card border border-border rounded-xl p-4 md:p-5">
+          <h2 className="font-semibold text-white mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
             <UserCheck className="w-4 h-4 text-primary" />
             Today Attendance
           </h2>
           {todaySessions.length === 0 ? (
             <p className="text-muted text-sm text-center py-6">No sessions today yet.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {todaySessions.map(s => (
-                <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
-                  <div>
-                    <p className="text-white font-medium text-sm">{s.memberName}</p>
-                    <p className="text-muted text-xs">
+                <div key={s.id} className="flex items-center justify-between bg-secondary rounded-lg px-3 py-2.5 md:px-4 md:py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white font-medium text-xs md:text-sm truncate">{s.memberName}</p>
+                    <p className="text-muted text-[10px] md:text-xs truncate">
                       {formatTime(s.entryTime)} 
                       {s.exitTime ? ` — ${formatTime(s.exitTime)}` : ' (Inside)'}
                     </p>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                  <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ml-2 ${
                     s.status === 'open' ? 'bg-primary/20 text-primary' : 'bg-success/20 text-success'
                   }`}>
                     {s.status === 'open' ? 'Inside' : 'Out'}
@@ -289,36 +290,36 @@ const Dashboard = () => {
         </div>
 
         {/* Expire Session Panel */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-card border border-border rounded-xl p-4 md:p-5">
+          <h2 className="font-semibold text-white mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
             <AlertTriangle className="w-4 h-4 text-warning" />
             Expire Session
           </h2>
           {expiryAlerts.length === 0 ? (
             <p className="text-muted text-sm text-center py-6">No memberships expiring soon.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {expiryAlerts.map(m => {
                 const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
                 const daysLeft = Math.ceil((endDate - new Date()) / 86400000);
                 return (
-                  <div key={m.id} className="flex items-center justify-between bg-secondary rounded-lg px-4 py-3">
-                    <div>
-                      <p className="text-white font-medium text-sm">{m.name}</p>
-                      <p className="text-muted text-xs">
+                  <div key={m.id} className="flex items-center justify-between bg-secondary rounded-lg px-3 py-2.5 md:px-4 md:py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-medium text-xs md:text-sm truncate">{m.name}</p>
+                      <p className="text-muted text-[10px] md:text-xs truncate">
                         {m.planName || (m.price ? `₹${m.price} / ${m.durationDays}d` : 'Gym')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[10px] font-bold ${daysLeft <= 3 ? 'text-error' : 'text-warning'}`}>
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0 ml-2">
+                      <span className={`text-[9px] md:text-[10px] font-bold ${daysLeft <= 3 ? 'text-error' : 'text-warning'} whitespace-nowrap`}>
                         {daysLeft}d left
                       </span>
                       <button
                         onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
-                        className="bg-primary/10 text-primary px-3 py-1.5 rounded flex items-center gap-1.5 hover:bg-primary/20 transition-colors"
+                        className="bg-primary/10 text-primary px-2 py-1.5 rounded flex items-center gap-1.5 hover:bg-primary/20 transition-colors text-[10px] md:text-xs"
                       >
-                        <MessageCircle size={14} />
-                        WhatsApp
+                        <MessageCircle size={12} className="md:w-3.5 md:h-3.5" />
+                        <span className="hidden sm:inline">WhatsApp</span>
                       </button>
                     </div>
                   </div>

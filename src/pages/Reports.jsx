@@ -9,8 +9,8 @@ import {
 import { PieChart, Download, Loader2 } from 'lucide-react';
 
 const SectionCard = ({ title, children }) => (
-  <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-    <h3 className="text-white font-semibold text-base">{title}</h3>
+  <div className="bg-card border border-border rounded-xl p-4 md:p-5 space-y-3 md:space-y-4">
+    <h3 className="text-white font-semibold text-sm md:text-base">{title}</h3>
     {children}
   </div>
 );
@@ -37,8 +37,8 @@ const ExportBtn = ({ onClick }) => (
 );
 
 const SimpleTable = ({ cols, rows }) => (
-  <div className="overflow-x-auto">
-    <table className="w-full text-xs">
+  <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+    <table className="w-full text-xs min-w-[500px]">
       <thead>
         <tr className="border-b border-border text-muted">
           {cols.map(c => <th key={c} className="py-2 text-left pr-4 font-medium">{c}</th>)}
@@ -206,18 +206,18 @@ const Reports = () => {
   const inputClass = "bg-secondary border border-border text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-primary transition-colors";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <PieChart className="text-primary" /> Reports
+        <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+          <PieChart className="text-primary w-5 h-5 md:w-6 md:h-6" /> Reports
         </h1>
-        <p className="text-muted text-sm mt-1">Analytics and data exports.</p>
+        <p className="text-muted text-xs md:text-sm mt-1">Analytics and data exports.</p>
       </div>
 
       {/* Daily Report */}
       <SectionCard title="Daily Report">
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <input type="date" value={dailyDate} max={todayStr()} onChange={e => setDailyDate(e.target.value)} className={inputClass} />
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <input type="date" value={dailyDate} max={todayStr()} onChange={e => setDailyDate(e.target.value)} className={`${inputClass} w-full sm:w-auto`} />
           <ExportBtn onClick={() => exportCSV(dailySessions, `daily-${dailyDate}`, ['Member', 'Entry', 'Exit', 'Duration', 'Status'])} />
         </div>
         {loading.daily ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
@@ -226,8 +226,8 @@ const Reports = () => {
 
       {/* Monthly Summary */}
       <SectionCard title="Monthly Summary">
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <input type="month" value={monthMonth} onChange={e => setMonthMonth(e.target.value)} className={inputClass} />
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <input type="month" value={monthMonth} onChange={e => setMonthMonth(e.target.value)} className={`${inputClass} w-full sm:w-auto`} />
           <ExportBtn onClick={() => exportCSV(monthData, `monthly-${monthMonth}`, ['Member', 'Visits', 'Total Minutes', 'Total Hours'])} />
         </div>
         {loading.monthly ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
@@ -236,14 +236,14 @@ const Reports = () => {
 
       {/* Peak Hours Chart */}
       <SectionCard title="Peak Hours Chart">
-        <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
-          <select value={peakDateRange} onChange={e => setPeakDateRange(Number(e.target.value))} className={inputClass}>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-4">
+          <select value={peakDateRange} onChange={e => setPeakDateRange(Number(e.target.value))} className={`${inputClass} w-full sm:w-auto`}>
             {[7, 14, 30].map(d => <option key={d} value={d}>Last {d} days</option>)}
           </select>
           <ExportBtn onClick={() => exportCSV(peakData.map(d => ({ Hour: d.hour, Sessions: d.Sessions })), 'peak-hours', ['Hour', 'Sessions'])} />
         </div>
         {loading.peak ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <div className="h-52">
+          <div className="h-48 md:h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={peakData} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
@@ -276,8 +276,8 @@ const Reports = () => {
 
       {/* Expiry Report */}
       <SectionCard title="Expiry Report">
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <select value={expiryDays} onChange={e => setExpiryDays(Number(e.target.value))} className={inputClass}>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <select value={expiryDays} onChange={e => setExpiryDays(Number(e.target.value))} className={`${inputClass} w-full sm:w-auto`}>
             {[7, 15, 30].map(d => <option key={d} value={d}>Within {d} days</option>)}
           </select>
           <ExportBtn onClick={() => exportCSV(expiryData, `expiry-${expiryDays}days`, ['Name', 'Phone', 'Plan', 'Expires On', 'Days Left'])} />

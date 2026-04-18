@@ -395,25 +395,27 @@ const Members = () => {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 md:space-y-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
         <div>
-          <h1 className="text-4xl font-black text-primary tracking-tight uppercase">Members</h1>
-          <p className="text-[#555] text-xs font-bold tracking-[0.2em] mt-2 uppercase">{activeCount} Total Active Subscription</p>
+          <h1 className="text-2xl md:text-4xl font-black text-primary tracking-tight uppercase">Members</h1>
+          <p className="text-[#555] text-[10px] md:text-xs font-bold tracking-[0.2em] mt-1 md:mt-2 uppercase">{activeCount} Total Active Subscription</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button 
             onClick={handleExport}
-            className="bg-[#111] border border-[#1a1a1a] text-primary px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2"
+            className="bg-[#111] border border-[#1a1a1a] text-primary px-4 md:px-6 py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2"
           >
-            Export List
+            <Download size={12} className="md:hidden" />
+            <span className="hidden md:inline">Export List</span>
+            <span className="md:hidden">Export</span>
           </button>
           <button 
             onClick={() => setShowAdd(true)}
-            className="bg-primary text-black px-6 py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:text-black transition-colors flex items-center gap-2 font-black"
+            className="bg-primary text-black px-4 md:px-6 py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:text-black transition-colors flex items-center gap-2 font-black"
           >
-            <Plus size={14} /> Add Member
+            <Plus size={14} /> <span className="hidden sm:inline">Add Member</span><span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
@@ -454,15 +456,15 @@ const Members = () => {
       </div>
 
       {/* Search & Table */}
-      <div className="space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] w-4 h-4" />
+      <div className="space-y-3 md:space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#444] w-4 h-4" />
           <input
             type="text"
             placeholder="FILTER BY NAME OR PHONE..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#0a0a0a] border-b border-[#1a1a1a] pl-12 py-4 text-[10px] font-bold tracking-widest text-primary/40 focus:outline-none focus:border-primary transition-colors"
+            className="w-full bg-[#0a0a0a] border-b border-[#1a1a1a] pl-10 md:pl-12 py-3 md:py-4 text-[9px] md:text-[10px] font-bold tracking-widest text-primary/40 focus:outline-none focus:border-primary transition-colors"
           />
         </div>
 
@@ -488,15 +490,15 @@ const Members = () => {
                   const isExpired = m.status === 'expired';
 
                   return (
-                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-6 md:p-0">
-                      <td onClick={() => setViewMember(m)} className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell cursor-pointer">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
+                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-4 md:p-0 gap-3 md:gap-0">
+                      <td onClick={() => setViewMember(m)} className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell cursor-pointer">
+                        <div className="flex items-center gap-3 md:gap-4">
+                          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-xs md:text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
                             {initials}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-primary font-bold text-sm tracking-tight truncate">{m.name}</p>
-                            <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">UID: {uid}</p>
+                            <p className="text-primary font-bold text-xs md:text-sm tracking-tight truncate">{m.name}</p>
+                            <p className="text-[#444] text-[9px] md:text-[10px] font-bold tracking-widest mt-0.5 md:mt-1 uppercase">UID: {uid}</p>
                           </div>
                         </div>
                       </td>
@@ -506,8 +508,8 @@ const Members = () => {
                       </td>
                       <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
                         <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-1 tracking-widest">Membership</span>
-                        <p className="text-primary font-bold text-sm tracking-tight">₹{m.price} / {m.durationDays}d</p>
-                        <p className="text-[#444] text-[10px] font-bold tracking-widest mt-1 uppercase">Exp: {m.endDate?.toDate?.().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        <p className="text-primary font-bold text-xs md:text-sm tracking-tight">₹{m.price} / {m.durationDays}d</p>
+                        <p className="text-[#444] text-[9px] md:text-[10px] font-bold tracking-widest mt-0.5 md:mt-1 uppercase">Exp: {m.endDate?.toDate?.().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       </td>
                       <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
                         <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-2 tracking-widest">Status</span>
@@ -526,17 +528,17 @@ const Members = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-0 md:px-8 py-4 md:py-6 border-none md:table-cell text-right">
+                      <td className="px-0 md:px-8 py-2 md:py-4 border-none md:table-cell">
                         <button 
                           onClick={() => handleRenew(m)}
                           disabled={!isExpired}
-                          className={`px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${
+                          className={`w-full md:w-auto px-3 md:px-4 py-2 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest transition-all ${
                             isExpired 
                               ? 'bg-primary text-black hover:bg-white cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]' 
                               : 'bg-[#111] border border-[#1a1a1a] text-[#333] cursor-not-allowed opacity-50'
                           }`}
                         >
-                          Renew Subscription
+                          {isExpired ? 'Renew' : 'Renew Subscription'}
                         </button>
                       </td>
                     </tr>

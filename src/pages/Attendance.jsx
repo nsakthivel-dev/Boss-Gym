@@ -151,14 +151,14 @@ const SessionTable = ({ sessions, userRole, currentUser, onEdit }) => (
       {sessions.length === 0 ? (
         <p className="text-muted text-sm text-center py-8">No sessions found.</p>
       ) : sessions.map(s => (
-        <div key={s.id} className="p-4 flex items-center justify-between">
-          <div>
-            <p className="text-white text-sm font-medium">{s.memberName} {s.edited && '✏️'}</p>
-            <p className="text-muted text-xs">{formatTime(s.entryTime)} → {formatTime(s.exitTime)} · {s.durationMinutes ? `${s.durationMinutes}m` : '—'}</p>
+        <div key={s.id} className="p-3 flex items-center justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-white text-sm font-medium truncate">{s.memberName} {s.edited && '✏️'}</p>
+            <p className="text-muted text-xs mt-1">{formatTime(s.entryTime)} → {formatTime(s.exitTime)} · {s.durationMinutes ? `${s.durationMinutes}m` : '—'}</p>
             <div className="mt-1">{statusBadge(s.status)}</div>
           </div>
           {userRole === 'admin' && (
-            <button onClick={() => onEdit(s)} className="text-muted hover:text-primary">
+            <button onClick={() => onEdit(s)} className="text-muted hover:text-primary ml-2 shrink-0">
               <Edit2 className="w-4 h-4" />
             </button>
           )}
@@ -209,21 +209,21 @@ const Attendance = () => {
   useEffect(() => { if (activeTab === 'today') loadToday(); }, [activeTab]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-4xl font-black text-primary tracking-tight uppercase flex items-center gap-2">
-          <CalendarCheck className="text-primary" /> Attendance
+        <h1 className="text-2xl md:text-4xl font-black text-primary tracking-tight uppercase flex items-center gap-2">
+          <CalendarCheck className="text-primary w-5 h-5 md:w-6 md:h-6" /> Attendance
         </h1>
-        <p className="text-[#555] text-xs font-bold tracking-[0.2em] mt-2 uppercase text-muted">Session logs for all members.</p>
+        <p className="text-[#555] text-[10px] md:text-xs font-bold tracking-[0.2em] mt-1 md:mt-2 uppercase text-muted">Session logs for all members.</p>
       </div>
 
       {error && <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>}
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-[#0a0a0a] border border-[#1a1a1a] p-1 w-fit rounded-sm">
+      <div className="flex gap-1 md:gap-2 bg-[#0a0a0a] border border-[#1a1a1a] p-1 w-fit rounded-sm">
         {['today', 'history'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === tab ? 'bg-[#111] text-primary' : 'text-[#666] hover:text-white'}`}>
+            className={`px-4 md:px-6 py-1.5 md:py-2 text-[9px] md:text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === tab ? 'bg-[#111] text-primary' : 'text-[#666] hover:text-white'}`}>
             {tab}
           </button>
         ))}
@@ -235,7 +235,7 @@ const Attendance = () => {
           value={historyDate}
           max={todayStr()}
           onChange={e => { setHistoryDate(e.target.value); loadHistory(e.target.value); }}
-          className="bg-card border border-border rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-primary transition-colors"
+          className="bg-card border border-border rounded-lg md:rounded-xl px-3 md:px-4 py-1.5 md:py-2 text-white text-xs md:text-sm focus:outline-none focus:border-primary transition-colors w-full md:w-auto"
         />
       )}
 

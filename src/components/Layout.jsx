@@ -82,26 +82,46 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans text-white">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-[#0a0a0a] border-b border-[#1a1a1a] relative h-16">
+      <div className="md:hidden flex items-center justify-between p-3 bg-[#0a0a0a] border-b border-[#1a1a1a] relative h-14">
         <div className="flex items-center gap-2 z-10">
+          <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors shrink-0 z-10 p-1">
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
           <Dumbbell className="text-primary shrink-0 w-5 h-5" />
         </div>
         
         {/* Centered Name */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12">
-          <span className="font-black text-sm tracking-[0.15em] uppercase text-primary whitespace-nowrap overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-20">
+          <span className="font-black text-xs tracking-[0.1em] uppercase text-primary whitespace-nowrap overflow-hidden">
             {gymSettings.gymName || 'Boss Gym'}
           </span>
         </div>
 
-        <button onClick={toggleMobileMenu} className="text-primary hover:text-primary/80 transition-colors shrink-0 z-10 p-2">
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Notification Bell for Mobile */}
+        <div className="relative z-10" ref={notificationRef}>
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className={`transition-all duration-200 relative p-1.5 border rounded-md ${
+              showNotifications 
+                ? 'bg-primary/10 border-primary text-primary' 
+                : alertCount > 0 
+                  ? 'border-warning/30 text-warning' 
+                  : 'border-[#1a1a1a] text-[#888]'
+            }`}
+          >
+            <Bell size={18} />
+            {alertCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border border-[#0a0a0a]">
+                {alertCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] transform transition-transform duration-150 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 sm:w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] transform transition-transform duration-150 ease-in-out
         md:relative md:translate-x-0
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
@@ -125,7 +145,7 @@ const Layout = () => {
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-4 px-6 py-3 transition-all duration-150 group relative ${
+                    `flex items-center gap-3 px-4 py-3 transition-all duration-150 group relative ${
                       isActive
                         ? 'text-primary' 
                         : 'text-[#666] hover:text-white'
@@ -136,7 +156,7 @@ const Layout = () => {
                     <>
                       {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary" />}
                       <Icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-[#444] group-hover:text-white'}`} />
-                      <span className="text-sm font-bold tracking-widest uppercase">{item.label}</span>
+                      <span className="text-xs sm:text-sm font-bold tracking-wider uppercase">{item.label}</span>
                     </>
                   )}
                 </NavLink>
@@ -144,13 +164,13 @@ const Layout = () => {
             })}
           </nav>
 
-          <div className="p-6 space-y-4 border-t border-[#1a1a1a]">
+          <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 border-t border-[#1a1a1a]">
             <button 
               onClick={() => {
                 setMobileMenuOpen(false);
                 navigate('/members');
               }}
-              className="w-full bg-[#d1d5db] text-black font-bold py-3 rounded-sm flex items-center justify-center gap-2 hover:bg-[#e5e7eb] transition-colors uppercase text-xs tracking-widest"
+              className="w-full bg-[#d1d5db] text-black font-bold py-2.5 sm:py-3 rounded-sm flex items-center justify-center gap-2 hover:bg-[#e5e7eb] transition-colors uppercase text-[10px] sm:text-xs tracking-wider"
             >
               <Plus size={16} /> Add Member
             </button>
@@ -295,6 +315,67 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+      
+      {/* Mobile Notifications Dropdown */}
+      {showNotifications && (
+        <div className="md:hidden fixed top-14 right-2 left-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-[#111] border border-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden">
+            <div className="p-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0d0d0d]">
+              <h3 className="text-xs font-bold text-primary uppercase tracking-widest">Notifications</h3>
+              <button onClick={() => setShowNotifications(false)} className="text-[#666] hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {alerts.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-[#444] text-xs font-bold uppercase tracking-widest">No notifications</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#1a1a1a]">
+                  {alerts.map((alert) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const endDate = alert.endDate.toDate?.() ?? new Date(alert.endDate);
+                    const daysLeft = Math.ceil((endDate - today) / 86400000);
+                    
+                    return (
+                      <div key={alert.id} className="p-3 hover:bg-[#151515] transition-colors">
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <p className="text-sm font-bold text-white uppercase tracking-tight">{alert.name}</p>
+                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                            daysLeft < 0 ? 'bg-red-500/10 text-red-500' : 
+                            daysLeft <= 3 ? 'bg-amber-500/10 text-amber-500' : 
+                            'bg-blue-500/10 text-blue-500'
+                          }`}>
+                            {daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Today' : `${daysLeft}d left`}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#666] font-bold uppercase tracking-widest">
+                          {alert.planName || (alert.price ? `₹${alert.price} / ${alert.durationDays}d` : 'Gym Membership')}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {alerts.length > 0 && (
+              <div className="p-3 bg-[#0d0d0d] border-t border-[#1a1a1a]">
+                <button 
+                  onClick={() => {
+                    navigate('/');
+                    setShowNotifications(false);
+                  }}
+                  className="w-full py-2 text-[10px] font-bold text-primary uppercase tracking-widest hover:bg-primary/5 rounded transition-colors"
+                >
+                  View All Alerts
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {showQRModal && (
         <WallQRModal onClose={() => setShowQRModal(false)} />
