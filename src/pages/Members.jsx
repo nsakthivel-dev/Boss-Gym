@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
+import { supabase } from '../supabase/config';
 import {
   collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
@@ -8,7 +9,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
 import {
   Users, Plus, Search, X, Download, Loader2, Eye, Edit, Trash2, ChevronLeft, ChevronRight,
-  QrCode, MessageCircle, Check, TrendingUp, Wallet, ShieldCheck, MoreVertical, ExternalLink
+  QrCode, MessageCircle, Check, TrendingUp, Wallet, ShieldCheck, MoreVertical, ExternalLink, Upload, Camera
 } from 'lucide-react';
 import { sendExpiryAlert, sendExpiredAlert, sendWelcomeMessage } from '../utils/whatsapp';
 
@@ -35,9 +36,10 @@ const Modal = ({ title, children, onClose }) => (
   </div>
 );
 
-const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp }) => {
+const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onProfilePictureUpdate }) => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -55,9 +57,93 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp }) =
     loadProfile();
   }, [member.id]);
 
+  const handleProfilePictureUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingPicture(true);
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${member.id}_${Date.now()}.${fileExt}`;
+      const filePath = `profile-pictures/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('member-profiles')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('member-profiles')
+        .getPublicUrl(filePath);
+
+      // Update member profile picture URL in Firestore
+      await updateDoc(doc(db, 'members', member.id), {
+        profilePictureUrl: publicUrl,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+
+      // Notify parent component
+      if (onProfilePictureUpdate) {
+        onProfilePictureUpdate(member.id, publicUrl);
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
   return (
     <Modal title={member.name} onClose={onClose}>
       <div className="space-y-8">
+        {/* Profile Picture Section */}
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative">
+            {member.profilePictureUrl ? (
+              <img
+                src={member.profilePictureUrl}
+                alt={member.name}
+                className="w-32 h-32 rounded-full object-cover border-2 border-primary/30"
+              />
+            ) : (
+              <div className="w-32 h-32 bg-[#1a1a1a] border-2 border-[#222] rounded-full flex items-center justify-center text-[#444] font-black text-3xl tracking-widest">
+                {member.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+              </div>
+            )}
+            <label className="absolute bottom-0 right-0 bg-primary text-black p-2 rounded-full cursor-pointer hover:bg-white transition-colors">
+              {uploadingPicture ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                disabled={uploadingPicture}
+                className="hidden"
+              />
+            </label>
+          </div>
+          <p className="text-[#555] text-[10px] font-bold tracking-widest uppercase">Click camera icon to update photo</p>
+        </div>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-3">
           <button 
@@ -131,11 +217,73 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
     price: editingMember?.price || '',
     durationDays: editingMember?.durationDays || '30',
     startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr(),
-    workoutStartPreference: 'today'
+    workoutStartPreference: 'today',
+    profilePicture: null,
+    profilePicturePreview: editingMember?.profilePictureUrl || null
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMember, setSuccessMember] = useState(null);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+
+  const handleProfilePictureChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm({
+        ...form,
+        profilePicture: file,
+        profilePicturePreview: reader.result
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadProfilePicture = async (memberId) => {
+    if (!form.profilePicture) return null;
+
+    setUploadingPicture(true);
+    try {
+      const fileExt = form.profilePicture.name.split('.').pop();
+      const fileName = `${memberId}_${Date.now()}.${fileExt}`;
+      const filePath = `profile-pictures/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('member-profiles')
+        .upload(filePath, form.profilePicture, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('member-profiles')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      throw error;
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -155,6 +303,15 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
         workoutStartDate.setDate(workoutStartDate.getDate() + 1);
       }
 
+      let profilePictureUrl = editingMember?.profilePictureUrl || null;
+
+      // Upload profile picture if changed
+      if (form.profilePicture) {
+        if (editingMember) {
+          profilePictureUrl = await uploadProfilePicture(editingMember.id);
+        }
+      }
+
       const memberData = {
         name: form.name,
         phone: form.phone,
@@ -165,6 +322,7 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
         endDate: Timestamp.fromDate(endDate),
         status,
         workoutStartDate: Timestamp.fromDate(workoutStartDate),
+        profilePictureUrl,
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
@@ -178,10 +336,20 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
           qrValue: '',
           createdAt: Timestamp.fromDate(new Date()),
         });
+        
+        // Upload profile picture for new member
+        if (form.profilePicture) {
+          const publicUrl = await uploadProfilePicture(docRef.id);
+          await updateDoc(doc(db, 'members', docRef.id), {
+            profilePictureUrl: publicUrl
+          });
+        }
+        
         setSuccessMember({ ...memberData, id: docRef.id });
         onSaved();
       }
     } catch (err) {
+      console.error('Error:', err);
       setError('Operation failed. Please try again.');
     } finally {
       setLoading(false);
@@ -230,6 +398,43 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
               <input type={t} required value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} placeholder={`Enter ${l.toLowerCase()}...`} />
             </div>
           ))}
+          
+          {/* Profile Picture Upload */}
+          <div>
+            <label className={labelClass}>Profile Picture</label>
+            <div className="flex items-center gap-4">
+              {form.profilePicturePreview ? (
+                <div className="relative">
+                  <img
+                    src={form.profilePicturePreview}
+                    alt="Profile Preview"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, profilePicture: null, profilePicturePreview: editingMember?.profilePictureUrl || null })}
+                    className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 hover:bg-error/80 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-20 h-20 bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-full flex items-center justify-center text-[#444]">
+                  <Users size={24} />
+                </div>
+              )}
+              <label className="flex-1 bg-[#111] border border-[#1a1a1a] text-primary/60 rounded-sm px-4 py-3 text-sm font-bold cursor-pointer hover:border-primary/50 hover:text-primary transition-all flex items-center gap-2 justify-center">
+                <Upload size={16} />
+                {form.profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -493,9 +698,17 @@ const Members = () => {
                     <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-4 md:p-0 gap-3 md:gap-0">
                       <td onClick={() => setViewMember(m)} className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell cursor-pointer">
                         <div className="flex items-center gap-3 md:gap-4">
-                          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-xs md:text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
-                            {initials}
-                          </div>
+                          {m.profilePictureUrl ? (
+                            <img
+                              src={m.profilePictureUrl}
+                              alt={m.name}
+                              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-[#222] group-hover:border-primary/20 transition-colors shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-xs md:text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
+                              {initials}
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
                             <p className="text-primary font-bold text-xs md:text-sm tracking-tight truncate">{m.name}</p>
                             <p className="text-[#444] text-[9px] md:text-[10px] font-bold tracking-widest mt-0.5 md:mt-1 uppercase">UID: {uid}</p>
@@ -566,6 +779,14 @@ const Members = () => {
           onClose={() => setViewMember(null)} 
           onEdit={setEditingMember}
           onDelete={handleDelete}
+          onProfilePictureUpdate={(memberId, newUrl) => {
+            // Update the viewMember state with new profile picture URL
+            setViewMember(prev => ({ ...prev, profilePictureUrl: newUrl }));
+            // Also update in the members list
+            setMembers(prev => prev.map(m => 
+              m.id === memberId ? { ...m, profilePictureUrl: newUrl } : m
+            ));
+          }}
           onWhatsApp={(m) => {
             if (m.status === 'expired') {
               sendExpiredAlert(m, gymSettings?.gymName);
