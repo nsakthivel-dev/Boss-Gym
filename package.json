@@ -11,6 +11,7 @@
     "generate-icons": "node generate-pwa-icons.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "autoprefixer": "^10.4.27",
     "compromise": "^14.15.0",
     "firebase": "^12.11.0",
