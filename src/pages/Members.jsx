@@ -75,25 +75,39 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
 
     setUploadingPicture(true);
     try {
+      console.log('📤 Starting profile picture upload...');
+      console.log('   File:', file.name, 'Size:', (file.size / 1024).toFixed(2), 'KB');
+      
       // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${member.id}_${Date.now()}.${fileExt}`;
       const filePath = `profile-pictures/${fileName}`;
 
+      console.log('📁 Upload path:', filePath);
+
       // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('member-profiles')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        alert(`Failed to upload image: ${uploadError.message}`);
+        throw uploadError;
+      }
+
+      console.log('✅ Upload successful:', uploadData);
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from('member-profiles')
         .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+      console.log('🔗 Public URL:', publicUrl);
 
       // Update member profile picture URL in Firestore
       await updateDoc(doc(db, 'members', member.id), {
@@ -101,13 +115,18 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
         updatedAt: Timestamp.fromDate(new Date())
       });
 
+      console.log('✅ Profile picture URL saved to Firestore');
+
       // Notify parent component
       if (onProfilePictureUpdate) {
         onProfilePictureUpdate(member.id, publicUrl);
       }
+      
+      alert('Profile picture updated successfully!');
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      alert('Failed to upload profile picture. Please try again.');
+      console.error('❌ Error uploading profile picture:', error);
+      const errorMessage = error.message || 'Unknown error';
+      alert(`Failed to upload profile picture: ${errorMessage}\n\nCheck browser console for details.`);
     } finally {
       setUploadingPicture(false);
     }
