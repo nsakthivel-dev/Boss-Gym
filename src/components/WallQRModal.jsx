@@ -22,7 +22,7 @@ const WallQRModal = ({ onClose }) => {
       // Create a new canvas with white background and padding
       const qrSize = canvas.width;
       const padding = 40;
-      const textAreaHeight = 80;
+      const textAreaHeight = 70;
       
       const exportCanvas = document.createElement("canvas");
       exportCanvas.width = qrSize + padding * 2;
@@ -38,22 +38,22 @@ const WallQRModal = ({ onClose }) => {
 
       // Add gym name text below QR
       ctx.fillStyle = "#000000";
-      ctx.font = "bold 18px Inter, Arial, sans-serif";
+      ctx.font = "bold 14px Inter, Arial, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
         gymSettings?.gymName || "GYM",
         exportCanvas.width / 2,
-        qrSize + padding + 25
+        qrSize + padding + 20
       );
 
       // Add instruction text
       ctx.fillStyle = "#555555";
-      ctx.font = "13px Inter, Arial, sans-serif";
+      ctx.font = "10px Inter, Arial, sans-serif";
       ctx.fillText(
         qrType === 'geo' ? 'Location QR' : 'Scan to mark attendance',
         exportCanvas.width / 2,
-        qrSize + padding + 50
+        qrSize + padding + 42
       );
 
       // Trigger download

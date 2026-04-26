@@ -34,7 +34,7 @@ const QRPage = () => {
       // Create a larger canvas for the download with white background and quiet zone
       const qrSize = canvas.width;
       const quietZone = 40; // Adequate white border for scannability
-      const textAreaHeight = 150;
+      const textAreaHeight = 120;
       
       const downloadCanvas = document.createElement('canvas');
       downloadCanvas.width = qrSize + (quietZone * 2);
@@ -54,15 +54,15 @@ const QRPage = () => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      ctx.font = 'bold 48px Inter, Arial, sans-serif';
-      ctx.fillText(`${gymName} - ${qrType === 'geo' ? 'LOCATION' : 'CHECK-IN'}`, downloadCanvas.width / 2, qrSize + quietZone + 40);
+      ctx.font = 'bold 34px Inter, Arial, sans-serif';
+      ctx.fillText(`${gymName} - ${qrType === 'geo' ? 'LOCATION' : 'CHECK-IN'}`, downloadCanvas.width / 2, qrSize + quietZone + 35);
       
-      ctx.font = '32px Inter, Arial, sans-serif';
+      ctx.font = '22px Inter, Arial, sans-serif';
       ctx.fillStyle = '#555555';
       ctx.fillText(
         qrType === 'geo' ? geoURI : 'Scan to Mark Attendance', 
         downloadCanvas.width / 2, 
-        qrSize + quietZone + 85
+        qrSize + quietZone + 70
       );
 
       // Convert to PNG and trigger download
