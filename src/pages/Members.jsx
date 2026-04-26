@@ -414,7 +414,7 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
           {[['name', 'Full Name', 'text'], ['phone', 'Phone', 'tel'], ['email', 'Email', 'email']].map(([f, l, t]) => (
             <div key={f}>
               <label className={labelClass}>{l}</label>
-              <input type={t} required value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} placeholder={`Enter ${l.toLowerCase()}...`} />
+              <input type={t} required={f !== 'email'} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} placeholder={`Enter ${l.toLowerCase()}...`} />
             </div>
           ))}
           

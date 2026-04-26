@@ -1,55 +1,67 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Download } from 'lucide-react';
+import { Download, MapPin, QrCode } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 
 const WallQRModal = ({ onClose }) => {
   const { settings: gymSettings } = useSettings();
-  const checkinURL = `${window.location.origin}/checkin`;
+  const checkinURL = `https://newbossgym.in.net/checkin`;
+  const latitude = gymSettings?.latitude || 0;
+  const longitude = gymSettings?.longitude || 0;
+  const geoURI = `geo:${latitude},${longitude}`;
 
+  const [qrType, setQrType] = useState('url'); // Default to URL for wall QR
+  const qrValue = qrType === 'geo' ? geoURI : checkinURL;
 
   const downloadQR = () => {
     const canvas = document.getElementById("wall-qr-canvas");
     if (!canvas) return;
 
-    // Create a new canvas with white background and padding
-    const padding = 40;
-    const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = canvas.width + padding * 2;
-    exportCanvas.height = canvas.width + padding * 2 + 80;
-    const ctx = exportCanvas.getContext("2d");
+    // Wait for the next frame to ensure QR is fully rendered
+    requestAnimationFrame(() => {
+      // Create a new canvas with white background and padding
+      const qrSize = canvas.width;
+      const padding = 40;
+      const textAreaHeight = 80;
+      
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = qrSize + padding * 2;
+      exportCanvas.height = qrSize + padding * 2 + textAreaHeight;
+      const ctx = exportCanvas.getContext("2d");
 
-    // White background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      // White background (better for printing and scanning)
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-    // Draw QR code centered
-    ctx.drawImage(canvas, padding, padding);
+      // Draw QR code centered with quiet zone
+      ctx.drawImage(canvas, padding, padding);
 
-    // Add gym name text below QR
-    ctx.fillStyle = "#000000";
-    ctx.font = "bold 18px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(
-      gymSettings?.gymName || "GYM",
-      exportCanvas.width / 2,
-      canvas.height + padding + 35
-    );
+      // Add gym name text below QR
+      ctx.fillStyle = "#000000";
+      ctx.font = "bold 18px Inter, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(
+        gymSettings?.gymName || "GYM",
+        exportCanvas.width / 2,
+        qrSize + padding + 25
+      );
 
-    // Add instruction text
-    ctx.fillStyle = "#555555";
-    ctx.font = "13px Inter, sans-serif";
-    ctx.fillText(
-      "Scan to mark attendance",
-      exportCanvas.width / 2,
-      canvas.height + padding + 58
-    );
+      // Add instruction text
+      ctx.fillStyle = "#555555";
+      ctx.font = "13px Inter, Arial, sans-serif";
+      ctx.fillText(
+        qrType === 'geo' ? 'Location QR' : 'Scan to mark attendance',
+        exportCanvas.width / 2,
+        qrSize + padding + 50
+      );
 
-    // Trigger download
-    const link = document.createElement("a");
-    link.download = "gymcore-wall-qr.png";
-    link.href = exportCanvas.toDataURL("image/png");
-    link.click();
+      // Trigger download
+      const link = document.createElement("a");
+      link.download = `${(gymSettings?.gymName || 'gym').toLowerCase()}_${qrType}_qr.png`;
+      link.href = exportCanvas.toDataURL("image/png");
+      link.click();
+    });
   };
 
   return (
@@ -66,20 +78,46 @@ const WallQRModal = ({ onClose }) => {
         
         <div className="border-t border-[#2a2a2a] my-5"></div>
         
+        {/* QR Type Selector */}
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={() => setQrType('url')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12px] font-bold transition-all ${
+              qrType === 'url'
+                ? 'bg-[#e8c97e] text-[#0f0f0f]'
+                : 'bg-[#2a2a2a] text-[#a3a3a3] hover:bg-[#333333]'
+            }`}
+          >
+            <QrCode size={14} />
+            Check-in URL
+          </button>
+          <button
+            onClick={() => setQrType('geo')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[12px] font-bold transition-all ${
+              qrType === 'geo'
+                ? 'bg-[#e8c97e] text-[#0f0f0f]'
+                : 'bg-[#2a2a2a] text-[#a3a3a3] hover:bg-[#333333]'
+            }`}
+          >
+            <MapPin size={14} />
+            Location
+          </button>
+        </div>
+        
         <div className="bg-white rounded-[12px] p-5 inline-block mx-auto mb-3 shadow-inner">
           <QRCodeCanvas
             id="wall-qr-canvas"
-            value={checkinURL}
+            value={qrValue}
             size={220}
             bgColor="#ffffff"
             fgColor="#000000"
             level="H"
-            includeMargin={false}
+            includeMargin={true}
           />
         </div>
 
         <p className="text-[#a3a3a3] text-[12px] mt-3 break-all px-4 font-mono">
-          {checkinURL}
+          {qrValue}
         </p>
         
         <p className="text-[#a3a3a3] text-[12px] mt-2">

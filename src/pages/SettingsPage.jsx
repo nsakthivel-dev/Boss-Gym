@@ -386,8 +386,8 @@ const SettingsPage = () => {
                 <div className="pt-4">
                   <InputGroup 
                     label="Check-in URL" 
-                    description="The URL used for the QR code (automatically detects your domain)"
-                    value={`${window.location.origin}/checkin`}
+                    description="The URL used for the QR code"
+                    value={`https://newbossgym.in.net/checkin`}
                     onChange={() => {}} // Read-only
                   />
                   <InputGroup 
