@@ -1,8 +1,9 @@
-// Service Worker for New Boss Gym PWA
-const CACHE_NAME = 'boss-gym-v1';
-const RUNTIME_CACHE = 'boss-gym-runtime-v1';
+// Service Worker for New Boss Gym PWA - Robust Update & Fresh Data Architecture
+const CACHE_VERSION = 'boss-gym-v3.0';
+const STATIC_CACHE = `boss-gym-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `boss-gym-runtime-${CACHE_VERSION}`;
 
-// Assets to cache on install (static assets)
+// Essential static assets to cache on install (app shell)
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -10,165 +11,189 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/favicon.svg',
   '/icons.svg',
-  '/src/main.jsx',
-  '/src/App.jsx',
-  '/src/index.css',
 ];
 
-// Install event - cache static assets
+// URLs/Domains that must NEVER be permanently cached (Fresh Dynamic Data requirement)
+const DYNAMIC_PATTERNS = [
+  'supabase.co',
+  'googleapis.com',
+  'firebaseio.com',
+  'firestore',
+  '/api/',
+  'wa.me',
+];
+
+// Helper to determine if a request is dynamic data
+function isDynamicRequest(url) {
+  return DYNAMIC_PATTERNS.some((pattern) => url.includes(pattern));
+}
+
+// Install event - pre-cache static application shell
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
+  console.log('[SW] Installing version:', CACHE_VERSION);
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('[Service Worker] Caching static assets');
+        console.log('[SW] Caching static app shell');
         return cache.addAll(STATIC_ASSETS);
       })
-      .then(() => self.skipWaiting())
+      .catch((err) => {
+        console.warn('[SW] Pre-caching warning:', err);
+      })
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches safely
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
+  console.log('[SW] Activating version:', CACHE_VERSION);
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
             .filter((cacheName) => {
-              // Delete old caches that don't match current version
-              return cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE;
+              // Purge old versions of static and runtime caches
+              return cacheName.startsWith('boss-gym-') &&
+                     cacheName !== STATIC_CACHE &&
+                     cacheName !== RUNTIME_CACHE;
             })
             .map((cacheName) => {
-              console.log('[Service Worker] Deleting old cache:', cacheName);
+              console.log('[SW] Deleting deprecated cache:', cacheName);
               return caches.delete(cacheName);
             })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log('[SW] Claiming clients for current version');
+        return self.clients.claim();
+      })
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - strictly separate static assets from live dynamic data
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
 
-  // Skip chrome-extension and other non-http(s) requests
-  if (!event.request.url.startsWith('http')) return;
+  // 1. Skip non-GET requests (mutations always go straight to network)
+  if (request.method !== 'GET') return;
 
-  // For navigation requests (page loads), use network-first strategy
-  if (event.request.mode === 'navigate') {
+  // 2. Skip browser extensions and non-http(s) schemes
+  if (!request.url.startsWith('http')) return;
+
+  const url = request.url;
+
+  // 3. Dynamic Database & API requests (Supabase, Firebase, REST)
+  // MUST NEVER RETURN STALE CACHE. ALWAYS GO TO NETWORK!
+  if (isDynamicRequest(url)) {
     event.respondWith(
-      fetch(event.request)
+      fetch(request).catch(() => {
+        // If device is offline, check if there's any offline indication or let it fail gracefully
+        return new Response(
+          JSON.stringify({ error: 'Network unavailable. Operating offline.' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+    return;
+  }
+
+  // 4. Navigation requests (HTML page loads) - Network-first with offline.html fallback
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
-          // Cache the fresh response
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
-        .catch(() => {
-          // Fallback to cache when offline
-          return caches.match(event.request)
-            .then((cachedResponse) => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              // If not in cache, return offline page
-              return caches.match('/offline.html');
-            });
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const offlinePage = await caches.match('/offline.html');
+          return offlinePage || new Response('Offline', { status: 503 });
         })
     );
     return;
   }
 
-  // For static assets (JS, CSS, images), use cache-first strategy
-  if (
-    event.request.destination === 'script' ||
-    event.request.destination === 'style' ||
-    event.request.destination === 'image' ||
-    event.request.destination === 'font'
-  ) {
+  // 5. Versioned static assets (/assets/*, fonts, scripts, css) - Stale-while-revalidate or Cache-first
+  const isStaticAsset = (
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'font' ||
+    request.destination === 'image' ||
+    url.includes('/assets/') ||
+    url.includes('/icons/') ||
+    url.includes('/photos/')
+  );
+
+  if (isStaticAsset) {
     event.respondWith(
-      caches.match(event.request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Not in cache, fetch from network
-          return fetch(event.request)
-            .then((response) => {
-              // Don't cache if not a valid response
-              if (!response || response.status !== 200 || response.type !== 'basic') {
-                return response;
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Fetch update in background for next time if not hashed
+          if (!url.includes('/assets/index-')) {
+            fetch(request).then((freshResponse) => {
+              if (freshResponse && freshResponse.status === 200) {
+                caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, freshResponse));
               }
-              // Clone the response
-              const responseToCache = response.clone();
-              caches.open(RUNTIME_CACHE)
-                .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
-              return response;
-            });
-        })
+            }).catch(() => {});
+          }
+          return cachedResponse;
+        }
+
+        // Cache miss -> fetch from network and cache
+        return fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        });
+      })
     );
     return;
   }
 
-  // For API calls and other requests, use network-first with cache fallback
+  // 6. Default fallback
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful responses
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request);
-      })
+    fetch(request).catch(() => caches.match(request))
   );
 });
 
-// Message event - handle messages from the client
+// Message event - handle skip waiting and cache clear commands
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Received SKIP_WAITING signal, activating now...');
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'CLEAR_CACHE') {
-    caches.keys().then((cacheNames) => {
-      Promise.all(
-        cacheNames.map((cacheName) => caches.delete(cacheName))
-      );
-    });
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
   }
 });
 
-// Push notification handler (optional - for future use)
+// Push notification handler
 self.addEventListener('push', (event) => {
   if (event.data) {
-    const data = event.data.json();
+    let data;
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'New Boss Gym', body: event.data.text() };
+    }
+
     const options = {
-      body: data.body || 'New notification from New Boss Gym',
+      body: data.body || 'New alert from New Boss Gym',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
       vibrate: [100, 50, 100],
       data: {
+        url: data.url || '/',
         dateOfArrival: Date.now(),
-        primaryKey: 1,
       },
-      actions: [
-        { action: 'explore', title: 'Open App' },
-        { action: 'close', title: 'Close' },
-      ],
     };
 
     event.waitUntil(
@@ -180,15 +205,16 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
 
-  if (event.action === 'explore') {
-    event.waitUntil(
-      clients.matchAll({ type: 'window' }).then((clientList) => {
-        for (const client of clientList) {
-          if (client.url === '/' && 'focus' in client) return client.focus();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus();
         }
-        if (clients.openWindow) return clients.openWindow('/');
-      })
-    );
-  }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+    })
+  );
 });

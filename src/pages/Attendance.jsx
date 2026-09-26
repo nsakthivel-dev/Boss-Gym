@@ -1,42 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import {
-  collection, query, where, getDocs, doc, updateDoc, orderBy
+  collection, query, where, getDocs, doc, updateDoc
 } from 'firebase/firestore';
-import { CalendarCheck, Loader2, Edit2, X, Check } from 'lucide-react';
+import { CalendarCheck, Edit2, X, RefreshCw, Clock, UserCheck, Calendar, Activity, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { TableSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const formatTime = (ts) => {
   if (!ts) return '—';
   const d = ts.toDate?.() ?? new Date(ts);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
 const statusBadge = (s) => {
   const map = {
-    open: 'bg-info/10 text-info',
-    closed: 'bg-success/10 text-success',
-    'no-exit': 'bg-error/10 text-error',
+    open: 'bg-blue-100 text-blue-800 border-blue-200',
+    closed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    'no-exit': 'bg-red-100 text-red-800 border-red-200',
   };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${map[s] || 'bg-muted/10 text-muted'}`}>
-      {s === 'no-exit' ? 'No Exit' : s.charAt(0).toUpperCase() + s.slice(1)}
+    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${map[s] || 'bg-neutral-100 text-neutral-600'}`}>
+      {s === 'no-exit' ? 'Auto-closed' : s === 'open' ? 'Active On Floor' : 'Completed'}
     </span>
   );
 };
 
 const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl">
-      <div className="flex items-center justify-between p-5 border-b border-border">
-        <h3 className="text-white font-semibold text-lg">{title}</h3>
-        <button onClick={onClose} className="text-muted hover:text-white transition-colors">
+  <div 
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+    onClick={onClose}
+  >
+    <div 
+      className="w-full max-w-md bg-white border border-[#e7e2d5] rounded-3xl shadow-2xl overflow-hidden animate-slide-up"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between p-5 border-b border-[#e7e2d5] bg-gradient-to-r from-gold-50/70 to-white">
+        <h3 className="text-neutral-900 font-black text-base uppercase tracking-tight font-athletic">{title}</h3>
+        <button onClick={onClose} className="p-1.5 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition-colors">
           <X className="w-5 h-5" />
         </button>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
   </div>
 );
@@ -77,31 +85,51 @@ const EditSessionModal = ({ session, currentUser, onClose, onSaved }) => {
       onSaved();
       onClose();
     } catch (err) {
-      setError('Failed to save. Try again.');
+      setError('Failed to save session. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const inputClass = "w-full bg-secondary border border-border text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50";
+  const inputClass = "w-full bg-[#faf9f6] border border-[#e7e2d5] text-neutral-900 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:border-gold-500 focus:bg-white transition-all";
 
   return (
-    <Modal title={`Edit Session — ${session.memberName}`} onClose={onClose}>
-      {error && <div className="mb-4 bg-error/10 border border-error/30 text-error text-xs rounded-lg px-3 py-2">{error}</div>}
+    <Modal title={`Adjust Session · ${session.memberName}`} onClose={onClose}>
+      {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl px-3 py-2">{error}</div>}
       <div className="space-y-4">
         <div>
-          <label className="text-muted text-sm mb-1 block">Entry Time</label>
-          <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className={inputClass} />
+          <label className="text-[10px] font-black uppercase tracking-wider text-neutral-600 block mb-1 font-athletic">Workout Entry Time *</label>
+          <input
+            type="time"
+            value={entryTime}
+            onChange={e => setEntryTime(e.target.value)}
+            className={inputClass}
+          />
         </div>
         <div>
-          <label className="text-muted text-sm mb-1 block">Exit Time (optional)</label>
-          <input type="time" value={exitTime} onChange={e => setExitTime(e.target.value)} className={inputClass} />
+          <label className="text-[10px] font-black uppercase tracking-wider text-neutral-600 block mb-1 font-athletic">Workout Exit Time (Leave blank if currently training)</label>
+          <input
+            type="time"
+            value={exitTime}
+            onChange={e => setExitTime(e.target.value)}
+            className={inputClass}
+          />
         </div>
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-5 py-2 text-sm text-muted hover:text-white border border-border rounded-lg transition-colors">Cancel</button>
-          <button onClick={handleSave} disabled={loading}
-            className="px-5 py-2 text-sm bg-primary text-black font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2">
-            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
+        <div className="flex gap-3 pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl border border-[#e7e2d5] text-neutral-600 hover:bg-[#faf9f6] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={loading}
+            className="flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 shadow-gold-sm transition-all disabled:opacity-50 active:scale-95 font-athletic"
+          >
+            {loading ? 'Saving...' : 'Update Session'}
           </button>
         </div>
       </div>
@@ -109,148 +137,215 @@ const EditSessionModal = ({ session, currentUser, onClose, onSaved }) => {
   );
 };
 
-const SessionTable = ({ sessions, userRole, currentUser, onEdit }) => (
-  <div className="bg-card border border-border rounded-xl overflow-hidden">
-    <div className="hidden md:block overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[#1a1a1a] bg-[#0a0a0a]">
-            {['Member', 'Entry', 'Exit', 'Duration', 'Status', ...(userRole === 'admin' ? [''] : [])].map(h => (
-              <th key={h} className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">{h}</th>
-            ))}
-          </tr>
-        </thead>
-          <tbody className="divide-y divide-[#1a1a1a]">
-            {sessions.length === 0 ? (
-              <tr><td colSpan={6} className="text-center text-primary/20 py-20 font-bold tracking-widest text-xs uppercase">No sessions found.</td></tr>
-            ) : sessions.map(s => (
-              <tr key={s.id} className="hover:bg-white/[0.02] transition-colors group">
-                <td className="px-8 py-6 text-primary font-bold text-sm tracking-tight">
-                  {s.memberName}
-                  {s.edited && <span className="ml-1.5 text-primary/40 text-xs">✏️</span>}
-                </td>
-                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{formatTime(s.entryTime)}</td>
-                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{formatTime(s.exitTime)}</td>
-                <td className="px-8 py-6 text-primary/40 font-mono text-sm group-hover:text-primary transition-colors">{s.durationMinutes ? `${s.durationMinutes}m` : '—'}</td>
-                <td className="px-8 py-6">{statusBadge(s.status)}</td>
-                {userRole === 'admin' && (
-                  <td className="px-8 py-6 text-right">
-                    <button onClick={() => onEdit(s)}
-                      className="text-primary/40 hover:text-warning transition-colors">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-      </table>
-    </div>
-    {/* Mobile */}
-    <div className="md:hidden divide-y divide-border">
-      {sessions.length === 0 ? (
-        <p className="text-muted text-sm text-center py-8">No sessions found.</p>
-      ) : sessions.map(s => (
-        <div key={s.id} className="p-3 flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-white text-sm font-medium truncate">{s.memberName} {s.edited && '✏️'}</p>
-            <p className="text-muted text-xs mt-1">{formatTime(s.entryTime)} → {formatTime(s.exitTime)} · {s.durationMinutes ? `${s.durationMinutes}m` : '—'}</p>
-            <div className="mt-1">{statusBadge(s.status)}</div>
+const Attendance = () => {
+  const { currentUser } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingSession, setEditingSession] = useState(null);
+
+  const fetchSessions = async () => {
+    setLoading(true);
+    try {
+      const q = query(
+        collection(db, 'sessions'),
+        where('sessionDate', '==', selectedDate)
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      docs.sort((a, b) => {
+        const at = a.entryTime?.toDate?.() ?? new Date(a.entryTime);
+        const bt = b.entryTime?.toDate?.() ?? new Date(b.entryTime);
+        return bt - at;
+      });
+      setSessions(docs);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, [selectedDate]);
+
+  const insideCount = sessions.filter(s => s.status === 'open').length;
+  const completedCount = sessions.filter(s => s.status === 'closed').length;
+
+  return (
+    <div className="space-y-6 md:space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e7e2d5]">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 font-athletic">Workout Tracking</span>
+          <h1 className="text-2xl md:text-3xl font-black text-neutral-900 tracking-tight uppercase font-athletic">Attendance Register</h1>
+          <p className="text-xs text-neutral-500 mt-0.5">Real-time gym attendance logs and workout durations</p>
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 bg-white border border-[#e7e2d5] rounded-2xl px-4 py-2 shadow-xs">
+            <Calendar size={16} className="text-gold-600" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-neutral-900 focus:outline-none"
+            />
           </div>
-          {userRole === 'admin' && (
-            <button onClick={() => onEdit(s)} className="text-muted hover:text-primary ml-2 shrink-0">
-              <Edit2 className="w-4 h-4" />
+          {selectedDate !== todayStr() && (
+            <button
+              onClick={() => setSelectedDate(todayStr())}
+              className="px-4 py-2.5 bg-neutral-900 text-gold-400 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors active:scale-95 font-athletic"
+            >
+              Today
             </button>
           )}
         </div>
-      ))}
-    </div>
-  </div>
-);
-
-const Attendance = () => {
-  const { userRole, currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('today');
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [historyDate, setHistoryDate] = useState('');
-  const [editSession, setEditSession] = useState(null);
-
-  const loadToday = async () => {
-    setLoading(true); setError('');
-    try {
-      const q = query(collection(db, 'sessions'), where('sessionDate', '==', todayStr()));
-      const snap = await getDocs(q);
-      const data = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
-      setSessions(data);
-    } catch (err) {
-      setError('Failed to load sessions.'); console.error(err);
-    } finally { setLoading(false); }
-  };
-
-  const loadHistory = async (date) => {
-    if (!date) return;
-    setLoading(true); setError('');
-    try {
-      const q = query(collection(db, 'sessions'), where('sessionDate', '==', date));
-      const snap = await getDocs(q);
-      const data = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
-      setSessions(data);
-    } catch (err) {
-      setError('Failed to load session history.'); console.error(err);
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { if (activeTab === 'today') loadToday(); }, [activeTab]);
-
-  return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-4xl font-black text-primary tracking-tight uppercase flex items-center gap-2">
-          <CalendarCheck className="text-primary w-5 h-5 md:w-6 md:h-6" /> Attendance
-        </h1>
-        <p className="text-[#555] text-[10px] md:text-xs font-bold tracking-[0.2em] mt-1 md:mt-2 uppercase text-muted">Session logs for all members.</p>
       </div>
 
-      {error && <div className="bg-error/10 border border-error/30 text-error text-sm rounded-lg px-4 py-3">{error}</div>}
-
-      {/* Tabs */}
-      <div className="flex gap-1 md:gap-2 bg-[#0a0a0a] border border-[#1a1a1a] p-1 w-fit rounded-sm">
-        {['today', 'history'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 md:px-6 py-1.5 md:py-2 text-[9px] md:text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === tab ? 'bg-[#111] text-primary' : 'text-[#666] hover:text-white'}`}>
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'history' && (
-        <input
-          type="date"
-          value={historyDate}
-          max={todayStr()}
-          onChange={e => { setHistoryDate(e.target.value); loadHistory(e.target.value); }}
-          className="bg-card border border-border rounded-lg md:rounded-xl px-3 md:px-4 py-1.5 md:py-2 text-white text-xs md:text-sm focus:outline-none focus:border-primary transition-colors w-full md:w-auto"
-        />
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 className="w-7 h-7 text-primary animate-spin" />
+      {/* Overview Cards with High-Performance Contrast */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Total Sessions */}
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">Daily Visits</span>
+            <p className="text-2xl font-black text-neutral-900 mt-1 font-athletic">{sessions.length}</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-gold-50 text-gold-700 flex items-center justify-center">
+            <CalendarCheck size={22} />
+          </div>
         </div>
+
+        {/* Currently Training (Dark Athletic Card with Live Glow) */}
+        <div className="bg-[#171717] border border-gold-500/30 rounded-3xl p-5 shadow-xl text-white flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-gold-400 font-athletic flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              Active Inside Now
+            </span>
+            <p className="text-2xl font-black text-white mt-1 font-athletic">{insideCount} Athletes</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Clock size={22} />
+          </div>
+        </div>
+
+        {/* Completed Workouts */}
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">Finished Workouts</span>
+            <p className="text-2xl font-black text-emerald-600 mt-1 font-athletic">{completedCount}</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <UserCheck size={22} />
+          </div>
+        </div>
+      </div>
+
+      {/* Sessions Container */}
+      {loading ? (
+        <TableSkeleton rows={6} cols={5} />
+      ) : sessions.length === 0 ? (
+        <EmptyState 
+          icon={CalendarCheck}
+          title="No workouts recorded"
+          description={`No attendance sessions logged for ${selectedDate}.`}
+        />
       ) : (
-        <SessionTable sessions={sessions} userRole={userRole} currentUser={currentUser} onEdit={setEditSession} />
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl shadow-xs overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#faf9f6] border-b border-[#e7e2d5] text-[10px] font-black tracking-wider text-neutral-500 uppercase font-athletic">
+                  <th className="px-6 py-4">Athlete</th>
+                  <th className="px-6 py-4">Entry Time</th>
+                  <th className="px-6 py-4">Exit Time</th>
+                  <th className="px-6 py-4">Workout Duration</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Adjust</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0ece2] text-xs">
+                {sessions.map(s => (
+                  <tr key={s.id} className="hover:bg-gold-50/20 transition-colors">
+                    <td className="px-6 py-4 font-bold text-neutral-900 uppercase tracking-tight font-athletic">
+                      {s.memberName}
+                      {s.edited && <span className="ml-2 text-[9px] text-amber-600 font-normal italic">(adjusted)</span>}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-neutral-700">
+                      {formatTime(s.entryTime)}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-neutral-700">
+                      {formatTime(s.exitTime)}
+                    </td>
+                    <td className="px-6 py-4 font-black text-neutral-900">
+                      {s.durationMinutes != null ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-gold-50 text-gold-800 border border-gold-200">
+                          {s.durationMinutes} mins
+                        </span>
+                      ) : 'Training…'}
+                    </td>
+                    <td className="px-6 py-4">
+                      {statusBadge(s.status)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => setEditingSession(s)}
+                        className="p-2 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5]"
+                        title="Adjust Session Time"
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-[#f0ece2]">
+            {sessions.map(s => (
+              <div key={s.id} className="p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-black text-sm text-neutral-900 uppercase font-athletic">{s.memberName}</p>
+                    <p className="text-[11px] text-neutral-500 font-mono mt-0.5">
+                      {formatTime(s.entryTime)} {s.exitTime ? `— ${formatTime(s.exitTime)}` : '(On Workout Floor)'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {statusBadge(s.status)}
+                    <button
+                      onClick={() => setEditingSession(s)}
+                      className="p-2 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-neutral-700 active:scale-95"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                {s.durationMinutes != null && (
+                  <p className="text-xs text-neutral-600 bg-[#faf9f6] px-3.5 py-2 rounded-xl border border-[#e7e2d5] font-semibold flex items-center justify-between">
+                    <span className="text-[11px] uppercase font-athletic text-neutral-400">Duration</span>
+                    <span className="font-black text-neutral-900">{s.durationMinutes} minutes</span>
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {editSession && (
-        <EditSessionModal session={editSession} currentUser={currentUser}
-          onClose={() => setEditSession(null)}
-          onSaved={activeTab === 'today' ? loadToday : () => loadHistory(historyDate)} />
+      {editingSession && (
+        <EditSessionModal
+          session={editingSession}
+          currentUser={currentUser}
+          onClose={() => setEditingSession(null)}
+          onSaved={fetchSessions}
+        />
       )}
     </div>
   );

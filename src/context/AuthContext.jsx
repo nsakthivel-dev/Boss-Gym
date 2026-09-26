@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase/config';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { seedDatabase } from '../utils/seed';
 
 const AuthContext = createContext();
@@ -24,21 +24,41 @@ export const AuthProvider = ({ children }) => {
         if (user) {
           setCurrentUser(user);
           
-          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
-          const isSystemAdmin = user.email?.toLowerCase().trim() === adminEmail;
+          const adminEmails = [
+            'sakthicud07@gmail.com',
+            'manisuni94@gmail.com',
+            import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
+          ].filter(Boolean).map(e => e.toLowerCase().trim());
+
+          const userEmail = user.email?.toLowerCase().trim();
+          const isSystemAdmin = adminEmails.includes(userEmail);
           
-          // 1. Check Firestore for role
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserRole(userDoc.data().role || 'user');
-          } else if (isSystemAdmin) {
-            // Fallback for new admin without a document yet
+          // If system admin, grant admin role and sync Firestore doc
+          if (isSystemAdmin) {
             setUserRole('admin');
+            try {
+              const userDocRef = doc(db, 'users', user.uid);
+              const userDoc = await getDoc(userDocRef);
+              if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+                await setDoc(userDocRef, {
+                  email: user.email,
+                  role: 'admin',
+                  updatedAt: new Date().toISOString()
+                }, { merge: true });
+              }
+            } catch (syncErr) {
+              console.warn("Could not sync admin document to firestore:", syncErr);
+            }
           } else {
-            setUserRole('user');
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+              setUserRole(userDoc.data().role || 'user');
+            } else {
+              setUserRole('user');
+            }
           }
 
-          // 2. Trigger seed only for the system admin
+          // Trigger seed only for the system admin
           if (isSystemAdmin) {
             seedDatabase();
           }

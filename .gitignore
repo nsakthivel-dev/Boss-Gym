@@ -31,4 +31,5 @@ build/
 
 # Project files
 prompt.txt
+.packageguard/
 

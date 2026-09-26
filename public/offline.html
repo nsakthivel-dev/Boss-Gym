@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#863bff">
-  <title>Offline - New Boss Gym</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#c9a227">
+  <title>Offline · New Boss Gym</title>
   <style>
     * {
       margin: 0;
@@ -13,203 +13,182 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+      background-color: #faf9f6;
+      color: #18181b;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 24px;
     }
 
     .container {
-      max-width: 600px;
+      max-width: 480px;
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e8e4d8;
+      border-radius: 16px;
+      padding: 40px 32px;
       text-align: center;
+      box-shadow: 0 10px 30px -5px rgba(201, 162, 39, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
     }
 
-    .icon {
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 30px;
-      background: linear-gradient(135deg, #863bff 0%, #47bfff 100%);
+    .badge-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: #fdfaf0;
+      border: 1px solid #e8dcbe;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 60px;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: scale(1.05);
-        opacity: 0.9;
-      }
+      font-size: 36px;
+      color: #c9a227;
+      box-shadow: 0 4px 14px rgba(201, 162, 39, 0.15);
     }
 
     h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 15px;
-      background: linear-gradient(135deg, #863bff 0%, #47bfff 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      color: #18181b;
     }
 
-    p {
-      font-size: 1.125rem;
-      line-height: 1.6;
-      color: #a0a0a0;
-      margin-bottom: 30px;
+    .subtitle {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #71717a;
+      margin-bottom: 28px;
     }
 
-    .tips {
-      background: rgba(134, 59, 255, 0.1);
-      border: 1px solid rgba(134, 59, 255, 0.3);
+    .tips-card {
+      background: #faf9f6;
+      border: 1px solid #ede8dc;
       border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 30px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
       text-align: left;
     }
 
-    .tips h3 {
-      color: #863bff;
-      margin-bottom: 15px;
-      font-size: 1.25rem;
+    .tips-title {
+      color: #8c6e11;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
     }
 
-    .tips ul {
+    .tips-list {
       list-style: none;
-      padding: 0;
     }
 
-    .tips li {
-      padding: 8px 0;
-      color: #d0d0d0;
-      position: relative;
-      padding-left: 25px;
+    .tips-list li {
+      font-size: 0.875rem;
+      color: #52525b;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .tips li:before {
-      content: "✓";
-      position: absolute;
-      left: 0;
-      color: #47bfff;
-      font-weight: bold;
+    .tips-list li:last-child {
+      margin-bottom: 0;
     }
 
-    .button {
-      display: inline-block;
-      padding: 15px 40px;
-      background: linear-gradient(135deg, #863bff 0%, #47bfff 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 1.125rem;
-      transition: transform 0.2s, box-shadow 0.2s;
+    .bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #c9a227;
+      flex-shrink: 0;
+    }
+
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 24px;
+      background: #c9a227;
+      color: #ffffff;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
       border: none;
       cursor: pointer;
+      box-shadow: 0 4px 14px rgba(201, 162, 39, 0.25);
+      transition: all 0.2s ease;
     }
 
-    .button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(134, 59, 255, 0.4);
-    }
-
-    .button:active {
-      transform: translateY(0);
+    .btn-retry:hover {
+      background: #b8911d;
+      transform: translateY(-1px);
     }
 
     .status {
       margin-top: 20px;
-      padding: 10px;
-      font-size: 0.875rem;
-      color: #808080;
-    }
-
-    @media (max-width: 480px) {
-      h1 {
-        font-size: 2rem;
-      }
-      
-      p {
-        font-size: 1rem;
-      }
-      
-      .icon {
-        width: 100px;
-        height: 100px;
-        font-size: 50px;
-      }
+      font-size: 0.825rem;
+      font-weight: 500;
+      color: #a1a1aa;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="icon">📡</div>
-    <h1>You're Offline</h1>
-    <p>It looks like you've lost your internet connection. Don't worry, you can still access some features of New Boss Gym when you're back online.</p>
+    <div class="badge-icon">📡</div>
+    <h1>No Connection</h1>
+    <p class="subtitle">You appear to be offline. Reconnect to access live member and gym data.</p>
     
-    <div class="tips">
-      <h3>What you can do:</h3>
-      <ul>
-        <li>Check your internet connection</li>
-        <li>Try refreshing the page</li>
-        <li>View previously cached pages</li>
-        <li>Enable WiFi or mobile data</li>
+    <div class="tips-card">
+      <div class="tips-title">Troubleshooting</div>
+      <ul class="tips-list">
+        <li><span class="bullet"></span>Check cellular data or Wi-Fi</li>
+        <li><span class="bullet"></span>Disable airplane mode</li>
+        <li><span class="bullet"></span>Previous pages may still be viewable</li>
       </ul>
     </div>
 
-    <button class="button" onclick="window.location.reload()">
-      Try Again
+    <button class="btn-retry" onclick="window.location.reload()">
+      Retry Connection
     </button>
 
     <div class="status" id="status">
-      Checking connection status...
+      Waiting for network signal...
     </div>
   </div>
 
   <script>
-    // Check online status
     const statusEl = document.getElementById('status');
     
     function updateStatus() {
       if (navigator.onLine) {
-        statusEl.textContent = '✓ You are back online! Redirecting...';
-        statusEl.style.color = '#4ade80';
+        statusEl.textContent = '✓ Back online! Reloading application...';
+        statusEl.style.color = '#16a34a';
         setTimeout(() => {
           window.location.reload();
-        }, 1500);
+        }, 1200);
       } else {
-        statusEl.textContent = '✗ No internet connection detected';
-        statusEl.style.color = '#f87171';
+        statusEl.textContent = '● Device is currently offline';
+        statusEl.style.color = '#dc2626';
       }
     }
 
-    // Listen for online/offline events
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
-    
-    // Initial check
     updateStatus();
 
-    // Auto-retry every 5 seconds
     setInterval(() => {
       if (!navigator.onLine) {
-        fetch('/').then(() => {
-          window.location.reload();
-        }).catch(() => {
-          // Still offline, do nothing
-        });
+        fetch('/', { method: 'HEAD' })
+          .then(() => window.location.reload())
+          .catch(() => {});
       }
-    }, 5000);
+    }, 6000);
   </script>
 </body>
 </html>

@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   Dumbbell, 
   LogOut,
-  Instagram,
-  Facebook,
-  Twitter,
-  MapPin,
-  Phone,
-  Menu,
-  X
+  Instagram, 
+  Facebook, 
+  Twitter, 
+  MapPin, 
+  Phone, 
+  Menu, 
+  X, 
+  ChevronRight,
+  UserCheck,
+  Shield,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { NavLink, useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -53,57 +58,87 @@ const WebsiteLayout = () => {
   const navItems = [
     { label: 'Home', path: '/' },
     { label: 'About', path: '/about' },
-    { label: 'Services', path: '/services' },
+    { label: 'Training', path: '/training' },
     { label: 'Gallery', path: '/gallery' },
     { label: 'Plans', path: '/plans' },
     { label: 'Contact', path: '/contact' },
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-primary selection:text-black flex flex-col">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/5 py-5">
-        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <NavLink to="/" className="flex items-center gap-3 group">
-              <div className="bg-primary p-1.5 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)] group-hover:scale-110 transition-transform">
-                <Dumbbell className="text-black w-5 h-5" />
+    <div className="min-h-screen bg-[#f8f7f3] text-neutral-900 font-sans selection:bg-gold-500 selection:text-neutral-950 flex flex-col">
+      {/* Top Athletic Navbar */}
+      <nav className="fixed top-0 w-full z-50 bg-[#151515]/95 backdrop-blur-md border-b border-[#262626] py-3.5 transition-all text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <NavLink to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-[#151515] rounded-[10px] flex items-center justify-center text-gold-400">
+                <Dumbbell className="w-5 h-5" />
               </div>
-              <span className="font-black text-lg tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
-            </NavLink>
-          </div>
+            </div>
+            <div>
+              <span className="font-black text-base sm:text-lg tracking-wider uppercase text-white block leading-tight font-athletic">
+                {gymSettings.gymName || 'New Boss Gym'}
+              </span>
+              <span className="text-[9px] tracking-[0.25em] uppercase font-bold text-gold-400 block mt-0.5 font-athletic">
+                Performance Club · Muthaliyarpet
+              </span>
+            </div>
+          </NavLink>
           
-          <div className="hidden lg:flex items-center gap-10">
+          <div className="hidden lg:flex items-center gap-8">
             {navItems.map(item => (
               <NavLink 
                 key={item.label} 
                 to={item.path} 
-                className={({ isActive }) => `text-[10px] font-black uppercase tracking-[0.2em] transition-all ${isActive ? 'text-primary' : 'text-[#666] hover:text-primary'}`}
+                className={({ isActive }) => `text-xs font-bold uppercase tracking-wider transition-colors relative py-1 font-athletic ${
+                  isActive ? 'text-gold-400 font-black' : 'text-neutral-400 hover:text-white'
+                }`}
               >
-                {item.label}
+                {({ isActive }) => (
+                  <>
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gold-400 rounded-full shadow-[0_0_8px_#c9a227]" />
+                    )}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <NavLink
+              to="/checkin"
+              className="hidden sm:inline-flex items-center gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-4 py-2 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all font-athletic active:scale-95"
+            >
+              <UserCheck size={15} className="text-emerald-400" />
+              <span>Athlete Check-In</span>
+            </NavLink>
+
             {currentUser ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="hidden md:block text-right">
-                  <p className="text-[7px] font-black text-[#444] uppercase tracking-[0.2em] mb-0.5">Account</p>
-                  <p className="text-[10px] font-bold text-white truncate max-w-[150px]">{currentUser?.email}</p>
+                  <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-athletic">Trainer Desk</p>
+                  <p className="text-xs font-bold text-white truncate max-w-[140px]">{currentUser?.email}</p>
                 </div>
+                <NavLink 
+                  to="/dashboard"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic"
+                >
+                  Dashboard
+                </NavLink>
                 <button 
                   onClick={handleLogout}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:border-primary/50 hover:text-primary transition-all group"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors"
                   title="Logout"
                 >
-                  <LogOut size={16} className="group-hover:scale-110 transition-transform" />
+                  <LogOut size={16} />
                 </button>
               </div>
             ) : (
               <NavLink 
                 to="/login"
-                className="bg-primary text-black px-8 py-2.5 rounded-sm font-black uppercase text-[10px] tracking-[0.2em] hover:bg-white transition-all shadow-[0_5px_15px_rgba(232,201,126,0.2)]"
+                className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 px-5 py-2 rounded-xl font-black uppercase text-xs tracking-wider transition-all shadow-gold-sm font-athletic"
               >
                 Login
               </NavLink>
@@ -111,63 +146,89 @@ const WebsiteLayout = () => {
 
             {/* Mobile Menu Button */}
             <button 
-              className="lg:hidden text-primary p-2 hover:bg-white/5 rounded-sm transition-all"
+              className="lg:hidden text-white p-2 hover:bg-[#222222] rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open mobile menu"
             >
-              <Menu size={24} />
+              <Menu size={22} />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Mobile Navigation Overlay */}
-      <div className={`fixed inset-0 z-[100] bg-black transition-all duration-500 lg:hidden ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        <div className="absolute top-0 right-0 p-8">
-          <button 
-            onClick={() => setMobileMenuOpen(false)}
-            className="p-2 text-primary hover:bg-white/5 rounded-sm transition-all"
-          >
-            <X size={32} />
-          </button>
-        </div>
-
-        <div className="flex flex-col items-center justify-center h-full gap-8">
-          <div className="flex items-center gap-3 mb-12">
-              <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
-                <Dumbbell className="text-black w-6 h-6" />
+      {/* Mobile Navigation Drawer */}
+      <div className={`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className={`fixed inset-y-0 right-0 max-w-sm w-full bg-[#151515] border-l border-[#262626] p-6 shadow-2xl flex flex-col justify-between transform transition-transform duration-300 ease-out text-white ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div>
+            <div className="flex items-center justify-between pb-6 border-b border-[#262626]">
+              <div className="flex items-center gap-2.5">
+                <div className="bg-gold-500/10 border border-gold-500/30 p-2 rounded-xl text-gold-400">
+                  <Dumbbell className="w-5 h-5" />
+                </div>
+                <span className="font-black text-base tracking-wider uppercase text-white font-athletic">
+                  {gymSettings.gymName || 'New Boss Gym'}
+                </span>
               </div>
-              <span className="font-black text-2xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'Boss Gym'}</span>
+              <button 
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 text-neutral-400 hover:text-white rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
+              >
+                <X size={22} />
+              </button>
             </div>
 
-          {navItems.map(item => (
-            <NavLink 
-              key={item.label} 
-              to={item.path} 
-              onClick={() => setMobileMenuOpen(false)}
-              className={({ isActive }) => `text-xl font-black uppercase tracking-[0.3em] transition-all ${isActive ? 'text-primary scale-110' : 'text-[#444] hover:text-primary'}`}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-
-          <div className="mt-12">
-            {currentUser ? (
-              <button 
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center gap-3 text-error/60 font-black uppercase tracking-widest text-sm hover:text-error transition-all"
+            <div className="py-6 space-y-2">
+              {navItems.map(item => (
+                <NavLink 
+                  key={item.label} 
+                  to={item.path} 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) => `flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all font-athletic ${
+                    isActive ? 'bg-gold-500/10 text-gold-400 font-black border border-gold-500/30' : 'text-neutral-300 hover:bg-[#222222] hover:text-white'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight size={16} className="text-neutral-500" />
+                </NavLink>
+              ))}
+              <NavLink 
+                to="/checkin" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-black uppercase tracking-wider text-neutral-950 bg-gradient-to-r from-gold-500 to-gold-600 shadow-gold-sm font-athletic mt-2"
               >
-                <LogOut size={18} /> Logout
-              </button>
+                <span className="flex items-center gap-2"><UserCheck size={16} /> Athlete Self Check In</span>
+                <ChevronRight size={16} />
+              </NavLink>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-[#262626] space-y-3">
+            {currentUser ? (
+              <div className="space-y-2">
+                <NavLink
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full inline-flex items-center justify-center bg-gold-500 text-neutral-950 py-3 rounded-xl font-black uppercase text-xs tracking-wider text-center font-athletic"
+                >
+                  Admin Command Center
+                </NavLink>
+                <button 
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 text-red-400 font-bold uppercase tracking-wider text-xs py-3 rounded-xl border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut size={16} /> Logout ({currentUser.email})
+                </button>
+              </div>
             ) : (
               <NavLink 
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="bg-primary text-black px-12 py-4 rounded-sm font-black uppercase text-sm tracking-widest hover:bg-white transition-all"
+                className="w-full inline-flex items-center justify-center bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 py-3.5 rounded-xl font-black uppercase text-xs tracking-wider transition-all shadow-gold-sm text-center font-athletic"
               >
-                Login
+                Member / Trainer Login
               </NavLink>
             )}
           </div>
@@ -175,131 +236,117 @@ const WebsiteLayout = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-16">
         <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#050505] pt-20 pb-8 border-t border-white/5 relative overflow-hidden">
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 xl:gap-24 mb-16">
+      {/* Dark Luxury Athletic Footer */}
+      <footer className="bg-[#111111] text-white border-t border-[#262626] pt-16 pb-12 mt-20 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-16 mb-16">
             {/* Logo & Description */}
-            <div className="md:col-span-5">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="bg-primary p-2 rounded-sm shadow-[0_0_15px_rgba(232,201,126,0.3)]">
-                  <Dumbbell className="text-black w-5 h-5" />
-                </div>
-                <span className="font-black text-2xl tracking-[0.1em] uppercase">{gymSettings.gymName || 'New Boss Gym'}</span>
-              </div>
-              <p className="text-[#555] max-w-sm text-[10px] font-bold leading-loose mb-10 uppercase tracking-[0.15em]">
-                Redefining the standard of fitness in Pondicherry. Experience the best gym near 100ft Road with elite coaching and modern facilities.
-              </p>
+            <div className="md:col-span-5 space-y-4">
               <div className="flex items-center gap-3">
-                {[Instagram, Facebook, Twitter].map((Icon, i) => (
-                  <a key={i} href="#" className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-sm text-[#444] hover:text-primary hover:border-primary/50 hover:-translate-y-1 transition-all duration-500 group">
-                    <Icon size={18} className="group-hover:scale-110 transition-transform" />
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm">
+                  <div className="w-full h-full bg-[#151515] rounded-[10px] flex items-center justify-center text-gold-400">
+                    <Dumbbell className="w-6 h-6" />
+                  </div>
+                </div>
+                <div>
+                  <span className="font-black text-xl tracking-wider uppercase text-white block font-athletic">
+                    {gymSettings.gymName || 'New Boss Gym'}
+                  </span>
+                  <span className="text-[10px] tracking-[0.25em] uppercase font-bold text-gold-400 block font-athletic">
+                    Premier Fitness Facility
+                  </span>
+                </div>
+              </div>
+              <p className="text-neutral-400 text-xs leading-relaxed max-w-sm">
+                Redefining fitness in Pondicherry. Located near 100ft Road, Muthaliyarpet. Experience professional strength equipment, personalized training architecture, and an elite fitness community.
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                {[
+                  { icon: Instagram, label: "Instagram" },
+                  { icon: Facebook, label: "Facebook" },
+                  { icon: Twitter, label: "Twitter" }
+                ].map((s, i) => (
+                  <a 
+                    key={i} 
+                    href="#" 
+                    aria-label={s.label}
+                    className="w-10 h-10 flex items-center justify-center bg-[#1c1c1c] border border-[#2a2a2a] hover:border-gold-400 text-neutral-400 hover:text-gold-400 rounded-xl transition-all"
+                  >
+                    <s.icon size={16} />
                   </a>
                 ))}
               </div>
             </div>
             
-            {/* Facility Links */}
+            {/* Quick Links */}
             <div className="md:col-span-3">
-              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.5em] mb-8 relative inline-block">
-                Facility
-                <span className="absolute -bottom-2 left-0 w-8 h-[1px] bg-primary/30" />
+              <h4 className="text-xs font-black text-gold-400 uppercase tracking-widest mb-4 font-athletic">
+                Platform Navigation
               </h4>
-              <ul className="space-y-4">
+              <ul className="space-y-2.5">
                 {[
-                  { label: 'About Us', path: '/about' },
-                  { label: 'Services', path: '/services' },
-                  { label: 'Workout Plans', path: '/plans' },
-                  { label: 'Gallery', path: '/gallery' },
-                  { label: 'Contact', path: '/contact' }
+                  { label: 'About Boss Gym', path: '/about' },
+                  { label: '7-Day Training Split', path: '/training' },
+                  { label: 'Membership Plans (₹800)', path: '/plans' },
+                  { label: 'Facility Gallery', path: '/gallery' },
+                  { label: 'Contact Trainers', path: '/contact' },
+                  { label: 'Athlete Check-In Kiosk', path: '/checkin' }
                 ].map(item => (
                   <li key={item.label}>
-                    <Link to={item.path} className="text-[#555] text-[10px] font-bold uppercase tracking-[0.2em] hover:text-white hover:translate-x-2 transition-all duration-300 flex items-center gap-3 group">
-                      <span className="w-1.5 h-[1px] bg-[#222] group-hover:w-4 group-hover:bg-primary transition-all" />
-                      {item.label}
+                    <Link 
+                      to={item.path} 
+                      className="text-neutral-400 text-xs hover:text-gold-400 transition-colors flex items-center gap-2 group"
+                    >
+                      <ChevronRight size={13} className="text-neutral-600 group-hover:text-gold-400 transition-colors" />
+                      <span>{item.label}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Connect Section */}
-            <div className="md:col-span-4">
-              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.5em] mb-8 relative inline-block">
-                Connect
-                <span className="absolute -bottom-2 left-0 w-8 h-[1px] bg-primary/30" />
+            {/* Contact Details */}
+            <div className="md:col-span-4 space-y-4">
+              <h4 className="text-xs font-black text-gold-400 uppercase tracking-widest mb-4 font-athletic">
+                Location & Direct Line
               </h4>
-              <div className="space-y-6">
-                <div className="flex items-center gap-5 group">
-                  <div className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-sm group-hover:border-primary/50 transition-all duration-500">
-                    <MapPin size={18} className="text-[#333] group-hover:text-primary transition-colors" />
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black text-[#333] uppercase tracking-[0.3em] mb-1">Location</p>
-                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">{gymSettings.address || '123 Elite Street, Fitness City'}</p>
-                  </div>
+              <div className="flex items-start gap-3 text-xs text-neutral-400">
+                <div className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 flex items-center justify-center text-gold-400 shrink-0 mt-0.5">
+                  <MapPin size={15} />
                 </div>
-                <div className="flex items-center gap-5 group">
-                  <div className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-sm group-hover:border-primary/50 transition-all duration-500">
-                    <Phone size={18} className="text-[#333] group-hover:text-primary transition-colors" />
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black text-[#333] uppercase tracking-[0.3em] mb-1">Phone</p>
-                    <p className="text-[10px] font-bold text-[#666] uppercase tracking-tighter group-hover:text-white transition-colors">{gymSettings.phoneNumber || '+91 98765 43210'}</p>
-                  </div>
+                <div>
+                  <p className="font-bold text-white text-[11px] uppercase tracking-wider font-athletic">Gym Address</p>
+                  <p className="mt-0.5">{gymSettings.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 text-xs text-neutral-400">
+                <div className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 flex items-center justify-center text-gold-400 shrink-0 mt-0.5">
+                  <Phone size={15} />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-[11px] uppercase tracking-wider font-athletic">Front Desk Phone</p>
+                  <p className="mt-0.5 font-mono">{gymSettings.phoneNumber || '+91 98765 43210'}</p>
                 </div>
               </div>
             </div>
           </div>
           
           {/* Bottom Bar */}
-          <div className="pt-10 border-t border-white/5 flex flex-col lg:flex-row items-center justify-between gap-10">
-            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
-              <div className="text-center md:text-left">
-                <p className="text-[10px] font-bold text-[#333] uppercase tracking-[0.3em]">
-                  © {new Date().getFullYear()} {gymSettings.gymName || 'Boss Gym'}
-                </p>
-                <p className="text-[9px] font-medium text-[#222] uppercase tracking-[0.2em]">
-                  Elite Management. All Rights Reserved.
-                </p>
-              </div>
-
-              <div className="hidden md:block h-8 w-px bg-white/5" />
-
-              <div className="flex flex-col items-center md:items-start gap-1">
-                <span className="text-[8px] font-black text-[#333] uppercase tracking-[0.4em]">Crafted by</span>
-                <a 
-                  href="https://lupusventure.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="group relative flex items-center gap-3"
-                >
-                  <span className="text-base font-black tracking-[0.2em] uppercase text-white group-hover:text-primary transition-colors duration-500">
-                    LUPUS <span className="text-primary group-hover:text-white transition-colors duration-500">VENTURE</span>
-                  </span>
-                  <div className="absolute -bottom-1 left-0 w-0 h-[1.5px] bg-primary group-hover:w-full transition-all duration-500 shadow-[0_0_10px_rgba(232,201,126,0.5)]" />
-                </a>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-8">
+          <div className="pt-8 border-t border-[#262626] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
+            <p>© {new Date().getFullYear()} {gymSettings.gymName || 'New Boss Gym'}. All rights reserved.</p>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span>Architecture & Management by</span>
               <a 
-                href="mailto:touch@lupusventure.com" 
-                className="group flex flex-col items-center lg:items-end gap-1"
+                href="https://lupusventure.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-black text-gold-400 hover:text-gold-300 transition-colors uppercase tracking-wider font-athletic"
               >
-                <span className="text-[8px] font-black text-[#333] uppercase tracking-[0.4em]">Get in touch</span>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary group-hover:text-white transition-all duration-500 flex items-center gap-2">
-                  touch@lupusventure.com
-                  <div className="w-6 h-[1px] bg-primary/30 group-hover:w-10 group-hover:bg-primary transition-all duration-500" />
-                </span>
+                Lupus Venture
               </a>
             </div>
           </div>

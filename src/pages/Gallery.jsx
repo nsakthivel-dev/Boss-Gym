@@ -1,5 +1,7 @@
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { Camera, MapPin, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Gallery = () => {
   const { settings: gymSettings } = useSettings();
@@ -23,35 +25,63 @@ const Gallery = () => {
   ];
 
   return (
-    <section className="py-32 relative min-h-screen">
-      <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-8 md:px-16 lg:px-24">
-        <div className="text-center mb-24 animate-boss-reveal opacity-0" style={{ animationDelay: '100ms' }}>
-          <h2 className="text-primary text-[10px] font-black tracking-[0.5em] uppercase mb-6">Visual Experience</h2>
-          <h3 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-6">GYM GALLERY</h3>
-          <p className="text-[#555] max-w-xl mx-auto font-medium">Take a tour of our elite facilities and modern training environment.</p>
+    <section className="py-20 md:py-32 relative min-h-screen bg-[#faf9f6]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 lg:px-16">
+        <div className="text-center mb-16 md:mb-20">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-50 border border-gold-200 text-gold-800 text-[11px] font-bold uppercase tracking-wider mb-4">
+            <Camera size={14} className="text-gold-600" />
+            <span>Visual Experience</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-neutral-900 mb-4">
+            Gym <span className="text-gold-700">Gallery</span>
+          </h2>
+          <p className="text-neutral-600 max-w-xl mx-auto font-normal text-sm sm:text-base leading-relaxed">
+            Take a visual tour of our elite facilities, international strength equipment, and clean training environment.
+          </p>
         </div>
 
-        <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4">
+        {/* Masonry Columns */}
+        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
           {images.map((src, index) => (
-            <div key={index} className="break-inside-avoid mb-4 bg-[#111] border border-[#1a1a1a] rounded-sm relative overflow-hidden group">
+            <div 
+              key={index} 
+              className="break-inside-avoid bg-white border border-[#e8e4d8] rounded-2xl relative overflow-hidden group shadow-xs hover:shadow-lg transition-all duration-300"
+            >
               <img 
                 src={src} 
                 alt="New Boss Gym in Muthaliyarpet Pondicherry" 
-                className="w-full h-auto opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                loading="lazy"
+                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-end p-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">{gymSettings.gymName || 'Boss Gym'} · Elite Training</p>
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5">
+                <div className="flex items-center gap-2 text-white">
+                  <Sparkles size={14} className="text-gold-400" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-white">
+                    {gymSettings.gymName || 'Boss Gym'} · Elite Training
+                  </p>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-20 p-12 bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm text-center">
-          <h4 className="text-xl font-black uppercase tracking-tight mb-4">Visit Us in Person</h4>
-          <p className="text-[#555] text-sm mb-8 max-w-md mx-auto">The best way to experience {gymSettings.gymName || 'Boss Gym'} is to walk through our doors. Schedule a free tour today.</p>
-          <button className="bg-primary text-black px-10 py-4 rounded-sm font-black uppercase text-[10px] tracking-[0.3em] hover:bg-white transition-all">
-            Schedule Tour
-          </button>
+        {/* Visit CTA */}
+        <div className="mt-20 p-8 sm:p-12 bg-white border border-[#e8e4d8] rounded-3xl shadow-sm text-center max-w-2xl mx-auto">
+          <div className="w-12 h-12 rounded-full bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center mx-auto mb-4">
+            <MapPin size={22} />
+          </div>
+          <h3 className="text-2xl font-bold uppercase tracking-tight text-neutral-900 mb-3">
+            Visit Us in Person
+          </h3>
+          <p className="text-neutral-600 text-sm leading-relaxed mb-8 max-w-md mx-auto">
+            The best way to experience {gymSettings.gymName || 'Boss Gym'} is to walk through our doors. Schedule a visit or stop by today.
+          </p>
+          <Link 
+            to="/contact" 
+            className="inline-flex items-center justify-center min-h-[44px] bg-gold-600 hover:bg-gold-500 text-neutral-950 px-8 py-3.5 rounded-xl font-bold uppercase text-xs tracking-wider transition-all shadow-md shadow-gold-600/20 active:scale-95"
+          >
+            Schedule a Visit
+          </Link>
         </div>
       </div>
     </section>

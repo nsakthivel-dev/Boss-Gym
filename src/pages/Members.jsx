@@ -5,31 +5,40 @@ import {
   collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
 } from 'firebase/firestore';
-import { useNotification } from '../context/NotificationContext';
 import { useSettings } from '../context/SettingsContext';
 import {
-  Users, Plus, Search, X, Download, Loader2, Eye, Edit, Trash2, ChevronLeft, ChevronRight,
-  QrCode, MessageCircle, Check, TrendingUp, Wallet, ShieldCheck, MoreVertical, ExternalLink, Upload, Camera
+  Users, Plus, Search, X, Download, Eye, Edit, Trash2,
+  MessageCircle, Check, TrendingUp, Wallet, ShieldCheck,
+  Upload, Camera, RefreshCw, Phone, Calendar, CalendarCheck, Dumbbell,
+  Clock, AlertTriangle, ArrowUpRight, Zap, Award, Flame,
+  CheckCircle2
 } from 'lucide-react';
-import { sendExpiryAlert, sendExpiredAlert, sendWelcomeMessage } from '../utils/whatsapp';
+import { sendExpiryAlert, sendWelcomeMessage } from '../utils/whatsapp';
+import { TableSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
+import { getMemberPhotoMap } from '../utils/supabaseStorage';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
-const statusBadge = (status) =>
-  status === 'active'
-    ? <span className="bg-success/10 text-success text-xs px-2 py-0.5 rounded-full font-semibold">Active</span>
-    : <span className="bg-error/10 text-error text-xs px-2 py-0.5 rounded-full font-semibold">Expired</span>;
-
 const Modal = ({ title, children, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/90 backdrop-blur-sm">
-    <div className="w-full max-w-lg bg-[#0a0a0a] border border-[#1a1a1a] rounded-sm shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between p-6 md:p-8 border-b border-[#1a1a1a] bg-[#111]">
-        <h3 className="text-primary font-black text-xl uppercase tracking-tight">{title}</h3>
-        <button onClick={onClose} className="p-2 -mr-2 text-[#444] hover:text-white transition-colors">
-          <X className="w-6 h-6" />
+  <div 
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in font-sans"
+    onClick={onClose}
+  >
+    <div 
+      className="w-full max-w-lg bg-white border border-[#e7e2d5] rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden animate-slide-up"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between p-5 md:p-6 border-b border-[#e7e2d5] bg-gradient-to-r from-gold-50/70 to-white">
+        <h3 className="text-neutral-900 font-black text-lg uppercase tracking-tight font-athletic">{title}</h3>
+        <button 
+          onClick={onClose} 
+          className="p-2 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition-colors"
+        >
+          <X className="w-5 h-5" />
         </button>
       </div>
-      <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar">
+      <div className="p-5 md:p-6 overflow-y-auto flex-1 custom-scrollbar">
         {children}
       </div>
     </div>
@@ -61,13 +70,11 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      alert('Please select an image file (jpg, png, webp)');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('File size must be less than 5MB');
       return;
@@ -75,15 +82,9 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
 
     setUploadingPicture(true);
     try {
-      console.log('📤 Starting profile picture upload...');
-      console.log('   File:', file.name, 'Size:', (file.size / 1024).toFixed(2), 'KB');
-      
-      // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${member.id}_${Date.now()}.${fileExt}`;
       const filePath = `profile-pictures/${fileName}`;
-
-      console.log('📁 Upload path:', filePath);
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -94,12 +95,10 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
         });
 
       if (uploadError) {
-        console.error('❌ Upload error:', uploadError);
+        console.error('Supabase storage upload error:', uploadError);
         alert(`Failed to upload image: ${uploadError.message}`);
         throw uploadError;
       }
-
-      console.log('✅ Upload successful:', uploadData);
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -107,114 +106,171 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
         .getPublicUrl(filePath);
 
       const publicUrl = urlData.publicUrl;
-      console.log('🔗 Public URL:', publicUrl);
 
-      // Update member profile picture URL in Firestore
+      // Update member document in Firestore
       await updateDoc(doc(db, 'members', member.id), {
         profilePictureUrl: publicUrl,
         updatedAt: Timestamp.fromDate(new Date())
       });
 
-      console.log('✅ Profile picture URL saved to Firestore');
-
-      // Notify parent component
       if (onProfilePictureUpdate) {
         onProfilePictureUpdate(member.id, publicUrl);
       }
       
-      alert('Profile picture updated successfully!');
+      alert('Profile photo updated successfully!');
     } catch (error) {
-      console.error('❌ Error uploading profile picture:', error);
-      const errorMessage = error.message || 'Unknown error';
-      alert(`Failed to upload profile picture: ${errorMessage}\n\nCheck browser console for details.`);
+      console.error('Error uploading profile picture:', error);
+      alert(`Upload failed: ${error.message || 'Unknown error'}`);
     } finally {
       setUploadingPicture(false);
     }
   };
 
+  const initials = member.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = member.endDate?.toDate?.() ?? (member.endDate ? new Date(member.endDate) : null);
+  const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
+  const progressPercent = Math.max(0, Math.min(100, Math.round(((Number(member.durationDays) - daysLeft) / Number(member.durationDays)) * 100)));
+
   return (
-    <Modal title={member.name} onClose={onClose}>
-      <div className="space-y-8">
-        {/* Profile Picture Section */}
-        <div className="flex flex-col items-center space-y-4">
-          <div className="relative">
-            {member.profilePictureUrl ? (
-              <img
-                src={member.profilePictureUrl}
-                alt={member.name}
-                className="w-32 h-32 rounded-full object-cover border-2 border-primary/30"
-              />
-            ) : (
-              <div className="w-32 h-32 bg-[#1a1a1a] border-2 border-[#222] rounded-full flex items-center justify-center text-[#444] font-black text-3xl tracking-widest">
-                {member.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-              </div>
-            )}
-            <label className="absolute bottom-0 right-0 bg-primary text-black p-2 rounded-full cursor-pointer hover:bg-white transition-colors">
-              {uploadingPicture ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleProfilePictureUpload}
-                disabled={uploadingPicture}
-                className="hidden"
-              />
-            </label>
+    <Modal title="Athlete Passport" onClose={onClose}>
+      <div className="space-y-6">
+        
+        {/* VIP Athletic Pass Preview with Real Gym Cover Backdrop */}
+        <div className="relative overflow-hidden bg-[#151515] border-2 border-gold-500/40 rounded-3xl text-white shadow-2xl">
+          {/* Cover Image */}
+          <div 
+            className="h-28 w-full bg-cover bg-center relative"
+            style={{ backgroundImage: `url('/photos/victor-freitas-WvDYdXDzkhs-unsplash.jpg')` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-[#151515] to-black/40" />
+            <div className="absolute top-3 right-3 bg-neutral-950/80 backdrop-blur-md border border-gold-400/40 text-gold-400 text-[9px] font-black uppercase px-2.5 py-1 rounded-full font-athletic">
+              VIP Pass
+            </div>
           </div>
-          <p className="text-[#555] text-[10px] font-bold tracking-widest uppercase">Click camera icon to update photo</p>
+
+          <div className="px-6 pb-6 -mt-10 relative z-10">
+            <div className="flex items-end justify-between gap-4 mb-4">
+              <div className="relative shrink-0">
+                {member.profilePictureUrl ? (
+                  <img
+                    src={member.profilePictureUrl}
+                    alt={member.name}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-gold-400 shadow-xl bg-[#111]"
+                  />
+                ) : (
+                  <div className="w-20 h-20 bg-[#222222] border-2 border-gold-400/80 rounded-2xl flex items-center justify-center text-gold-400 font-black text-2xl font-athletic shadow-xl">
+                    {initials}
+                  </div>
+                )}
+                <label className="absolute -bottom-1 -right-1 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 p-2 rounded-xl cursor-pointer transition-transform hover:scale-110 shadow-md">
+                  {uploadingPicture ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureUpload}
+                    disabled={uploadingPicture}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              <div className="text-right">
+                <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full inline-block ${
+                  member.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                }`}>
+                  {member.status === 'active' ? 'Active Athlete' : 'Expired'}
+                </span>
+                <p className="text-[10px] text-neutral-400 font-mono mt-1">ID: {member.id.slice(0, 8)}</p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight text-white font-athletic truncate">
+                {member.name}
+              </h3>
+              <p className="text-xs text-gold-400 font-bold mt-0.5">
+                {member.price ? `₹${member.price} / ${member.durationDays} Days Plan` : (member.planName || 'Standard Plan')}
+              </p>
+            </div>
+
+            {/* Subscription Days Remaining Bar */}
+            <div className="mt-4 p-3.5 bg-[#202020] border border-[#2a2a2a] rounded-2xl space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase font-athletic">Cycle Validity</span>
+                <span className={`font-black font-athletic ${daysLeft <= 3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {daysLeft > 0 ? `${daysLeft} Days Remaining` : 'Expired'}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-[#121212] rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${daysLeft <= 3 ? 'bg-amber-400' : 'bg-gradient-to-r from-gold-500 to-gold-400'}`}
+                  style={{ width: `${Math.min(100, Math.max(5, 100 - progressPercent))}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#262626] grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-neutral-400 block font-athletic">Phone</span>
+                <span className="font-mono font-bold text-white text-xs">{member.phone}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-neutral-400 block font-athletic">Email</span>
+                <span className="text-neutral-300 text-xs truncate block">{member.email || '—'}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-3">
           <button 
             onClick={() => { onWhatsApp(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#0d1a10] border border-[#1a2e1d] rounded-sm hover:bg-[#1a2e1d] transition-all group"
+            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors active:scale-95"
           >
-            <MessageCircle className="text-[#25D366] w-5 h-5 group-hover:scale-110 transition-transform" />
-            <span className="text-[8px] font-black text-[#25D366] uppercase tracking-widest">WhatsApp</span>
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">WhatsApp</span>
           </button>
           <button 
             onClick={() => { onEdit(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#111] border border-[#1a1a1a] rounded-sm hover:border-primary/30 transition-all group"
+            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-gold-50 border border-gold-200 text-gold-800 hover:bg-gold-100 transition-colors active:scale-95"
           >
-            <Edit className="text-primary/60 w-5 h-5 group-hover:scale-110 transition-transform" />
-            <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">Edit</span>
+            <Edit className="w-5 h-5" />
+            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Edit Details</span>
           </button>
           <button 
             onClick={() => { onDelete(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-4 bg-[#1a0d0d] border border-[#2e1a1a] rounded-sm hover:bg-[#2e1a1a] transition-all group"
+            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors active:scale-95"
           >
-            <Trash2 className="text-error w-5 h-5 group-hover:scale-110 transition-transform" />
-            <span className="text-[8px] font-black text-error uppercase tracking-widest">Delete</span>
+            <Trash2 className="w-5 h-5" />
+            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Remove</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-          {[
-            ['Phone', member.phone],
-            ['Email', member.email],
-            ['Plan', member.price ? `₹${member.price} / ${member.durationDays}d` : (member.planName || '—')],
-            ['Status', member.status === 'active' ? '✅ Active' : '❌ Expired']
-          ].map(([k, v]) => (
-            <div key={k} className="flex flex-col">
-              <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">{k}</p>
-              <p className={`text-white font-bold text-sm tracking-tight ${k === 'Email' ? 'break-all' : ''}`}>{v}</p>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-[#1a1a1a] pt-6">
-          <h4 className="text-primary/40 text-[10px] font-black tracking-[0.2em] uppercase mb-4">Recent Attendance</h4>
+        {/* Recent Attendance History */}
+        <div className="border-t border-[#e7e2d5] pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+              <CalendarCheck size={14} className="text-gold-600" />
+              <span>Recent Workout History</span>
+            </h4>
+            <span className="text-[10px] font-bold text-neutral-500 uppercase">Last 10 Logged</span>
+          </div>
+
           {loading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <div className="flex justify-center py-6 text-gold-600">
+              <RefreshCw className="w-5 h-5 animate-spin" />
             </div>
           ) : sessions.length === 0 ? (
-            <p className="text-[#333] text-[10px] font-bold uppercase tracking-widest text-center py-4">No records found.</p>
+            <p className="text-neutral-400 text-xs text-center py-4">No workout sessions logged yet for this athlete.</p>
           ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
               {sessions.map(s => (
-                <div key={s.id} className="flex justify-between items-center py-2 border-b border-[#1a1a1a]/50 group hover:border-primary/20 transition-colors">
-                  <span className="text-primary/60 text-[10px] font-mono">{s.sessionDate}</span>
-                  <span className="text-white font-bold text-[10px] tracking-widest uppercase">
+                <div key={s.id} className="flex justify-between items-center py-2.5 px-3.5 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-xs">
+                  <span className="font-mono text-neutral-600 font-medium">{s.sessionDate}</span>
+                  <span className="font-bold text-neutral-900">
                     {s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || '—'}
                   </span>
                 </div>
@@ -233,260 +289,176 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
     name: editingMember?.name || '',
     phone: editingMember?.phone || '',
     email: editingMember?.email || '',
-    price: editingMember?.price || '',
-    durationDays: editingMember?.durationDays || '30',
-    startDate: editingMember?.startDate?.toDate?.() ? editingMember.startDate.toDate().toISOString().split('T')[0] : todayStr(),
-    workoutStartPreference: 'today',
-    profilePicture: null,
-    profilePicturePreview: editingMember?.profilePictureUrl || null
+    price: editingMember?.price || 800,
+    durationDays: editingMember?.durationDays || 30,
+    startDate: editingMember?.startDate 
+      ? new Date(editingMember.startDate.toDate?.() || editingMember.startDate).toISOString().split('T')[0]
+      : todayStr(),
+    workoutStartPreference: 'today'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMember, setSuccessMember] = useState(null);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
-
-  const handleProfilePictureChange = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
-      return;
-    }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm({
-        ...form,
-        profilePicture: file,
-        profilePicturePreview: reader.result
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const uploadProfilePicture = async (memberId) => {
-    if (!form.profilePicture) return null;
-
-    setUploadingPicture(true);
-    try {
-      const fileExt = form.profilePicture.name.split('.').pop();
-      const fileName = `${memberId}_${Date.now()}.${fileExt}`;
-      const filePath = `profile-pictures/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('member-profiles')
-        .upload(filePath, form.profilePicture, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('member-profiles')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      throw error;
-    } finally {
-      setUploadingPicture(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name || !form.phone || !form.price || !form.durationDays || !form.startDate) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
     setLoading(true);
+    setError('');
+
     try {
-      const price = Number(form.price);
-      const duration = Number(form.durationDays);
-      const startDate = new Date(form.startDate);
-      startDate.setHours(0,0,0,0);
-      const endDate = new Date(startDate.getTime() + duration * 86400000);
-      const status = endDate >= new Date() ? 'active' : 'expired';
-
-      // Calculate Workout Schedule Start Date
-      const workoutStartDate = new Date();
-      workoutStartDate.setHours(0,0,0,0);
-      if (form.workoutStartPreference === 'tomorrow') {
-        workoutStartDate.setDate(workoutStartDate.getDate() + 1);
-      }
-
-      let profilePictureUrl = editingMember?.profilePictureUrl || null;
-
-      // Upload profile picture if changed
-      if (form.profilePicture) {
-        if (editingMember) {
-          profilePictureUrl = await uploadProfilePicture(editingMember.id);
-        }
-      }
+      const start = new Date(form.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start.getTime() + Number(form.durationDays) * 86400000);
 
       const memberData = {
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        price,
-        durationDays: duration,
-        startDate: Timestamp.fromDate(startDate),
-        endDate: Timestamp.fromDate(endDate),
-        status,
-        workoutStartDate: Timestamp.fromDate(workoutStartDate),
-        profilePictureUrl,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        price: Number(form.price),
+        durationDays: Number(form.durationDays),
+        startDate: Timestamp.fromDate(start),
+        endDate: Timestamp.fromDate(end),
+        status: 'active',
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
       if (editingMember) {
         await updateDoc(doc(db, 'members', editingMember.id), memberData);
-        onSaved();
-        onClose();
       } else {
-        const docRef = await addDoc(collection(db, 'members'), {
-          ...memberData,
-          qrValue: '',
-          createdAt: Timestamp.fromDate(new Date()),
-        });
-        
-        // Upload profile picture for new member
-        if (form.profilePicture) {
-          const publicUrl = await uploadProfilePicture(docRef.id);
-          await updateDoc(doc(db, 'members', docRef.id), {
-            profilePictureUrl: publicUrl
-          });
+        memberData.createdAt = Timestamp.fromDate(new Date());
+        memberData.profilePictureUrl = '';
+        const docRef = await addDoc(collection(db, 'members'), memberData);
+
+        // Optional welcome WhatsApp
+        try {
+          sendWelcomeMessage({ ...memberData, id: docRef.id }, gymSettings?.gymName);
+        } catch (we) {
+          console.warn("Welcome message failed:", we);
         }
-        
-        setSuccessMember({ ...memberData, id: docRef.id });
-        onSaved();
       }
+
+      onSaved();
+      onClose();
     } catch (err) {
-      console.error('Error:', err);
-      setError('Operation failed. Please try again.');
+      console.error(err);
+      setError('Failed to save athlete record.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (successMember) {
-    return (
-      <Modal title="Success" onClose={onClose}>
-        <div className="text-center py-8 space-y-8">
-          <div className="w-20 h-20 bg-success/10 text-success rounded-full flex items-center justify-center mx-auto mb-6 border border-success/20">
-            <Check size={40} strokeWidth={3} />
-          </div>
-          <div>
-            <h3 className="text-white font-black text-2xl uppercase tracking-tight">Member Added!</h3>
-            <p className="text-[#555] text-xs font-bold tracking-widest uppercase mt-2">The membership is now active.</p>
-          </div>
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => { sendWelcomeMessage(successMember, gymSettings?.gymName); onClose(); }}
-              className="w-full bg-[#25D366] text-white font-black py-4 rounded-sm flex items-center justify-center gap-3 hover:bg-[#25D366]/90 transition-all uppercase text-[10px] tracking-[0.2em]"
-            >
-              <MessageCircle size={20} /> Send Welcome WhatsApp
-            </button>
-            <button onClick={onClose} className="w-full text-[#444] hover:text-white py-2 text-[10px] font-bold uppercase tracking-widest transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
-
-  const inputClass = "w-full bg-[#111] border border-[#1a1a1a] text-white rounded-sm px-4 py-3 text-sm font-bold focus:outline-none focus:border-primary/50 transition-all placeholder:text-[#333]";
-  const labelClass = "text-[#555] text-[10px] font-black tracking-[0.2em] uppercase mb-2 block";
+  const inputClass = "w-full bg-[#faf9f6] border border-[#e7e2d5] rounded-xl px-4 py-3 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-gold-500 focus:bg-white transition-all";
+  const labelClass = "text-[10px] font-black uppercase tracking-wider text-neutral-600 block mb-1 font-athletic";
 
   return (
-    <Modal title={editingMember ? "Edit Member" : "Add New Member"} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && <div className="bg-error/10 border border-error/30 text-error text-[10px] font-bold uppercase tracking-widest rounded-sm px-4 py-3">{error}</div>}
+    <Modal title={editingMember ? "Edit Athlete Details" : "Enrol New Athlete"} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl p-3">
+            {error}
+          </div>
+        )}
+
+        <div>
+          <label className={labelClass}>Athlete Full Name *</label>
+          <input 
+            required 
+            value={form.name} 
+            onChange={e => setForm({ ...form, name: e.target.value })} 
+            className={inputClass} 
+            placeholder="e.g. SAKTHIVEL N" 
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Phone Number *</label>
+            <input 
+              required 
+              type="tel"
+              value={form.phone} 
+              onChange={e => setForm({ ...form, phone: e.target.value })} 
+              className={inputClass} 
+              placeholder="e.g. 9876543210" 
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Email Address</label>
+            <input 
+              type="email"
+              value={form.email} 
+              onChange={e => setForm({ ...form, email: e.target.value })} 
+              className={inputClass} 
+              placeholder="athlete@example.com" 
+            />
+          </div>
+        </div>
         
-        <div className="space-y-4">
-          {[['name', 'Full Name', 'text'], ['phone', 'Phone', 'tel'], ['email', 'Email', 'email']].map(([f, l, t]) => (
-            <div key={f}>
-              <label className={labelClass}>{l}</label>
-              <input type={t} required={f !== 'email'} value={form[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} className={inputClass} placeholder={`Enter ${l.toLowerCase()}...`} />
-            </div>
-          ))}
-          
-          {/* Profile Picture Upload */}
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelClass}>Profile Picture</label>
-            <div className="flex items-center gap-4">
-              {form.profilePicturePreview ? (
-                <div className="relative">
-                  <img
-                    src={form.profilePicturePreview}
-                    alt="Profile Preview"
-                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, profilePicture: null, profilePicturePreview: editingMember?.profilePictureUrl || null })}
-                    className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 hover:bg-error/80 transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <div className="w-20 h-20 bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-full flex items-center justify-center text-[#444]">
-                  <Users size={24} />
-                </div>
-              )}
-              <label className="flex-1 bg-[#111] border border-[#1a1a1a] text-primary/60 rounded-sm px-4 py-3 text-sm font-bold cursor-pointer hover:border-primary/50 hover:text-primary transition-all flex items-center gap-2 justify-center">
-                <Upload size={16} />
-                {form.profilePicturePreview ? 'Change Photo' : 'Upload Photo'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePictureChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
+            <label className={labelClass}>Membership Fee (₹) *</label>
+            <input 
+              type="number" 
+              required 
+              value={form.price} 
+              onChange={e => setForm({ ...form, price: e.target.value })} 
+              className={inputClass} 
+              placeholder="800" 
+            />
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Amount (₹)</label>
-              <input type="number" required value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className={inputClass} placeholder="0" />
-            </div>
-            <div>
-              <label className={labelClass}>Duration (Days)</label>
-              <input type="number" required value={form.durationDays} onChange={e => setForm({ ...form, durationDays: e.target.value })} className={inputClass} placeholder="30" />
-            </div>
-          </div>
-          
           <div>
-            <label className={labelClass}>Membership Start Date</label>
-            <input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputClass} />
+            <label className={labelClass}>Duration (Days) *</label>
+            <input 
+              type="number" 
+              required 
+              value={form.durationDays} 
+              onChange={e => setForm({ ...form, durationDays: e.target.value })} 
+              className={inputClass} 
+              placeholder="30" 
+            />
           </div>
+        </div>
+        
+        <div>
+          <label className={labelClass}>Subscription Start Date *</label>
+          <input 
+            type="date" 
+            required 
+            value={form.startDate} 
+            onChange={e => setForm({ ...form, startDate: e.target.value })} 
+            className={inputClass} 
+          />
         </div>
 
         {!editingMember && (
-          <div className="bg-[#111] border border-[#1a1a1a] p-6 rounded-sm space-y-4">
-            <label className="text-primary text-[10px] font-black tracking-[0.3em] uppercase block">Workout Schedule Start</label>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gold-50/50 border border-gold-200/80 p-3.5 rounded-2xl space-y-2">
+            <label className="text-gold-800 text-[10px] font-black tracking-wider uppercase block font-athletic">
+              Workout Cycle Commencement
+            </label>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setForm({ ...form, workoutStartPreference: 'today' })}
-                className={`py-3 text-[10px] font-black tracking-widest uppercase border rounded-sm transition-all ${form.workoutStartPreference === 'today' ? 'bg-primary border-primary text-black' : 'border-[#1a1a1a] text-[#444] hover:border-[#333]'}`}
+                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
+                  form.workoutStartPreference === 'today' 
+                    ? 'bg-gold-500 text-neutral-950 font-black shadow-sm' 
+                    : 'bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900'
+                }`}
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => setForm({ ...form, workoutStartPreference: 'tomorrow' })}
-                className={`py-3 text-[10px] font-black tracking-widest uppercase border rounded-sm transition-all ${form.workoutStartPreference === 'tomorrow' ? 'bg-primary border-primary text-black' : 'border-[#1a1a1a] text-[#444] hover:border-[#333]'}`}
+                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
+                  form.workoutStartPreference === 'tomorrow' 
+                    ? 'bg-gold-500 text-neutral-950 font-black shadow-sm' 
+                    : 'bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900'
+                }`}
               >
                 Tomorrow
               </button>
@@ -494,12 +466,20 @@ const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
           </div>
         )}
 
-        <div className="flex gap-4 pt-4">
-          <button type="button" onClick={onClose} className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] border border-[#1a1a1a] text-[#444] hover:text-white transition-all">
+        <div className="flex gap-3 pt-3">
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl border border-[#e7e2d5] text-neutral-600 hover:bg-[#faf9f6] transition-colors"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all disabled:opacity-50">
-            {loading ? 'Processing...' : (editingMember ? 'Save Changes' : 'Add Member')}
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 shadow-gold-sm transition-all disabled:opacity-50 active:scale-95 font-athletic"
+          >
+            {loading ? 'Saving...' : (editingMember ? 'Save Changes' : 'Confirm Enrolment')}
           </button>
         </div>
       </form>
@@ -511,6 +491,7 @@ const Members = () => {
   const { settings: gymSettings } = useSettings();
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -520,17 +501,29 @@ const Members = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const snap = await getDocs(collection(db, 'members'));
-      setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [snap, photoMap] = await Promise.all([
+        getDocs(collection(db, 'members')),
+        getMemberPhotoMap()
+      ]);
+      const list = snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          profilePictureUrl: data.profilePictureUrl || photoMap[d.id] || null
+        };
+      });
+      setMembers(list);
     } catch (err) {
-      setError('Failed to load data.');
+      console.error('Error loading athletes:', err);
+      setError('Failed to load athlete directory.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (m) => {
-    if (!window.confirm(`Delete ${m.name}?`)) return;
+    if (!window.confirm(`Are you sure you want to remove athlete ${m.name}? This will delete their membership profile.`)) return;
     try {
       await deleteDoc(doc(db, 'members', m.id));
       await loadData();
@@ -540,10 +533,7 @@ const Members = () => {
   };
 
   const handleRenew = async (m) => {
-    const isExpired = m.status === 'expired';
-    if (!isExpired) return;
-    
-    if (!window.confirm(`Renew subscription for ${m.name}?`)) return;
+    if (!window.confirm(`Renew membership for ${m.name}?`)) return;
     
     setLoading(true);
     try {
@@ -568,31 +558,38 @@ const Members = () => {
 
   useEffect(() => { loadData(); }, []);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const filtered = members
     .sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
-    .filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.phone?.includes(search));
+    .filter(m => {
+      const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.phone?.includes(search);
+      if (!matchesSearch) return false;
+
+      const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
+      const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
+
+      if (filterStatus === 'active') return m.status === 'active' && daysLeft > 3;
+      if (filterStatus === 'expiring') return daysLeft <= 3 && daysLeft >= 0;
+      if (filterStatus === 'expired') return m.status === 'expired' || daysLeft < 0;
+      return true;
+    });
 
   const activeCount = members.filter(m => m.status === 'active').length;
   const totalRevenue = members.filter(m => m.status === 'active').reduce((acc, m) => acc + (Number(m.price) || 0), 0);
-  
-  // Calculate Retention: (Active Members / Total Members) * 100
   const activeRetention = members.length > 0 
     ? Math.round((activeCount / members.length) * 100) 
     : 0;
 
-  // System status check: Simple check if we have data and Firebase is responsive
-  const isSystemOperational = !loading && !error && members.length >= 0;
-
   const handleExport = () => {
     if (filtered.length === 0) return;
     
-    // Define headers
-    const headers = ['Name', 'Phone', 'Plan', 'Duration', 'Start Date', 'End Date', 'Status'];
-    
-    // Format rows
+    const headers = ['Name', 'Phone', 'Email', 'Plan Price', 'Duration Days', 'Start Date', 'End Date', 'Status'];
     const rows = filtered.map(m => [
       m.name,
       m.phone,
+      m.email || '',
       m.price,
       m.durationDays,
       m.startDate?.toDate?.().toLocaleDateString('en-GB') || '',
@@ -600,18 +597,16 @@ const Members = () => {
       m.status
     ]);
 
-    // Create CSV content
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
-    // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `members_list_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `boss_gym_athletes_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -619,159 +614,262 @@ const Members = () => {
   };
 
   return (
-    <div className="space-y-6 md:space-y-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
-        <div>
-          <h1 className="text-2xl md:text-4xl font-black text-primary tracking-tight uppercase">Members</h1>
-          <p className="text-[#555] text-[10px] md:text-xs font-bold tracking-[0.2em] mt-1 md:mt-2 uppercase">{activeCount} Total Active Subscription</p>
-        </div>
-        <div className="flex items-center gap-2 md:gap-3">
-          <button 
-            onClick={handleExport}
-            className="bg-[#111] border border-[#1a1a1a] text-primary px-4 md:px-6 py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-bold tracking-widest uppercase hover:border-primary/50 hover:text-white transition-colors flex items-center gap-2"
-          >
-            <Download size={12} className="md:hidden" />
-            <span className="hidden md:inline">Export List</span>
-            <span className="md:hidden">Export</span>
-          </button>
-          <button 
-            onClick={() => setShowAdd(true)}
-            className="bg-primary text-black px-4 md:px-6 py-2 md:py-2.5 rounded-sm text-[9px] md:text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:text-black transition-colors flex items-center gap-2 font-black"
-          >
-            <Plus size={14} /> <span className="hidden sm:inline">Add Member</span><span className="sm:hidden">Add</span>
-          </button>
-        </div>
-      </div>
+    <div className="space-y-8 animate-fade-in font-sans">
+      
+      {/* 1. ATHLETIC HERO ROSTER BANNER WITH REAL GYM PHOTO */}
+      <div className="relative overflow-hidden bg-[#151515] border border-[#2a2a2a] rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-luminosity scale-105 pointer-events-none"
+          style={{ backgroundImage: `url('/photos/sven-mieke-jO6vBWX9h9Y-unsplash.jpg')` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0d0d0d] via-[#151515]/90 to-transparent pointer-events-none" />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden">
-          <TrendingUp size={16} className="text-info/40 mb-3 md:mb-6 group-hover:text-info transition-colors md:w-5 md:h-5" />
-          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1 md:mb-2">Retention</p>
-          <p className="text-xl md:text-4xl font-black text-info">{activeRetention}%</p>
-          <div className="absolute top-0 right-0 p-2 md:p-4 opacity-5 group-hover:opacity-10 transition-opacity text-info hidden md:block">
-            <TrendingUp size={80} />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
+              Member Passport & Database
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white font-athletic">
+              ATHLETE ROSTER
+            </h1>
+            <p className="text-xs text-neutral-300 font-medium">
+              {activeCount} active gym subscriptions out of {members.length} registered athletes
+            </p>
           </div>
-        </div>
 
-        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden">
-          <Wallet size={16} className="text-[#333] mb-3 md:mb-6 md:w-5 md:h-5" />
-          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-1 md:mb-2">Revenue</p>
-          <p className="text-xl md:text-4xl font-black text-primary font-mono">₹{(totalRevenue / 1000).toFixed(1)}k</p>
-          <div className="absolute top-0 right-0 p-2 md:p-4 opacity-5 group-hover:opacity-10 transition-opacity text-primary hidden md:block">
-            <Wallet size={80} />
-          </div>
-        </div>
-
-        <div className="bg-[#111] border border-[#1a1a1a] p-4 md:p-8 rounded-sm group relative overflow-hidden col-span-2 md:col-span-1">
-          <ShieldCheck size={16} className={`${isSystemOperational ? 'text-success/40' : 'text-error/40'} mb-1 md:mb-2 group-hover:text-success transition-colors md:w-5 md:h-5`} />
-          <p className="text-[#555] text-[8px] md:text-[10px] font-bold tracking-[0.2em] uppercase mb-0.5 md:mb-1">System Status</p>
-          <p className={`text-sm md:text-lg font-bold ${isSystemOperational ? 'text-success' : 'text-error'} leading-tight uppercase tracking-tight`}>
-            {isSystemOperational ? 'Operational' : 'Degraded'}
-          </p>
-          <p className="text-[#444] text-[8px] md:text-[10px] mt-1 font-bold uppercase tracking-wider">
-            {isSystemOperational ? 'Access: OK' : 'Check Conn.'}
-          </p>
-          <div className={`absolute top-1/2 right-0 -translate-y-1/2 p-2 md:p-4 opacity-10 ${isSystemOperational ? 'text-success' : 'text-error'} hidden md:block`}>
-            <ShieldCheck size={120} />
+          <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={handleExport}
+              className="bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95 font-athletic"
+            >
+              <Download size={14} className="text-gold-400" />
+              <span>Export CSV</span>
+            </button>
+            <button 
+              onClick={() => setShowAdd(true)}
+              className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-gold-sm transition-all flex items-center gap-1.5 active:scale-95 font-athletic"
+            >
+              <Plus size={16} strokeWidth={3} />
+              <span>Enrol Athlete</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Search & Table */}
-      <div className="space-y-3 md:space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#444] w-4 h-4" />
+      {/* 2. ANALYTICS SUMMARY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">Retention Rate</span>
+            <p className="text-3xl font-black text-blue-600 mt-1 font-athletic">{activeRetention}%</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Consecutive attendance</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <TrendingUp size={22} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">Monthly Subscriptions</span>
+            <p className="text-3xl font-black text-gold-700 mt-1 font-athletic">₹{(totalRevenue / 1000).toFixed(1)}k</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Active revenue pipeline</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-gold-50 text-gold-700 flex items-center justify-center">
+            <Wallet size={22} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">Active Roster</span>
+            <p className="text-3xl font-black text-emerald-600 mt-1 font-athletic">{activeCount} / {members.length}</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Current valid members</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <ShieldCheck size={22} />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. SEARCH & STATUS FILTER PILLS */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="FILTER BY NAME OR PHONE..."
+            placeholder="Search athlete by name or phone number..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#0a0a0a] border-b border-[#1a1a1a] pl-10 md:pl-12 py-3 md:py-4 text-[9px] md:text-[10px] font-bold tracking-widest text-primary/40 focus:outline-none focus:border-primary transition-colors"
+            className="w-full bg-white border border-[#e7e2d5] rounded-2xl pl-11 pr-4 py-3.5 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-gold-500 shadow-xs transition-all"
           />
+          {search && (
+            <button 
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-900 p-1"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        {loading ? (
-          <div className="flex justify-center p-24"><Loader2 className="animate-spin text-white w-8 h-8 opacity-20" /></div>
-        ) : (
-          <div className="border border-[#1a1a1a] bg-[#0c0c0c]/50">
-            <table className="w-full text-left">
-              <thead className="hidden md:table-header-group">
-                <tr className="border-b border-[#1a1a1a] bg-[#0a0a0a]">
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Name</th>
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Phone</th>
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Plan</th>
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase">Status</th>
-                  <th className="px-8 py-5 text-[10px] font-black tracking-[0.2em] text-primary/20 uppercase text-right">Subscription</th>
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { id: 'all', label: 'All Athletes' },
+            { id: 'active', label: 'Active' },
+            { id: 'expiring', label: 'Expiring Soon' },
+            { id: 'expired', label: 'Expired' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setFilterStatus(tab.id)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 font-athletic ${
+                filterStatus === tab.id
+                  ? 'bg-neutral-900 text-gold-400 shadow-sm'
+                  : 'bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900 hover:bg-[#faf9f6]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. ATHLETE TABLE & CARDS */}
+      {loading ? (
+        <TableSkeleton rows={6} cols={5} />
+      ) : filtered.length === 0 ? (
+        <EmptyState 
+          icon={Users}
+          title="No athletes found"
+          description={search ? `No athletes matched "${search}".` : "No athletes found in this category."}
+          actionLabel="Enrol New Athlete"
+          onAction={() => setShowAdd(true)}
+        />
+      ) : (
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl shadow-xs overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#faf9f6] border-b border-[#e7e2d5] text-[10px] font-black tracking-wider text-neutral-500 uppercase font-athletic">
+                  <th className="px-6 py-4">Athlete Passport</th>
+                  <th className="px-6 py-4">Contact</th>
+                  <th className="px-6 py-4">Plan & Fee</th>
+                  <th className="px-6 py-4">Validity & Cycle</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1a1a] block md:table-row-group">
-                {filtered.map((m, idx) => {
-                  const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+              <tbody className="divide-y divide-[#f0ece2] text-xs">
+                {filtered.map((m) => {
                   const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                  const uid = m.uid || `BOSS-${2024 + (idx % 3)}-${String(idx + 1).padStart(3, '0')}`;
                   const isExpired = m.status === 'expired';
+                  const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+                  const progress = Math.max(0, Math.min(100, Math.round(((Number(m.durationDays || 30) - daysLeft) / Number(m.durationDays || 30)) * 100)));
 
                   return (
-                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group flex flex-col md:table-row p-4 md:p-0 gap-3 md:gap-0">
-                      <td onClick={() => setViewMember(m)} className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell cursor-pointer">
-                        <div className="flex items-center gap-3 md:gap-4">
+                    <tr key={m.id} className="hover:bg-gold-50/20 transition-colors">
+                      <td className="px-6 py-4">
+                        <div 
+                          className="flex items-center gap-3.5 cursor-pointer group"
+                          onClick={() => setViewMember(m)}
+                        >
                           {m.profilePictureUrl ? (
                             <img
                               src={m.profilePictureUrl}
                               alt={m.name}
-                              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover border border-[#222] group-hover:border-primary/20 transition-colors shrink-0"
+                              className="w-11 h-11 rounded-2xl object-cover border-2 border-gold-300 shrink-0 shadow-xs"
                             />
                           ) : (
-                            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#1a1a1a] border border-[#222] rounded-sm flex items-center justify-center text-[#444] font-black text-xs md:text-sm tracking-widest group-hover:border-primary/20 transition-colors shrink-0">
+                            <div className="w-11 h-11 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 font-black flex items-center justify-center shrink-0 font-athletic">
                               {initials}
                             </div>
                           )}
-                          <div className="min-w-0 flex-1">
-                            <p className="text-primary font-bold text-xs md:text-sm tracking-tight truncate">{m.name}</p>
-                            <p className="text-[#444] text-[9px] md:text-[10px] font-bold tracking-widest mt-0.5 md:mt-1 uppercase">UID: {uid}</p>
+                          <div>
+                            <span className="font-bold text-neutral-900 group-hover:text-gold-700 transition-colors block font-athletic">
+                              {m.name}
+                            </span>
+                            <span className="text-[10px] text-neutral-400 font-mono">ID: {m.id.slice(0, 8)}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell text-[#666] font-mono text-sm group-hover:text-info transition-colors">
-                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-1 tracking-widest">Phone</span>
-                        {m.phone.startsWith('+') ? m.phone : `+91 ${m.phone}`}
+
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-neutral-800 font-bold block">{m.phone}</span>
+                        {m.email && <span className="text-[10px] text-neutral-400 block truncate max-w-[140px]">{m.email}</span>}
                       </td>
-                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
-                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-1 tracking-widest">Membership</span>
-                        <p className="text-primary font-bold text-xs md:text-sm tracking-tight">₹{m.price} / {m.durationDays}d</p>
-                        <p className="text-[#444] text-[9px] md:text-[10px] font-bold tracking-widest mt-0.5 md:mt-1 uppercase">Exp: {m.endDate?.toDate?.().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+
+                      <td className="px-6 py-4">
+                        <span className="font-black text-neutral-900 block font-athletic">₹{m.price} / {m.durationDays}d</span>
+                        <span className="text-[10px] text-neutral-500 block">
+                          Start: {m.startDate?.toDate?.().toLocaleDateString('en-GB') || '—'}
+                        </span>
                       </td>
-                      <td className="px-0 md:px-8 py-2 md:py-6 border-none md:table-cell">
-                        <span className="md:hidden text-[10px] text-[#333] font-bold uppercase block mb-2 tracking-widest">Status</span>
-                        <div className={`flex items-center gap-2 border rounded-full px-3 py-1 w-fit ${
-                          m.status === 'active' 
-                            ? 'bg-[#0d1a10] border-[#1a2e1d]' 
-                            : 'bg-[#1a0d0d] border-[#2e1a1a]'
-                        }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${
-                            m.status === 'active' ? 'bg-[#10b981]' : 'bg-[#ef4444]'
-                          }`} />
-                          <span className={`text-[10px] font-black tracking-[0.1em] uppercase ${
-                            m.status === 'active' ? 'text-[#10b981]' : 'text-[#ef4444]'
-                          }`}>
-                            {m.status}
-                          </span>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5 w-40">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className={`font-black uppercase px-2 py-0.5 rounded-full ${
+                              m.status === 'active' 
+                                ? (daysLeft <= 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800') 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {m.status === 'active' ? (daysLeft <= 3 ? 'Expiring' : 'Active') : 'Expired'}
+                            </span>
+                            <span className="text-neutral-500 font-medium">
+                              {daysLeft > 0 ? `${daysLeft}d left` : 'Expired'}
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 bg-[#f0ece2] rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${daysLeft <= 3 ? 'bg-amber-400' : 'bg-gold-500'}`}
+                              style={{ width: `${Math.min(100, Math.max(5, 100 - progress))}%` }}
+                            />
+                          </div>
                         </div>
                       </td>
-                      <td className="px-0 md:px-8 py-2 md:py-4 border-none md:table-cell">
-                        <button 
-                          onClick={() => handleRenew(m)}
-                          disabled={!isExpired}
-                          className={`w-full md:w-auto px-3 md:px-4 py-2 rounded-sm text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest transition-all ${
-                            isExpired 
-                              ? 'bg-primary text-black hover:bg-white cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]' 
-                              : 'bg-[#111] border border-[#1a1a1a] text-[#333] cursor-not-allowed opacity-50'
-                          }`}
-                        >
-                          {isExpired ? 'Renew' : 'Renew Subscription'}
-                        </button>
+
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
+                            className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+                            title="Send WhatsApp Alert"
+                          >
+                            <MessageCircle size={15} />
+                          </button>
+                          <button
+                            onClick={() => setViewMember(m)}
+                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5]"
+                            title="Athlete Passport"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button
+                            onClick={() => setEditingMember(m)}
+                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5]"
+                            title="Edit Record"
+                          >
+                            <Edit size={15} />
+                          </button>
+                          {isExpired && (
+                            <button
+                              onClick={() => handleRenew(m)}
+                              className="px-3.5 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-neutral-950 font-black text-[10px] uppercase tracking-wider transition-all font-athletic"
+                              title="Renew Subscription"
+                            >
+                              Renew
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(m)}
+                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-red-50 text-neutral-600 hover:text-red-700 transition-colors border border-[#e7e2d5]"
+                            title="Remove Athlete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -779,46 +877,123 @@ const Members = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
 
-      <div className="flex items-center justify-between text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase">
-        <p>Showing 1 to {filtered.length} of {members.length} Members</p>
-        <div className="flex items-center gap-6">
-          <button className="flex items-center gap-2 hover:text-primary transition-colors"><ChevronLeft size={14} /> Previous</button>
-          <button className="flex items-center gap-2 hover:text-primary transition-colors">Next <ChevronRight size={14} /></button>
+          {/* Mobile Athletic Cards View */}
+          <div className="md:hidden divide-y divide-[#f0ece2]">
+            {filtered.map((m) => {
+              const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+              const isExpired = m.status === 'expired';
+              const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+
+              return (
+                <div key={m.id} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div 
+                      className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                      onClick={() => setViewMember(m)}
+                    >
+                      {m.profilePictureUrl ? (
+                        <img
+                          src={m.profilePictureUrl}
+                          alt={m.name}
+                          className="w-12 h-12 rounded-2xl object-cover border border-gold-300 shrink-0 shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 font-black flex items-center justify-center shrink-0 font-athletic">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-black text-sm text-neutral-900 truncate font-athletic">{m.name}</p>
+                        <p className="text-[11px] text-neutral-500 font-mono">{m.phone}</p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full shrink-0 ${
+                      m.status === 'active' 
+                        ? (daysLeft <= 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800') 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {m.status === 'active' ? (daysLeft <= 3 ? 'Expiring' : 'Active') : 'Expired'}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-3 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-neutral-400 uppercase font-athletic block">Plan</span>
+                      <span className="font-bold text-neutral-900">₹{m.price} / {m.durationDays}d</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-neutral-400 uppercase font-athletic block">Validity</span>
+                      <span className={`font-bold ${daysLeft <= 3 ? 'text-amber-700' : 'text-neutral-900'}`}>
+                        {daysLeft > 0 ? `${daysLeft}d left` : 'Expired'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
+                      className="flex-1 min-h-[44px] py-2 px-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 font-athletic"
+                    >
+                      <MessageCircle size={15} /> WhatsApp
+                    </button>
+                    <button
+                      onClick={() => setViewMember(m)}
+                      className="min-h-[44px] px-3.5 bg-white border border-[#e7e2d5] text-neutral-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
+                      title="View Passport"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => setEditingMember(m)}
+                      className="min-h-[44px] px-3.5 bg-white border border-[#e7e2d5] text-neutral-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
+                      title="Edit"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    {isExpired && (
+                      <button
+                        onClick={() => handleRenew(m)}
+                        className="min-h-[44px] px-3.5 bg-gold-500 text-neutral-950 rounded-xl font-black text-xs uppercase active:scale-95 font-athletic"
+                      >
+                        Renew
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {showAdd && <MemberFormModal onClose={() => setShowAdd(false)} onSaved={loadData} />}
-      {editingMember && <MemberFormModal editingMember={editingMember} onClose={() => setEditingMember(null)} onSaved={loadData} />}
+      {/* Modals */}
+      {showAdd && (
+        <MemberFormModal
+          onClose={() => setShowAdd(false)}
+          onSaved={loadData}
+        />
+      )}
+
+      {editingMember && (
+        <MemberFormModal
+          editingMember={editingMember}
+          onClose={() => setEditingMember(null)}
+          onSaved={loadData}
+        />
+      )}
+
       {viewMember && (
-        <MemberProfileModal 
-          member={viewMember} 
-          onClose={() => setViewMember(null)} 
-          onEdit={setEditingMember}
+        <MemberProfileModal
+          member={viewMember}
+          onClose={() => setViewMember(null)}
+          onEdit={(m) => setEditingMember(m)}
           onDelete={handleDelete}
-          onProfilePictureUpdate={(memberId, newUrl) => {
-            // Update the viewMember state with new profile picture URL
-            setViewMember(prev => ({ ...prev, profilePictureUrl: newUrl }));
-            // Also update in the members list
-            setMembers(prev => prev.map(m => 
-              m.id === memberId ? { ...m, profilePictureUrl: newUrl } : m
-            ));
-          }}
-          onWhatsApp={(m) => {
-            if (m.status === 'expired') {
-              sendExpiredAlert(m, gymSettings?.gymName);
-            } else {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const endDate = m.endDate.toDate();
-              const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-              if (daysLeft <= 7) {
-                sendExpiryAlert(m, daysLeft, gymSettings?.gymName);
-              } else {
-                sendWelcomeMessage(m, gymSettings?.gymName);
-              }
+          onWhatsApp={(m) => sendExpiryAlert(m, 0, gymSettings?.gymName)}
+          onProfilePictureUpdate={(id, url) => {
+            setMembers(prev => prev.map(m => m.id === id ? { ...m, profilePictureUrl: url } : m));
+            if (viewMember?.id === id) {
+              setViewMember(prev => ({ ...prev, profilePictureUrl: url }));
             }
           }}
         />

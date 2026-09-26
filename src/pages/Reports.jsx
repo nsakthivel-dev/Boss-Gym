@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import {
-  collection, query, where, getDocs, orderBy
+  collection, query, where, getDocs
 } from 'firebase/firestore';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
-import { PieChart, Download, Loader2 } from 'lucide-react';
+import { PieChart, Download, Calendar, ArrowUpRight, TrendingUp, Activity, Dumbbell } from 'lucide-react';
+import { TableSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 
-const SectionCard = ({ title, children }) => (
-  <div className="bg-card border border-border rounded-xl p-4 md:p-5 space-y-3 md:space-y-4">
-    <h3 className="text-white font-semibold text-sm md:text-base">{title}</h3>
+const SectionCard = ({ title, subtitle, action, children }) => (
+  <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 md:p-8 shadow-xs space-y-5">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#e7e2d5]">
+      <div>
+        <h3 className="text-neutral-900 font-black text-base uppercase tracking-tight font-athletic">{title}</h3>
+        {subtitle && <p className="text-xs text-neutral-500 font-medium mt-0.5">{subtitle}</p>}
+      </div>
+      {action && <div>{action}</div>}
+    </div>
     {children}
   </div>
 );
@@ -20,7 +28,7 @@ const exportCSV = (data, filename, columns) => {
   const header = columns.join(',');
   const rows = data.map(row => columns.map(col => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(','));
   const csv = [header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -30,39 +38,20 @@ const exportCSV = (data, filename, columns) => {
 };
 
 const ExportBtn = ({ onClick }) => (
-  <button onClick={onClick}
-    className="flex items-center gap-1.5 text-xs text-muted hover:text-primary border border-border hover:border-primary/40 px-3 py-1.5 rounded-lg transition-colors">
-    <Download className="w-3.5 h-3.5" /> Export CSV
+  <button 
+    onClick={onClick}
+    className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-neutral-800 hover:text-gold-700 bg-white hover:bg-gold-50 border border-[#e7e2d5] hover:border-gold-300 px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95 font-athletic"
+  >
+    <Download className="w-3.5 h-3.5 text-gold-600" /> Export CSV
   </button>
-);
-
-const SimpleTable = ({ cols, rows }) => (
-  <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-    <table className="w-full text-xs min-w-[500px]">
-      <thead>
-        <tr className="border-b border-border text-muted">
-          {cols.map(c => <th key={c} className="py-2 text-left pr-4 font-medium">{c}</th>)}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {rows.length === 0 ? (
-          <tr><td colSpan={cols.length} className="text-muted text-center py-6">No data</td></tr>
-        ) : rows.map((r, i) => (
-          <tr key={i} className="text-white">
-            {Object.values(r).map((v, j) => <td key={j} className="py-1.5 pr-4">{v}</td>)}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
 );
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-secondary border border-border rounded-lg px-3 py-2 text-xs">
-      <p className="text-muted">{label}</p>
-      <p className="text-primary font-semibold">{payload[0].value} sessions</p>
+    <div className="bg-[#171717] border border-gold-500/40 rounded-2xl px-4 py-3 shadow-2xl text-xs text-white">
+      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[10px] font-athletic">Day {label}</p>
+      <p className="text-gold-400 font-black text-base mt-0.5 font-athletic">{payload[0].value} Workouts Logged</p>
     </div>
   );
 };
@@ -88,202 +77,157 @@ const Reports = () => {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.entryTime?.toDate?.() || 0) - (b.entryTime?.toDate?.() || 0));
       
-      setDailySessions(data.map(s => {
-        return {
-          Member: s.memberName,
-          Entry: s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '—',
-          Exit: s.exitTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '—',
-          Duration: s.durationMinutes ? `${s.durationMinutes}m` : '—',
-          Status: s.status,
-        };
-      }));
-    } finally { setLoading(l => ({ ...l, daily: false })); }
+      setDailySessions(data.map(s => ({
+        Member: s.memberName,
+        Entry: s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '—',
+        Exit: s.exitTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '—',
+        Duration: s.durationMinutes ? `${s.durationMinutes}m` : '—',
+        Status: s.status,
+      })));
+    } finally { 
+      setLoading(l => ({ ...l, daily: false })); 
+    }
   };
 
   useEffect(() => { loadDailyReport(dailyDate); }, [dailyDate]);
 
-  // Monthly Summary
-  const [monthMonth, setMonthMonth] = useState(thisMonthStr());
-  const [monthData, setMonthData] = useState([]);
+  // Monthly Report
+  const [monthlyMonth, setMonthlyMonth] = useState(thisMonthStr());
+  const [monthlyChart, setMonthlyChart] = useState([]);
+  const [monthlyTotal, setMonthlyTotal] = useState(0);
 
-  const loadMonthly = async (month) => {
+  const loadMonthlyReport = async (month) => {
     setLoading(l => ({ ...l, monthly: true }));
     try {
-      const snap = await getDocs(collection(db, 'sessions'));
-      const sessions = snap.docs.map(d => d.data()).filter(s => s.sessionDate?.startsWith(month));
-      const grouped = {};
-      for (const s of sessions) {
-        if (!grouped[s.memberName]) grouped[s.memberName] = { Member: s.memberName, Visits: 0, 'Total Minutes': 0, 'Total Hours': 0 };
-        grouped[s.memberName].Visits++;
-        grouped[s.memberName]['Total Minutes'] += s.durationMinutes || 0;
-        grouped[s.memberName]['Total Hours'] = `${(grouped[s.memberName]['Total Minutes'] / 60).toFixed(1)}h`;
+      const start = `${month}-01`;
+      const [y, m] = month.split('-').map(Number);
+      const end = `${month}-${new Date(y, m, 0).getDate()}`;
+      const q = query(
+        collection(db, 'sessions'),
+        where('sessionDate', '>=', start),
+        where('sessionDate', '<=', end)
+      );
+      const snap = await getDocs(q);
+      const counts = {};
+      snap.docs.forEach(d => {
+        const date = d.data().sessionDate;
+        counts[date] = (counts[date] || 0) + 1;
+      });
+      const daysInMonth = new Date(y, m, 0).getDate();
+      const chart = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${month}-${String(day).padStart(2, '0')}`;
+        chart.push({ date: String(day), sessions: counts[dStr] || 0 });
       }
-      setMonthData(Object.values(grouped).sort((a, b) => b.Visits - a.Visits));
-    } finally { setLoading(l => ({ ...l, monthly: false })); }
+      setMonthlyChart(chart);
+      setMonthlyTotal(snap.size);
+    } finally { 
+      setLoading(l => ({ ...l, monthly: false })); 
+    }
   };
 
-  useEffect(() => { loadMonthly(monthMonth); }, [monthMonth]);
-
-  // Peak Hours
-  const [peakDateRange, setPeakDateRange] = useState(7);
-  const [peakData, setPeakData] = useState([]);
-
-  const loadPeakHours = async (days) => {
-    setLoading(l => ({ ...l, peak: true }));
-    try {
-      const cutoff = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-      const snap = await getDocs(collection(db, 'sessions'));
-      const sessions = snap.docs.map(d => d.data()).filter(s => s.sessionDate >= cutoff);
-      const hourCount = {};
-      for (let h = 0; h < 24; h++) hourCount[h] = 0;
-      for (const s of sessions) {
-        const hour = s.entryTime?.toDate?.()?.getHours() ?? null;
-        if (hour !== null) hourCount[hour]++;
-      }
-      const data = Object.entries(hourCount)
-        .filter(([h]) => Number(h) >= 5 && Number(h) <= 22)
-        .map(([hour, count]) => ({
-          hour: `${String(hour).padStart(2, '0')}:00`,
-          Sessions: count
-        }));
-      setPeakData(data);
-    } finally { setLoading(l => ({ ...l, peak: false })); }
-  };
-
-  useEffect(() => { loadPeakHours(peakDateRange); }, [peakDateRange]);
-
-  // Member Frequency (reuses monthly data)
-  // Inactive Members
-  const [inactive, setInactive] = useState([]);
-  const [loadingInactive, setLoadingInactive] = useState(false);
-
-  const loadInactive = async () => {
-    setLoadingInactive(true);
-    try {
-      const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-      const [membersSnap, sessionsSnap] = await Promise.all([
-        getDocs(collection(db, 'members')),
-        getDocs(query(collection(db, 'sessions'), where('sessionDate', '>=', cutoff)))
-      ]);
-      const activeMemberIds = new Set(sessionsSnap.docs.map(d => d.data().memberId));
-      const result = membersSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(m => !activeMemberIds.has(m.id))
-        .map(m => ({ Name: m.name, Phone: m.phone, Plan: m.planName, Status: m.status }));
-      setInactive(result);
-    } finally { setLoadingInactive(false); }
-  };
-
-  useEffect(() => { loadInactive(); }, []);
-
-  // Expiry Report
-  const [expiryDays, setExpiryDays] = useState(7);
-  const [expiryData, setExpiryData] = useState([]);
-  const [loadingExpiry, setLoadingExpiry] = useState(false);
-
-  const loadExpiry = async (days) => {
-    setLoadingExpiry(true);
-    try {
-      const snap = await getDocs(collection(db, 'members'));
-      const cutoff = new Date(Date.now() + days * 86400000);
-      const result = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(m => m.status === 'active' && m.endDate?.toDate?.() <= cutoff)
-        .sort((a, b) => a.endDate.toDate() - b.endDate.toDate())
-        .map(m => ({
-          Name: m.name,
-          Phone: m.phone,
-          Plan: m.planName,
-          'Expires On': m.endDate.toDate().toLocaleDateString('en-IN'),
-          'Days Left': Math.max(0, Math.ceil((m.endDate.toDate() - new Date()) / 86400000)),
-        }));
-      setExpiryData(result);
-    } finally { setLoadingExpiry(false); }
-  };
-
-  useEffect(() => { loadExpiry(expiryDays); }, [expiryDays]);
-
-  const inputClass = "bg-secondary border border-border text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-primary transition-colors";
+  useEffect(() => { loadMonthlyReport(monthlyMonth); }, [monthlyMonth]);
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-          <PieChart className="text-primary w-5 h-5 md:w-6 md:h-6" /> Reports
-        </h1>
-        <p className="text-muted text-xs md:text-sm mt-1">Analytics and data exports.</p>
+    <div className="space-y-6 md:space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e7e2d5]">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 font-athletic">Facility Analytics</span>
+          <h1 className="text-2xl md:text-3xl font-black text-neutral-900 tracking-tight uppercase font-athletic">Performance Trends</h1>
+          <p className="text-xs text-neutral-500 mt-0.5">Workout volume, peak training days, and session history</p>
+        </div>
       </div>
 
-      {/* Daily Report */}
-      <SectionCard title="Daily Report">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <input type="date" value={dailyDate} max={todayStr()} onChange={e => setDailyDate(e.target.value)} className={`${inputClass} w-full sm:w-auto`} />
-          <ExportBtn onClick={() => exportCSV(dailySessions, `daily-${dailyDate}`, ['Member', 'Entry', 'Exit', 'Duration', 'Status'])} />
+      {/* Monthly Attendance Chart */}
+      <SectionCard 
+        title="Monthly Gym Volume & Frequency"
+        subtitle={`Total of ${monthlyTotal} completed sessions in ${monthlyMonth}`}
+        action={
+          <div className="flex items-center gap-2.5">
+            <input
+              type="month"
+              value={monthlyMonth}
+              onChange={e => setMonthlyMonth(e.target.value)}
+              className="bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none"
+            />
+            <ExportBtn onClick={() => exportCSV(monthlyChart, `boss_gym_monthly_${monthlyMonth}`, ['date', 'sessions'])} />
+          </div>
+        }
+      >
+        <div className="h-72 w-full pt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0ece2" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} stroke="#e7e2d5" />
+              <YAxis tick={{ fontSize: 10, fill: '#71717a' }} stroke="#e7e2d5" allowDecimals={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="sessions" fill="#c9a227" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        {loading.daily ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <SimpleTable cols={['Member', 'Entry', 'Exit', 'Duration', 'Status']} rows={dailySessions} />}
       </SectionCard>
 
-      {/* Monthly Summary */}
-      <SectionCard title="Monthly Summary">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <input type="month" value={monthMonth} onChange={e => setMonthMonth(e.target.value)} className={`${inputClass} w-full sm:w-auto`} />
-          <ExportBtn onClick={() => exportCSV(monthData, `monthly-${monthMonth}`, ['Member', 'Visits', 'Total Minutes', 'Total Hours'])} />
-        </div>
-        {loading.monthly ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <SimpleTable cols={['Member', 'Visits', 'Total Minutes', 'Total Hours']} rows={monthData} />}
-      </SectionCard>
-
-      {/* Peak Hours Chart */}
-      <SectionCard title="Peak Hours Chart">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-4">
-          <select value={peakDateRange} onChange={e => setPeakDateRange(Number(e.target.value))} className={`${inputClass} w-full sm:w-auto`}>
-            {[7, 14, 30].map(d => <option key={d} value={d}>Last {d} days</option>)}
-          </select>
-          <ExportBtn onClick={() => exportCSV(peakData.map(d => ({ Hour: d.hour, Sessions: d.Sessions })), 'peak-hours', ['Hour', 'Sessions'])} />
-        </div>
-        {loading.peak ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <div className="h-48 md:h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={peakData} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                <XAxis dataKey="hour" tick={{ fill: '#a3a3a3', fontSize: 10 }} />
-                <YAxis tick={{ fill: '#a3a3a3', fontSize: 10 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="Sessions" fill="#e8c97e" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>}
-      </SectionCard>
-
-      {/* Member Frequency */}
-      <SectionCard title="Member Frequency">
-        <div className="flex justify-between items-center">
-          <p className="text-muted text-xs">Based on selected monthly data above</p>
-          <ExportBtn onClick={() => exportCSV(monthData, `frequency-${monthMonth}`, ['Member', 'Visits', 'Total Hours'])} />
-        </div>
-        <SimpleTable cols={['Member', 'Visits', 'Total Hours']} rows={monthData.map(r => ({ Member: r.Member, Visits: r.Visits, 'Total Hours': r['Total Hours'] }))} />
-      </SectionCard>
-
-      {/* Inactive Members */}
-      <SectionCard title="Inactive Members (no visits in 30 days)">
-        <div className="flex justify-end">
-          <ExportBtn onClick={() => exportCSV(inactive, 'inactive-members', ['Name', 'Phone', 'Plan', 'Status'])} />
-        </div>
-        {loadingInactive ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <SimpleTable cols={['Name', 'Phone', 'Plan', 'Status']} rows={inactive} />}
-      </SectionCard>
-
-      {/* Expiry Report */}
-      <SectionCard title="Expiry Report">
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <select value={expiryDays} onChange={e => setExpiryDays(Number(e.target.value))} className={`${inputClass} w-full sm:w-auto`}>
-            {[7, 15, 30].map(d => <option key={d} value={d}>Within {d} days</option>)}
-          </select>
-          <ExportBtn onClick={() => exportCSV(expiryData, `expiry-${expiryDays}days`, ['Name', 'Phone', 'Plan', 'Expires On', 'Days Left'])} />
-        </div>
-        {loadingExpiry ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div> :
-          <SimpleTable cols={['Name', 'Phone', 'Plan', 'Expires On', 'Days Left']} rows={expiryData} />}
+      {/* Daily Breakdown Section */}
+      <SectionCard 
+        title="Daily Athlete Attendance Breakdown"
+        subtitle={`Detailed workout sessions for ${dailyDate}`}
+        action={
+          <div className="flex items-center gap-2.5">
+            <input
+              type="date"
+              value={dailyDate}
+              onChange={e => setDailyDate(e.target.value)}
+              className="bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none"
+            />
+            <ExportBtn onClick={() => exportCSV(dailySessions, `boss_gym_daily_${dailyDate}`, ['Member', 'Entry', 'Exit', 'Duration', 'Status'])} />
+          </div>
+        }
+      >
+        {loading.daily ? (
+          <TableSkeleton rows={4} cols={5} />
+        ) : dailySessions.length === 0 ? (
+          <EmptyState 
+            icon={Calendar}
+            title="No records found"
+            description={`No attendance sessions logged for ${dailyDate}.`}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[#e7e2d5] bg-[#faf9f6] text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">
+                  <th className="py-3 px-4">Athlete</th>
+                  <th className="py-3 px-4">Check-in Time</th>
+                  <th className="py-3 px-4">Check-out Time</th>
+                  <th className="py-3 px-4">Workout Duration</th>
+                  <th className="py-3 px-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0ece2]">
+                {dailySessions.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-gold-50/20 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-neutral-900 uppercase font-athletic">{row.Member}</td>
+                    <td className="py-3.5 px-4 font-mono text-neutral-700">{row.Entry}</td>
+                    <td className="py-3.5 px-4 font-mono text-neutral-700">{row.Exit}</td>
+                    <td className="py-3.5 px-4 font-black text-neutral-900">{row.Duration}</td>
+                    <td className="py-3.5 px-4">
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
+                        row.Status === 'open' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : row.Status === 'no-exit' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {row.Status === 'open' ? 'Active' : row.Status === 'no-exit' ? 'Auto-closed' : 'Completed'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </SectionCard>
     </div>
   );

@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>New Boss Gym | Best Gym in Muthaliyarpet Pondicherry | Fitness Center</title>
     <meta name="description" content="New Boss Gym in Muthaliyarpet, Pondicherry offers modern equipment, expert trainers, personal training, weight loss and muscle building programs. Visit us at 100ft Road and start your fitness journey today." />
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#863bff" />
+    <meta name="theme-color" content="#c9a227" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="New Boss Gym" />
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
@@ -22,37 +22,66 @@
     <!-- Google Fonts Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Robust Service Worker Registration & Update Detection -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/service-worker.js')
             .then((registration) => {
-              console.log('[SW] Registration successful, scope is:', registration.scope);
-              
-              // Check for updates
+              console.log('[SW] Registered successfully with scope:', registration.scope);
+
+              // If a worker is already waiting (installed in background), notify app immediately
+              if (registration.waiting && navigator.serviceWorker.controller) {
+                window.dispatchEvent(new CustomEvent('sw-update-available', {
+                  detail: { registration, waitingWorker: registration.waiting }
+                }));
+              }
+
+              // Listen for when a new service worker is installing
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
+                if (!newWorker) return;
+
                 newWorker.addEventListener('statechange', () => {
                   if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // New service worker is available, notify user
-                    if (confirm('New version available! Reload to update?')) {
-                      newWorker.postMessage({ type: 'SKIP_WAITING' });
-                      window.location.reload();
-                    }
+                    // New version is installed and waiting for activation
+                    window.dispatchEvent(new CustomEvent('sw-update-available', {
+                      detail: { registration, waitingWorker: newWorker }
+                    }));
                   }
                 });
               });
+
+              // Check for updates when page becomes visible again (user switches tabs / resumes PWA)
+              document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                  registration.update().catch((err) => console.debug('[SW] Update check error:', err));
+                }
+              });
+
+              // Also check periodically (every 30 minutes)
+              setInterval(() => {
+                registration.update().catch((err) => console.debug('[SW] Periodic check error:', err));
+              }, 30 * 60 * 1000);
             })
             .catch((error) => {
-              console.log('[SW] Registration failed:', error);
+              console.warn('[SW] Registration failed:', error);
             });
+
+          // Prevent reload loops on controller change
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+              refreshing = true;
+              window.location.reload();
+            }
+          });
         });
       }
     </script>

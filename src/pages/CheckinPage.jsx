@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { 
   collection, query, where, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, 
-  serverTimestamp, Timestamp 
+  serverTimestamp 
 } from 'firebase/firestore';
 import { getDistanceMeters } from '../utils/distance';
 import { 
   MapPin, XCircle, AlertTriangle, Ban, CheckCircle, 
-  LogOut, Hourglass, Loader2 
+  LogOut, Hourglass, Loader2, Dumbbell, ArrowRight, RefreshCw, Smartphone,
+  Flame, ShieldCheck, Zap
 } from 'lucide-react';
-
 import { useSettings } from '../context/SettingsContext';
 
 const CheckinPage = () => {
@@ -58,27 +58,15 @@ const CheckinPage = () => {
           setPageState('location_outside');
         }
       },
-
       (error) => {
         console.log("GPS Error Code:", error.code);
-        console.log("GPS Error Message:", error.message);
-
         if (error.code === 1) {
-          // PERMISSION_DENIED — user blocked location
           setPageState("location_denied");
-        } else if (error.code === 2) {
-          // POSITION_UNAVAILABLE — GPS hardware failed
-          setPageState("location_error");
-        } else if (error.code === 3) {
-          // TIMEOUT — took too long to get location
-          setPageState("location_error");
         } else {
-          // UNKNOWN ERROR
           setPageState("location_error");
         }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-
     );
   };
 
@@ -86,7 +74,7 @@ const CheckinPage = () => {
     if (e) e.preventDefault();
     const cleanPhone = phone.trim();
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
-      setError('Enter a valid 10-digit mobile number');
+      setError('Please enter your valid 10-digit mobile number');
       return;
     }
 
@@ -94,7 +82,6 @@ const CheckinPage = () => {
     setPageState('loading');
 
     try {
-      // Step 4: Query member
       const q = query(collection(db, 'members'), where('phone', '==', cleanPhone));
       const querySnapshot = await getDocs(q);
 
@@ -106,45 +93,43 @@ const CheckinPage = () => {
       const memberDoc = querySnapshot.docs[0];
       const member = { id: memberDoc.id, ...memberDoc.data() };
 
-        let todaysWorkout = null;
-        try {
-          // Fetch workout schedule - simple fetch to avoid index requirements for orderBy
-          const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
-          const baseSchedule = scheduleSnap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => a.day - b.day);
+      let todaysWorkout = null;
+      try {
+        const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
+        const baseSchedule = scheduleSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => a.day - b.day);
 
-          if (baseSchedule.length > 0 && member.workoutStartDate) {
-            // Normalize both dates to midnight for accurate day difference
-            const start = member.workoutStartDate.toDate();
-            start.setHours(0, 0, 0, 0);
-            
-            const todayDate = new Date();
-            todayDate.setHours(0, 0, 0, 0);
-            
-            const diffTime = todayDate.getTime() - start.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (baseSchedule.length > 0 && member.workoutStartDate) {
+          const start = member.workoutStartDate.toDate();
+          start.setHours(0, 0, 0, 0);
+          
+          const todayDate = new Date();
+          todayDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = todayDate.getTime() - start.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-            if (diffDays >= 0) {
-              const cycleIndex = diffDays % baseSchedule.length;
-              todaysWorkout = baseSchedule[cycleIndex];
-            }
+          if (diffDays >= 0) {
+            const cycleIndex = diffDays % baseSchedule.length;
+            todaysWorkout = baseSchedule[cycleIndex];
           }
-        } catch (workoutErr) {
-          console.error("Workout fetch failed:", workoutErr);
         }
+      } catch (workoutErr) {
+        console.error("Workout fetch failed:", workoutErr);
+      }
 
-        // Step 6: Check expiry
-        const today = new Date();
+      // Check expiry
+      const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const endDate = member.endDate.toDate();
+      const endDate = member.endDate?.toDate ? member.endDate.toDate() : new Date(member.endDate);
       if (endDate < today) {
         setMemberData({ name: member.name });
         setPageState('error_expired');
         return;
       }
 
-      // Step 7: Check cooldown
+      // Check cooldown
       const cooldownRef = doc(db, 'cooldowns', member.id);
       const cooldownSnap = await getDoc(cooldownRef);
       if (cooldownSnap.exists()) {
@@ -161,13 +146,12 @@ const CheckinPage = () => {
         }
       }
 
-      // Step 8: Update cooldown
+      // Update cooldown
       await setDoc(cooldownRef, { lastScan: serverTimestamp() });
 
-      // Step 9: Today's date string
       const dateStr = new Date().toISOString().split('T')[0];
 
-      // Step 10: Query open session
+      // Query open session
       const sessionQ = query(
         collection(db, 'sessions'),
         where('memberId', '==', member.id),
@@ -234,30 +218,42 @@ const CheckinPage = () => {
   }, [pageState, secondsRemaining]);
 
   const renderHeader = () => (
-    <div className="text-center mb-8">
-      <h1 className="text-[#e8c97e] text-[22px] font-bold uppercase tracking-tight">{gymSettings?.gymName || 'GYMCORE'}</h1>
-      <p className="text-[#a3a3a3] text-[13px]">Gym Attendance</p>
-      <p className="text-[#a3a3a3] text-[13px] mt-1">
-        {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+    <div className="text-center mb-6">
+      <div className="w-14 h-14 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-neutral-950 shadow-gold-sm">
+        <Dumbbell className="w-7 h-7" />
+      </div>
+      <h1 className="text-neutral-900 text-2xl font-black uppercase tracking-tight font-athletic">
+        {gymSettings?.gymName || 'New Boss Gym'}
+      </h1>
+      <p className="text-gold-700 text-xs font-black uppercase tracking-widest mt-1 font-athletic">
+        Athlete Check-in Kiosk
+      </p>
+      <p className="text-neutral-500 text-xs mt-1 font-medium">
+        {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
       </p>
     </div>
   );
 
-  const containerClass = "min-h-screen bg-[#0f0f0f] flex items-center justify-center p-4 font-sans";
-  const cardClass = "w-full max-w-[420px] bg-[#1a1a1a] border border-[#2a2a2a] rounded-[12px] p-6 text-center shadow-2xl";
+  const containerClass = "min-h-screen bg-[#f8f7f3] flex items-center justify-center p-4 font-sans relative overflow-hidden";
+  const cardClass = "w-full max-w-[440px] bg-white border border-[#e7e2d5] rounded-3xl p-6 sm:p-8 text-center shadow-xl animate-fade-in relative z-10";
 
   if (pageState === 'locating') {
     return (
       <div className={containerClass}>
+        <div className="absolute w-96 h-96 bg-gold-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className={cardClass}>
           {renderHeader()}
-          <div className="flex flex-col items-center py-8">
-            <MapPin className="text-[#e8c97e] w-12 h-12 animate-pulse mb-4" />
-            <h2 className="text-white text-lg font-bold">Verifying your location...</h2>
-            <div className="mt-4">
-              <Loader2 className="w-6 h-6 text-[#e8c97e] animate-spin" />
+          <div className="flex flex-col items-center py-6">
+            <div className="w-16 h-16 rounded-2xl bg-gold-50 border border-gold-300 flex items-center justify-center mb-4 text-gold-700 animate-pulse">
+              <MapPin className="w-8 h-8" />
             </div>
-            <p className="text-[#a3a3a3] text-[13px] mt-4">Please allow location access when prompted</p>
+            <h2 className="text-neutral-900 text-base font-black uppercase font-athletic">Verifying Facility Geofence</h2>
+            <div className="mt-3">
+              <Loader2 className="w-6 h-6 text-gold-600 animate-spin" />
+            </div>
+            <p className="text-neutral-500 text-xs mt-3 max-w-xs font-medium">
+              Confirming you are physically at New Boss Gym premises. Please allow location access.
+            </p>
           </div>
         </div>
       </div>
@@ -269,17 +265,19 @@ const CheckinPage = () => {
       <div className={containerClass}>
         <div className={cardClass}>
           {renderHeader()}
-          <div className="flex flex-col items-center py-8">
-            <XCircle className="text-[#f87171] w-12 h-12 mb-4" />
-            <h2 className="text-white text-lg font-bold">Location Access Required</h2>
-            <p className="text-[#a3a3a3] text-sm mt-3 px-4 leading-relaxed">
-              Please enable location permission for this site in your browser settings and try again.
+          <div className="flex flex-col items-center py-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-3">
+              <XCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-neutral-900 text-base font-black uppercase font-athletic">Location Permission Required</h2>
+            <p className="text-neutral-500 text-xs mt-2 leading-relaxed">
+              To verify on-site attendance, please allow location permission for this website in your browser settings.
             </p>
             <button 
               onClick={() => window.location.reload()}
-              className="mt-8 w-full h-[52px] bg-[#2a2a2a] text-white font-bold rounded-[8px] hover:bg-[#333333] transition-colors"
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95"
             >
-              Try Again
+              Retry Location Access
             </button>
           </div>
         </div>
@@ -292,22 +290,17 @@ const CheckinPage = () => {
       <div className={containerClass}>
         <div className={cardClass}>
           {renderHeader()}
-          <div className="flex flex-col items-center py-8">
-            <AlertTriangle className="text-[#fbbf24] w-12 h-12 mb-4" />
-            <h2 className="text-white text-lg font-bold">Location Error</h2>
-            <p className="text-[#a3a3a3] text-sm mt-3 px-4 leading-relaxed">
-              Could not get your location. Please try the following:
-            </p>
-            <div className="text-[#a3a3a3] text-xs mt-2 space-y-1">
-              <p>1. Make sure Location is enabled in phone settings</p>
-              <p>2. Allow location permission for this site in your browser</p>
-              <p>3. Make sure you have internet connection</p>
-              <p>4. Try again after a few seconds</p>
+          <div className="flex flex-col items-center py-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+              <AlertTriangle className="w-8 h-8" />
             </div>
-
+            <h2 className="text-neutral-900 text-base font-black uppercase font-athletic">Location Unavailable</h2>
+            <p className="text-neutral-500 text-xs mt-2 leading-relaxed">
+              Unable to read device GPS coordinates. Please ensure phone location is enabled and try again.
+            </p>
             <button 
               onClick={() => window.location.reload()}
-              className="mt-8 w-full h-[52px] bg-[#2a2a2a] text-white font-bold rounded-[8px] hover:bg-[#333333] transition-colors"
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95"
             >
               Try Again
             </button>
@@ -322,31 +315,27 @@ const CheckinPage = () => {
       <div className={containerClass}>
         <div className={cardClass}>
           {renderHeader()}
-          <div className="flex flex-col items-center py-8">
-            <Ban className="text-[#f87171] w-12 h-12 mb-4" />
-            <h2 className="text-white text-lg font-bold">You're Not at the Gym</h2>
-            <p className="text-[#a3a3a3] text-sm mt-3 px-4 leading-relaxed">
-              Attendance can only be marked when you are physically present at the gym.
+          <div className="flex flex-col items-center py-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-3">
+              <Ban className="w-8 h-8" />
+            </div>
+            <h2 className="text-neutral-900 text-base font-black uppercase font-athletic">Outside Gym Facility</h2>
+            <p className="text-neutral-500 text-xs mt-2 leading-relaxed">
+              Self attendance can only be logged when you are physically on-site at New Boss Gym.
             </p>
 
             {debug && (
-              <div className="mt-4 p-3 bg-black/20 rounded-lg border border-border/50 text-left">
-                <p className="text-[#a3a3a3] text-[10px] font-mono">DEBUG INFO:</p>
-                <p className="text-white text-[11px] font-mono mt-1">Dist: {debug.dist}m (Max {debug.gymRadius}m)</p>
-                <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lat: {debug.lat}</p>
-                <p className="text-[#a3a3a3] text-[11px] font-mono">Your Lng: {debug.lng}</p>
-                <p className="text-[#a3a3a3] text-[11px] font-mono mt-1 italic">
-                  Gym: {debug.gymLat || 'NOT SET'}, {debug.gymLng || 'NOT SET'}
-                </p>
-
+              <div className="mt-4 p-3.5 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left w-full text-[11px] text-neutral-600 font-mono">
+                <p className="font-bold text-neutral-900">Current Distance: {debug.dist}m away</p>
+                <p>Permitted Perimeter: {debug.gymRadius}m</p>
               </div>
             )}
 
             <button 
               onClick={() => window.location.reload()}
-              className="mt-8 w-full h-[52px] bg-[#2a2a2a] text-white font-bold rounded-[8px] hover:bg-[#333333] transition-colors"
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95"
             >
-              Try Again
+              Recheck GPS Location
             </button>
           </div>
         </div>
@@ -357,39 +346,53 @@ const CheckinPage = () => {
   if (pageState === 'form' || pageState === 'loading') {
     return (
       <div className={containerClass}>
+        <div className="absolute w-96 h-96 bg-gold-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className={cardClass}>
           {renderHeader()}
-          <div className="flex items-center justify-center gap-1.5 text-[#4ade80] text-xs font-medium mb-6">
-            <CheckCircle className="w-3.5 h-3.5" />
-            Location Verified
+          
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-6 font-athletic">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Facility Perimeter Verified</span>
           </div>
-          <form onSubmit={handleCheckin} className="space-y-6">
+
+          <form onSubmit={handleCheckin} className="space-y-5">
             <div className="text-left">
-              <label className="text-[#a3a3a3] text-[13px] mb-2 block ml-1">Enter your registered mobile number</label>
-              <input 
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="10-digit mobile number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                className="w-full text-center text-[20px] bg-[#222222] border border-[#2a2a2a] rounded-[8px] p-[14px] text-white placeholder-[#555] focus:outline-none focus:border-[#e8c97e] transition-colors"
-                autoFocus
-                disabled={pageState === 'loading'}
-              />
-              {error && <p className="text-[#f87171] text-xs mt-2 text-center">{error}</p>}
+              <label className="text-[10px] font-black text-neutral-600 uppercase tracking-wider block mb-2 font-athletic">
+                Athlete Mobile Number
+              </label>
+              <div className="relative">
+                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
+                <input 
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-center text-xl font-black bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl py-4 pl-10 pr-4 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-gold-500 focus:bg-white transition-all font-mono"
+                  autoFocus
+                  disabled={pageState === 'loading'}
+                />
+              </div>
+              {error && <p className="text-red-600 text-xs mt-2 text-center font-bold">{error}</p>}
             </div>
+
             <button 
               type="submit"
               disabled={pageState === 'loading' || phone.length < 10}
-              className="w-full h-[52px] bg-[#e8c97e] text-[#0f0f0f] font-bold rounded-[8px] text-[16px] hover:bg-[#d9bc70] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-gold-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 font-athletic"
             >
               {pageState === 'loading' ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Checking...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Verifying Athlete...
                 </>
-              ) : 'Mark Attendance'}
+              ) : (
+                <>
+                  <span>Log Gym Check-In / Check-Out</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -398,31 +401,40 @@ const CheckinPage = () => {
   }
 
   if (pageState === 'success_entry') {
-    const time = memberData.entryTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const time = memberData.entryTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
     return (
       <div className={containerClass}>
-        <div className={`${cardClass} bg-[#052e16] border-[#4ade80] !p-8`}>
+        <div className={`${cardClass} border-emerald-300`}>
           <div className="flex flex-col items-center">
-            <CheckCircle className="text-[#4ade80] w-[56px] h-[56px] mb-4" />
-            <h2 className="text-[#4ade80] text-[28px] font-bold tracking-[3px] mb-2 uppercase">ENTRY</h2>
-            <p className="text-white text-[26px] font-bold mb-1">{memberData.name}</p>
-            <p className="text-[#a3a3a3] text-[15px] mb-4">{time}</p>
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700 font-athletic">Workout Check-in Confirmed</span>
+            <h2 className="text-2xl font-black text-neutral-900 uppercase mt-1 mb-1 font-athletic">{memberData.name}</h2>
+            <p className="text-neutral-500 text-xs font-mono mb-4">Entry Timestamp: {time}</p>
             
             {workout ? (
-              <div className="bg-black/20 border border-white/10 rounded-lg p-4 w-full my-4 text-center">
-                <p className="text-primary text-sm font-bold tracking-widest uppercase">Today's Workout</p>
-                <p className="text-white font-bold text-lg mt-1">{workout.title}</p>
-                <p className="text-xs text-muted-foreground">{workout.muscles}</p>
+              <div className="bg-[#171717] border border-[#2a2a2a] rounded-3xl p-5 w-full my-3 text-center text-white shadow-lg">
+                <div className="flex items-center justify-center gap-1.5 mb-1 text-gold-400">
+                  <Flame size={14} />
+                  <span className="text-[10px] font-black tracking-widest uppercase font-athletic">
+                    Today's Target Routine
+                  </span>
+                </div>
+                <p className="text-white font-black text-lg uppercase font-athletic">{workout.title}</p>
+                <p className="text-xs text-neutral-400 mt-1">{workout.muscles}</p>
               </div>
             ) : (
-              <p className="text-[#a3a3a3] text-[14px]">Welcome! Have a great workout 💪</p>
+              <div className="bg-gold-50 border border-gold-200 text-gold-800 rounded-2xl p-4 w-full my-2 text-xs font-bold uppercase tracking-wider">
+                Welcome to Boss Gym! Have a powerful session 💪
+              </div>
             )}
 
             <button 
               onClick={() => { setPhone(''); setPageState('form'); setWorkout(null); }}
-              className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
+              className="mt-6 w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-colors font-athletic active:scale-95"
             >
-              Done / Mark Another
+              Done / Mark Another Athlete
             </button>
           </div>
         </div>
@@ -431,26 +443,30 @@ const CheckinPage = () => {
   }
 
   if (pageState === 'success_exit') {
-    const time = memberData.exitTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const time = memberData.exitTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
     const durationStr = memberData.durationMinutes >= 60 
       ? `${Math.floor(memberData.durationMinutes / 60)}h ${memberData.durationMinutes % 60}m`
       : `${memberData.durationMinutes}m`;
     
     return (
       <div className={containerClass}>
-        <div className={`${cardClass} bg-[#0c1a2e] border-[#60a5fa] !p-8`}>
+        <div className={`${cardClass} border-blue-300`}>
           <div className="flex flex-col items-center">
-            <LogOut className="text-[#60a5fa] w-[56px] h-[56px] mb-4" />
-            <h2 className="text-[#60a5fa] text-[28px] font-bold tracking-[3px] mb-2 uppercase">EXIT</h2>
-            <p className="text-white text-[26px] font-bold mb-1">{memberData.name}</p>
-            <p className="text-[#60a5fa] text-[20px] font-bold mb-2">{durationStr}</p>
-            <p className="text-[#a3a3a3] text-[15px] mb-4">{time}</p>
-            <p className="text-[#a3a3a3] text-[14px]">Great session! See you next time 👋</p>
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+              <LogOut className="w-8 h-8" />
+            </div>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-700 font-athletic">Workout Check-out Logged</span>
+            <h2 className="text-2xl font-black text-neutral-900 uppercase mt-1 mb-1 font-athletic">{memberData.name}</h2>
+            <div className="my-2 bg-blue-50 border border-blue-200 text-blue-900 px-5 py-2 rounded-full font-black text-xs font-athletic">
+              Total Workout Duration: {durationStr}
+            </div>
+            <p className="text-neutral-500 text-xs font-mono mb-4">Exit Time: {time}</p>
+            <p className="text-xs text-neutral-500 font-medium">Great training today! Rest, refuel, and recover 👋</p>
             <button 
               onClick={() => { setPhone(''); setPageState('form'); }}
-              className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
+              className="mt-6 w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-2xl text-xs uppercase tracking-wider transition-colors font-athletic active:scale-95"
             >
-              Done / Mark Another
+              Done / Mark Another Athlete
             </button>
           </div>
         </div>
@@ -461,17 +477,19 @@ const CheckinPage = () => {
   if (pageState === 'error_expired') {
     return (
       <div className={containerClass}>
-        <div className={`${cardClass} bg-[#2d0a0a] border-[#f87171] !p-8`}>
+        <div className={`${cardClass} border-red-300`}>
           <div className="flex flex-col items-center">
-            <XCircle className="text-[#f87171] w-[48px] h-[48px] mb-4" />
-            <h2 className="text-[#f87171] text-[22px] font-bold mb-2 uppercase">Membership Expired</h2>
-            {memberData?.name && <p className="text-white font-medium mb-3">{memberData.name}</p>}
-            <p className="text-[#a3a3a3] text-[14px] leading-relaxed">
-              Your membership has expired. Please renew at the front desk.
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-3">
+              <XCircle className="w-7 h-7" />
+            </div>
+            <h2 className="text-red-700 text-lg font-black uppercase font-athletic">Membership Expired</h2>
+            {memberData?.name && <p className="text-neutral-900 font-bold text-sm my-1">{memberData.name}</p>}
+            <p className="text-neutral-500 text-xs leading-relaxed max-w-xs mt-1">
+              Your membership cycle has ended. Please visit the front desk to renew your subscription.
             </p>
             <button 
               onClick={() => setPageState('form')}
-              className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
+              className="mt-6 w-full py-3.5 bg-[#faf9f6] hover:bg-neutral-100 text-neutral-900 font-bold rounded-2xl text-xs uppercase tracking-wider border border-[#e7e2d5]"
             >
               Go Back
             </button>
@@ -484,16 +502,18 @@ const CheckinPage = () => {
   if (pageState === 'error_notregistered') {
     return (
       <div className={containerClass}>
-        <div className={`${cardClass} bg-[#2d0a0a] border-[#f87171] !p-8`}>
+        <div className={`${cardClass} border-red-300`}>
           <div className="flex flex-col items-center">
-            <XCircle className="text-[#f87171] w-[48px] h-[48px] mb-4" />
-            <h2 className="text-[#f87171] text-[22px] font-bold mb-2 uppercase">Not Registered</h2>
-            <p className="text-[#a3a3a3] text-[14px] leading-relaxed">
-              This mobile number is not registered. Please contact the front desk.
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-3">
+              <XCircle className="w-7 h-7" />
+            </div>
+            <h2 className="text-red-700 text-lg font-black uppercase font-athletic">Athlete Number Not Found</h2>
+            <p className="text-neutral-500 text-xs leading-relaxed max-w-xs mt-1">
+              This mobile number is not registered in our gym directory. Please see the front desk staff to enrol.
             </p>
             <button 
               onClick={() => setPageState('form')}
-              className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
+              className="mt-6 w-full py-3.5 bg-[#faf9f6] hover:bg-neutral-100 text-neutral-900 font-bold rounded-2xl text-xs uppercase tracking-wider border border-[#e7e2d5]"
             >
               Go Back
             </button>
@@ -506,16 +526,18 @@ const CheckinPage = () => {
   if (pageState === 'cooldown') {
     return (
       <div className={containerClass}>
-        <div className={`${cardClass} bg-[#2d2000] border-[#fbbf24] !p-8`}>
+        <div className={`${cardClass} border-amber-300`}>
           <div className="flex flex-col items-center">
-            <Hourglass className="text-[#fbbf24] w-[48px] h-[48px] mb-4 animate-spin-slow" />
-            <h2 className="text-[#fbbf24] text-[22px] font-bold mb-2 uppercase">Already Marked Recently</h2>
-            {memberData?.name && <p className="text-white font-medium mb-3">{memberData.name}</p>}
-            <p className="text-white font-bold text-lg mb-2">Please wait {secondsRemaining} seconds</p>
-            <p className="text-[#a3a3a3] text-[14px]">Scanning too quickly. Please wait.</p>
+            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-3">
+              <Hourglass className="w-7 h-7 animate-pulse" />
+            </div>
+            <h2 className="text-amber-800 text-lg font-black uppercase font-athletic">Already Logged Recently</h2>
+            {memberData?.name && <p className="text-neutral-900 font-bold text-sm my-1">{memberData.name}</p>}
+            <p className="text-gold-700 font-black text-2xl my-2 font-athletic">Wait {secondsRemaining}s</p>
+            <p className="text-neutral-500 text-xs">Preventing duplicate scans. You may re-scan in a moment.</p>
             <button 
               onClick={() => setPageState('form')}
-              className="mt-8 w-full h-[48px] bg-[#1a1a1a] border border-[#2a2a2a] text-white font-medium rounded-[8px] hover:bg-[#222] transition-colors"
+              className="mt-6 w-full py-3.5 bg-[#faf9f6] hover:bg-neutral-100 text-neutral-900 font-bold rounded-2xl text-xs uppercase tracking-wider border border-[#e7e2d5]"
             >
               Go Back
             </button>

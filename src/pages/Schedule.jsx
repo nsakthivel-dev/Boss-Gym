@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import {
-  collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, orderBy, Timestamp
+  collection, getDocs, doc, setDoc, deleteDoc, query, orderBy
 } from 'firebase/firestore';
 import { 
   Calendar, ChevronLeft, ChevronRight, Edit3, Save, X, 
-  Dumbbell, Coffee, Info, Loader2, Plus, Trash2
+  Dumbbell, Coffee, Plus, Trash2, CheckCircle2, User, RefreshCw,
+  Flame, Award, Target, Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { CardSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 
 const DEFAULT_7_DAY_CYCLE = [
   { day: 1, title: 'CHEST WORKOUT', muscles: 'Chest · Upper Chest · Lower Chest', isRest: false },
@@ -16,12 +19,12 @@ const DEFAULT_7_DAY_CYCLE = [
   { day: 4, title: 'BICEPS', muscles: 'Biceps Brachii · Brachialis', isRest: false },
   { day: 5, title: 'LEGS DAY', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false },
   { day: 6, title: 'TRICEPS', muscles: 'Long Head · Lateral Head · Medial Head', isRest: false },
-  { day: 7, title: 'REST DAY', muscles: 'Recovery & Stretching', isRest: true }
+  { day: 7, title: 'REST & RECOVERY', muscles: 'Active Recovery & Stretching', isRest: true }
 ].map(item => ({
   ...item,
   exercises: [
-    { name: "Main Exercise 1", sets: "4", reps: "10-12", notes: "Heavy & Controlled" },
-    { name: "Secondary Exercise 1", sets: "3", reps: "12-15", notes: "Focus on squeeze" }
+    { name: "Compound Movement 1", sets: "4", reps: "10-12", notes: "Heavy & Controlled" },
+    { name: "Isolation Movement 2", sets: "3", reps: "12-15", notes: "Peak Contraction" }
   ]
 }));
 
@@ -51,18 +54,15 @@ const Schedule = () => {
       const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
       let scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Auto-migrate if it's the old 30-day schedule, empty, or old 7-day schedule
+      // Auto-migrate if empty
       const isOld7Day = scheduleData.length === 7 && scheduleData.some(d => d.day === 5 && d.title === 'LEGS');
       if (scheduleData.length === 0 || scheduleData.length === 30 || isOld7Day) {
-        console.log("Migrating to new 7-day cycle...");
-        // Clear existing if any
         if (scheduleData.length === 30 || isOld7Day) {
           for (const d of scheduleSnap.docs) {
             await deleteDoc(doc(db, 'workout_schedule', d.id));
           }
         }
         
-        // Initialize with the new 7-day cycle
         const initial = DEFAULT_7_DAY_CYCLE;
         for (const item of initial) {
           await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
@@ -82,7 +82,6 @@ const Schedule = () => {
   const getDayWorkout = (date, member) => {
     if (!member || !member.workoutStartDate) return null;
     
-    // Normalize both dates to midnight to get accurate day difference
     const start = member.workoutStartDate.toDate();
     start.setHours(0, 0, 0, 0);
     
@@ -92,7 +91,7 @@ const Schedule = () => {
     const diffTime = targetDate.getTime() - start.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return null; // Before start date
+    if (diffDays < 0) return null;
     
     const cycleIndex = diffDays % baseSchedule.length;
     return baseSchedule[cycleIndex];
@@ -105,95 +104,82 @@ const Schedule = () => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
     const days = [];
-    for (let i = 0; i < firstDay; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="min-h-[100px] bg-[#faf9f6]/40 border border-[#e7e2d5]/60 rounded-2xl" />);
+    }
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const isToday = new Date().toDateString() === date.toDateString();
+      const workout = getDayWorkout(date, selectedMember);
+      
+      days.push(
+        <div 
+          key={d} 
+          onClick={() => {
+            if (workout) {
+              setViewingWorkout({ date, workout });
+              setModalExercises(workout.exercises || []);
+              setIsModalEditing(false);
+            }
+          }}
+          className={`min-h-[110px] p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+            isToday 
+              ? 'border-2 border-gold-500 bg-gold-50/20 shadow-md' 
+              : 'border-[#e7e2d5] bg-white hover:border-gold-300 hover:shadow-xs'
+          } ${workout ? 'hover:-translate-y-0.5' : 'opacity-60'}`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-black font-athletic ${isToday ? 'text-neutral-950 font-black' : 'text-neutral-700'}`}>
+              {d}
+            </span>
+            {isToday && (
+              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold-500 text-neutral-950">
+                Today
+              </span>
+            )}
+          </div>
+
+          {workout ? (
+            <div className={`p-2.5 rounded-xl border text-left ${
+              workout.isRest 
+                ? 'bg-blue-50 border-blue-200 text-blue-900' 
+                : 'bg-[#171717] border-[#2a2a2a] text-white shadow-xs'
+            }`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                {workout.isRest ? (
+                  <Coffee size={12} className="text-blue-600 shrink-0" />
+                ) : (
+                  <Flame size={12} className="text-gold-400 shrink-0" />
+                )}
+                <span className={`text-[10px] font-black uppercase tracking-tight truncate font-athletic ${workout.isRest ? 'text-blue-900' : 'text-gold-400'}`}>
+                  {workout.title}
+                </span>
+              </div>
+              <p className={`text-[9px] truncate font-medium ${workout.isRest ? 'text-blue-700' : 'text-neutral-400'}`}>
+                {workout.muscles}
+              </p>
+            </div>
+          ) : (
+            <div className="text-[10px] text-neutral-400 italic">No cycle assigned</div>
+          )}
+        </div>
+      );
+    }
     
     return (
-      <div className="grid grid-cols-7 gap-1.5 md:gap-4 p-1">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
-          <div key={idx} className="text-center text-[10px] md:text-[11px] font-black text-[#222] uppercase py-3 tracking-[0.2em]">
-            <span className="hidden md:inline">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][idx]}</span>
-            <span className="md:hidden">{d}</span>
+      <div className="grid grid-cols-7 gap-3">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+          <div key={i} className="text-center py-2 text-[10px] font-black uppercase tracking-widest text-neutral-400 font-athletic">
+            {d}
           </div>
         ))}
-        {days.map((date, i) => {
-          if (!date) return <div key={`empty-${i}`} className="aspect-square md:h-32 bg-white/[0.01] border border-[#1a1a1a]/50 rounded-sm"></div>;
-          
-          const workout = getDayWorkout(date, selectedMember);
-          const isToday = date.toDateString() === new Date().toDateString();
-          
-          return (
-            <button
-              key={i}
-              onClick={() => {
-                if (workout) {
-                  setViewingWorkout({ date, workout });
-                  setModalExercises(workout.exercises || []);
-                  setIsModalEditing(false);
-                }
-              }}
-              className={`aspect-square md:h-32 p-1.5 md:p-3 border rounded-sm flex flex-col items-start justify-between transition-all group relative ${
-                workout 
-                  ? workout.isRest 
-                    ? 'bg-[#0d0d0d] border-[#1a1a1a] hover:border-info/30' 
-                    : 'bg-[#0d0d0d] border-[#1a1a1a] hover:border-primary/50'
-                  : 'bg-black/10 border-[#1a1a1a]/40 opacity-30 cursor-default'
-              } ${isToday ? 'scale-105 border-primary shadow-[0_0_20px_rgba(232,201,126,0.1)] z-10' : ''}`}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span className={`text-[10px] md:text-[11px] font-black ${isToday ? 'text-primary' : 'text-[#333]'}`}>{date.getDate()}</span>
-                {workout && (
-                  <span className={`text-[6px] md:text-[8px] font-black uppercase tracking-tighter md:tracking-widest ${workout.isRest ? 'text-info/40' : 'text-primary/30'}`}>
-                    <span className="md:hidden">D{workout.day}</span>
-                    <span className="hidden md:inline">Day {workout.day}</span>
-                  </span>
-                )}
-              </div>
-              {workout && (
-                <div className="w-full truncate text-left pt-1">
-                  <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-tight md:tracking-[0.1em] truncate ${workout.isRest ? 'text-info/80' : 'text-primary'}`}>
-                    <span className="md:hidden">{workout.isRest ? 'R' : workout.title.charAt(0)}</span>
-                    <span className="hidden md:inline">{workout.isRest ? 'Recovery' : workout.title.replace(' WORKOUT', '')}</span>
-                  </p>
-                </div>
-              )}
-            </button>
-          );
-        })}
+        {days}
       </div>
     );
   };
 
-  const handleUpdateSchedule = async (updatedSchedule) => {
-    setLoading(true);
-    try {
-      // Get current schedule days to identify ones to delete
-      const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
-      const existingDays = scheduleSnap.docs.map(d => d.id);
-      
-      // Upsert current schedule items
-      for (const item of updatedSchedule) {
-        await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
-      }
-      
-      // Delete any days that are no longer in the schedule (e.g. going from 30 to 7 days)
-      const updatedDayIds = updatedSchedule.map(item => `day-${item.day}`);
-      const daysToDelete = existingDays.filter(id => !updatedDayIds.includes(id));
-      
-      for (const dayId of daysToDelete) {
-        await deleteDoc(doc(db, 'workout_schedule', dayId));
-      }
-
-      setBaseSchedule(updatedSchedule);
-      setEditingSchedule(false);
-    } catch (err) {
-      console.error("Error updating schedule:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateDayExercises = async () => {
+  const handleSaveModalExercises = async () => {
     if (!viewingWorkout) return;
     setLoading(true);
     try {
@@ -202,10 +188,8 @@ const Schedule = () => {
         exercises: modalExercises
       };
       
-      // Update the master schedule for that day
       await setDoc(doc(db, 'workout_schedule', `day-${updatedWorkout.day}`), updatedWorkout);
       
-      // Update local state
       const newBaseSchedule = baseSchedule.map(d => 
         d.day === updatedWorkout.day ? updatedWorkout : d
       );
@@ -219,124 +203,151 @@ const Schedule = () => {
     }
   };
 
-  if (loading && baseSchedule.length === 0) {
-    return (
-      <div className="h-[80vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="space-y-6 md:space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e7e2d5]">
+        <div className="flex items-center gap-3">
           {selectedMember && (
             <button 
               onClick={() => setSelectedMember(null)}
-              className="p-2 -ml-2 text-[#444] hover:text-primary transition-colors"
+              className="p-2.5 rounded-2xl bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900 transition-colors shadow-xs active:scale-95"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={18} />
             </button>
           )}
-          <h1 className="text-xl md:text-4xl font-black text-primary tracking-tight uppercase">
-            {selectedMember ? (
-              <span className="flex flex-col md:flex-row md:items-baseline gap-1">
-                <span className="text-xs md:text-4xl">Workout</span>
-                <span>Schedule</span>
-              </span>
-            ) : 'Schedules'}
-          </h1>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 font-athletic">Workout Architecture</span>
+            <h1 className="text-2xl md:text-3xl font-black text-neutral-900 tracking-tight uppercase font-athletic">
+              {selectedMember ? `${selectedMember.name}'s Routine` : 'Athlete Training Schedules'}
+            </h1>
+            <p className="text-xs text-neutral-500 mt-0.5">7-Day Progressive Resistance Cycle</p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => setEditingSchedule(true)}
-            className="bg-[#111] border border-[#1a1a1a] text-primary p-2.5 md:px-6 md:py-2.5 rounded-sm text-[10px] font-bold tracking-widest uppercase hover:text-white transition-all flex items-center gap-2"
+            className="bg-neutral-900 hover:bg-neutral-800 text-gold-400 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs active:scale-95 font-athletic"
           >
-            <Edit3 size={14} /> <span className="hidden md:inline">Edit Master Schedule</span>
+            <Edit3 size={14} className="text-gold-400" />
+            <span>Master 7-Day Cycle</span>
           </button>
         </div>
       </div>
 
       {!selectedMember ? (
-        /* Members Grid View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {members.map(m => (
-            <button
-              key={m.id}
-              onClick={() => setSelectedMember(m)}
-              className="group bg-[#111] border border-[#1a1a1a] p-6 rounded-sm text-left hover:border-primary/50 transition-all hover:translate-x-1 relative overflow-hidden flex flex-col justify-center min-h-[100px]"
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/10 group-hover:bg-primary transition-colors" />
-              <p className="text-sm font-black text-primary uppercase tracking-[0.1em] group-hover:tracking-[0.15em] transition-all">{m.name}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-1 h-1 rounded-full bg-primary/30" />
-                <p className="text-[10px] font-bold text-[#444] uppercase tracking-widest">
-                  {m.workoutStartDate ? `Started: ${m.workoutStartDate.toDate().toLocaleDateString('en-GB')}` : 'No start date'}
-                </p>
-              </div>
-              <div className="absolute top-1/2 -translate-y-1/2 right-4 opacity-0 group-hover:opacity-100 transition-all group-hover:right-2">
-                <ChevronRight size={18} className="text-primary/60" />
-              </div>
-            </button>
-          ))}
+        /* Member Selection Grid */
+        <div>
+          <div className="mb-4">
+            <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 font-athletic">
+              Select Athlete to View Personalized Schedule
+            </h2>
+          </div>
+          {members.length === 0 ? (
+            <EmptyState 
+              icon={User}
+              title="No athletes registered"
+              description="Enrol athletes in the Member Directory to manage schedules."
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {members.map(m => {
+                const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedMember(m)}
+                    className="bg-white border border-[#e7e2d5] rounded-3xl p-4 text-left hover:border-gold-400 hover:shadow-md transition-all flex items-center justify-between group active:scale-95"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {m.profilePictureUrl ? (
+                        <img 
+                          src={m.profilePictureUrl} 
+                          alt={m.name} 
+                          className="w-11 h-11 rounded-2xl object-cover border border-gold-300 shrink-0 shadow-xs" 
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 font-black flex items-center justify-center shrink-0 font-athletic">
+                          {initials}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-black text-xs uppercase text-neutral-900 truncate group-hover:text-gold-700 transition-colors font-athletic">
+                          {m.name}
+                        </p>
+                        <p className="text-[10px] text-neutral-400 font-medium">
+                          {m.workoutStartDate ? `Cycle: ${m.workoutStartDate.toDate().toLocaleDateString('en-GB')}` : 'Immediate'}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-neutral-400 group-hover:text-gold-600 transition-colors shrink-0 ml-2" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
-        /* Calendar View (Full width) */
-        <div className="flex flex-col items-center w-full">
-          <div className="w-full bg-[#111] border border-[#1a1a1a] rounded-sm px-2 py-6 md:p-10 flex flex-col shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 pb-4 md:pb-6 border-b border-[#1a1a1a] gap-4 px-2 md:px-0">
-              <div className="text-center md:text-left">
-                <p className="text-primary/30 text-[8px] md:text-[9px] font-black tracking-[0.4em] uppercase mb-1 md:mb-2">Member Schedule</p>
-                <h2 className="text-xl md:text-3xl font-black text-primary uppercase tracking-[0.05em] leading-tight md:leading-none">{selectedMember.name}</h2>
-              </div>
-              
-              <div className="flex items-center justify-between md:justify-end gap-3 md:gap-6">
-                <div className="flex items-center bg-black/40 border border-[#1a1a1a] p-0.5 md:p-1 rounded-sm flex-1 md:flex-none">
-                  <button 
-                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                    className="p-1.5 md:p-2 text-[#444] hover:text-primary transition-colors"
-                  >
-                    <ChevronLeft size={18} className="md:w-5 md:h-5 w-4 h-4" />
-                  </button>
-                  <h3 className="text-primary font-black text-[10px] md:text-sm uppercase tracking-[0.1em] md:tracking-[0.2em] flex-1 md:min-w-[140px] text-center">
-                    {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
-                  </h3>
-                  <button 
-                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-                    className="p-1.5 md:p-2 text-[#444] hover:text-primary transition-colors"
-                  >
-                    <ChevronRight size={18} className="md:w-5 md:h-5 w-4 h-4" />
-                  </button>
-                </div>
+        /* Calendar View */
+        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-5 sm:p-7 md:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-[#e7e2d5]">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-gold-700 font-athletic">Athlete Calendar</span>
+              <h2 className="text-xl md:text-2xl font-black text-neutral-900 uppercase font-athletic">{selectedMember.name}</h2>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-1 shadow-2xs">
                 <button 
-                  onClick={() => setCurrentDate(new Date())}
-                  className="text-[9px] font-black text-[#333] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:text-primary transition-all px-3 py-2 md:py-3 border-l border-[#1a1a1a]"
+                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+                  className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
                 >
-                  Today
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs font-black uppercase tracking-wider text-neutral-900 px-3 min-w-[120px] text-center font-athletic">
+                  {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                </span>
+                <button 
+                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+                  className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+                >
+                  <ChevronRight size={16} />
                 </button>
               </div>
+
+              <button 
+                onClick={() => setCurrentDate(new Date())}
+                className="px-4 py-2 bg-neutral-900 text-gold-400 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition-colors uppercase tracking-wider font-athletic active:scale-95"
+              >
+                Today
+              </button>
             </div>
-            <div className="overflow-x-auto overflow-y-hidden no-scrollbar">
-              <div className="min-w-[300px]">
-                {renderCalendar()}
-              </div>
-            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            {renderCalendar()}
           </div>
         </div>
       )}
 
-      {/* Workout Detail Modal */}
+      {/* Workout Detail Modal (Dark Section) */}
       {viewingWorkout && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[#111] border border-[#1a1a1a] rounded-sm shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0a0a0a]">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setViewingWorkout(null)}
+        >
+          <div 
+            className="w-full max-w-lg bg-white border border-[#e7e2d5] rounded-3xl shadow-2xl overflow-hidden animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Dark Athletic Modal Header */}
+            <div className="p-6 border-b border-[#262626] bg-[#151515] text-white flex items-center justify-between">
               <div>
-                <p className="text-[#555] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
+                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 font-athletic">
                   {viewingWorkout.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </p>
-                <h3 className={`text-2xl font-black uppercase tracking-tight ${viewingWorkout.workout.isRest ? 'text-info' : 'text-primary'}`}>
+                <h3 className={`text-xl font-black uppercase tracking-tight font-athletic ${viewingWorkout.workout.isRest ? 'text-blue-400' : 'text-gold-400'}`}>
                   {viewingWorkout.workout.title}
                 </h3>
               </div>
@@ -344,47 +355,48 @@ const Schedule = () => {
                 {!viewingWorkout.workout.isRest && (
                   <button 
                     onClick={() => setIsModalEditing(!isModalEditing)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-sm transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 font-athletic ${
                       isModalEditing 
-                        ? 'bg-primary text-black' 
-                        : 'text-[#444] hover:text-primary border border-[#1a1a1a] hover:border-primary/30'
+                        ? 'bg-gold-500 text-neutral-950' 
+                        : 'bg-[#222222] border border-[#333333] text-white hover:text-gold-400'
                     }`}
-                    title="Edit Exercises"
                   >
-                    <Edit3 size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">
-                      {isModalEditing ? 'Finish' : 'Edit'}
-                    </span>
+                    <Edit3 size={13} />
+                    <span>{isModalEditing ? 'Done' : 'Edit Routine'}</span>
                   </button>
                 )}
-                <button onClick={() => setViewingWorkout(null)} className="p-2 text-[#444] hover:text-white transition-colors">
-                  <X size={24} />
+                <button 
+                  onClick={() => setViewingWorkout(null)} 
+                  className="p-1.5 text-neutral-400 hover:text-white rounded-lg transition-colors"
+                >
+                  <X size={18} />
                 </button>
               </div>
             </div>
-            <div className="p-8 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-sm ${viewingWorkout.workout.isRest ? 'bg-info/10 text-info' : 'bg-primary/10 text-primary'}`}>
+
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#faf9f6] border border-[#e7e2d5]">
+                <div className={`p-2.5 rounded-xl ${viewingWorkout.workout.isRest ? 'bg-blue-100 text-blue-800' : 'bg-gold-50 text-gold-700'}`}>
                   {viewingWorkout.workout.isRest ? <Coffee size={18} /> : <Dumbbell size={18} />}
                 </div>
-                <p className="text-[#888] text-sm font-bold tracking-wide">{viewingWorkout.workout.muscles}</p>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-neutral-400 font-athletic block">Target Muscles</span>
+                  <p className="text-xs font-bold text-neutral-900">{viewingWorkout.workout.muscles}</p>
+                </div>
               </div>
-              
+
               {!viewingWorkout.workout.isRest && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="grid grid-cols-12 w-full text-[10px] font-bold text-[#444] uppercase tracking-widest px-2">
-                      <div className="col-span-6">Exercise</div>
-                      <div className="col-span-2 text-center">Sets</div>
-                      <div className="col-span-2 text-center">Reps</div>
-                      <div className="col-span-2"></div>
-                    </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-12 text-[10px] font-black text-neutral-400 uppercase tracking-wider px-2 font-athletic">
+                    <div className="col-span-6">Exercise</div>
+                    <div className="col-span-3 text-center">Sets</div>
+                    <div className="col-span-3 text-center">Reps</div>
                   </div>
-                  
+
                   {isModalEditing ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {modalExercises.map((ex, i) => (
-                        <div key={i} className="grid grid-cols-12 items-center bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-sm gap-2">
+                        <div key={i} className="grid grid-cols-12 items-center bg-[#faf9f6] border border-[#e7e2d5] p-3 rounded-2xl gap-2">
                           <div className="col-span-6">
                             <input 
                               value={ex.name}
@@ -393,8 +405,8 @@ const Schedule = () => {
                                 newExs[i].name = e.target.value;
                                 setModalExercises(newExs);
                               }}
-                              className="bg-transparent text-xs font-bold text-primary uppercase w-full focus:outline-none"
-                              placeholder="Name"
+                              className="bg-white border border-[#e7e2d5] text-xs font-bold text-neutral-900 px-3 py-1.5 rounded-xl w-full focus:outline-none focus:border-gold-500"
+                              placeholder="Exercise name"
                             />
                             <input 
                               value={ex.notes}
@@ -403,8 +415,8 @@ const Schedule = () => {
                                 newExs[i].notes = e.target.value;
                                 setModalExercises(newExs);
                               }}
-                              className="bg-transparent text-[10px] text-[#444] font-bold mt-1 w-full focus:outline-none"
-                              placeholder="Notes"
+                              className="bg-transparent text-[10px] text-neutral-500 font-medium mt-1 w-full focus:outline-none px-1"
+                              placeholder="Form notes (e.g. 40kg progressive)"
                             />
                           </div>
                           <div className="col-span-2">
@@ -415,7 +427,7 @@ const Schedule = () => {
                                 newExs[i].sets = e.target.value;
                                 setModalExercises(newExs);
                               }}
-                              className="bg-transparent text-sm font-black text-[#555] text-center w-full focus:outline-none"
+                              className="bg-white border border-[#e7e2d5] text-xs font-bold text-center w-full rounded-xl py-1.5 focus:outline-none"
                               placeholder="Sets"
                             />
                           </div>
@@ -427,294 +439,160 @@ const Schedule = () => {
                                 newExs[i].reps = e.target.value;
                                 setModalExercises(newExs);
                               }}
-                              className="bg-transparent text-sm font-black text-[#555] text-center w-full focus:outline-none"
+                              className="bg-white border border-[#e7e2d5] text-xs font-bold text-center w-full rounded-xl py-1.5 focus:outline-none"
                               placeholder="Reps"
                             />
                           </div>
                           <div className="col-span-2 flex justify-end">
                             <button 
                               onClick={() => setModalExercises(modalExercises.filter((_, idx) => idx !== i))}
-                              className="p-1 text-[#333] hover:text-error transition-colors"
+                              className="p-1.5 text-neutral-400 hover:text-red-600 rounded-lg"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>
                       ))}
+
                       <button 
                         onClick={() => setModalExercises([...modalExercises, { name: "", sets: "", reps: "", notes: "" }])}
-                        className="w-full py-4 border-2 border-dashed border-primary/20 rounded-sm text-primary/60 hover:text-primary hover:border-primary/50 transition-all flex items-center justify-center gap-2 mt-2 bg-primary/5"
+                        className="w-full py-3 border-2 border-dashed border-gold-300 text-gold-700 hover:bg-gold-50 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors font-athletic"
                       >
-                        <Plus size={16} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Add Exercise Row</span>
+                        <Plus size={15} /> Add Exercise Movement
                       </button>
+
+                      <div className="pt-2">
+                        <button
+                          onClick={handleSaveModalExercises}
+                          className="w-full py-3 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 rounded-2xl font-black text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic"
+                        >
+                          Save Changes to Routine
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       {viewingWorkout.workout.exercises?.map((ex, i) => (
-                        <div key={i} className="grid grid-cols-12 items-center bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-sm group hover:border-primary/30 transition-colors">
+                        <div key={i} className="grid grid-cols-12 items-center bg-[#faf9f6] border border-[#e7e2d5] p-3.5 rounded-2xl">
                           <div className="col-span-6">
-                            <p className="text-xs font-bold text-primary uppercase">{ex.name}</p>
-                            {ex.notes && <p className="text-[10px] text-[#444] font-bold mt-1">{ex.notes}</p>}
+                            <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">{ex.name}</p>
+                            {ex.notes && <p className="text-[10px] text-neutral-500">{ex.notes}</p>}
                           </div>
-                          <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.sets}</div>
-                          <div className="col-span-2 text-center text-sm font-black text-[#555]">{ex.reps}</div>
+                          <div className="col-span-3 text-center text-xs font-black text-gold-700 font-athletic">{ex.sets} SETS</div>
+                          <div className="col-span-3 text-center text-xs font-bold text-neutral-700">{ex.reps} REPS</div>
                         </div>
                       ))}
-                      
-                      <button 
-                        onClick={() => {
-                          setModalExercises([...(viewingWorkout.workout.exercises || []), { name: "", sets: "", reps: "", notes: "" }]);
-                          setIsModalEditing(true);
-                        }}
-                        className="w-full py-5 border-2 border-dashed border-primary/30 rounded-sm text-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 mt-4 bg-primary/5 group/add"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover/add:scale-110 transition-transform">
-                          <Plus size={24} className="text-primary" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em]">Add New Exercise</span>
-                      </button>
                     </div>
                   )}
                 </div>
-              )}
-              
-              {viewingWorkout.workout.isRest && (
-                <div className="bg-info/5 border border-info/10 p-6 rounded-sm text-center">
-                  <p className="text-info text-xs font-bold tracking-widest uppercase">Active Recovery Day</p>
-                  <p className="text-[#444] text-[10px] mt-2 leading-relaxed">Focus on light stretching, hydration, and 7-9 hours of quality sleep to maximize muscle repair.</p>
-                </div>
-              )}
-            </div>
-            <div className="p-8 bg-[#0a0a0a] border-t border-[#1a1a1a] flex gap-4">
-              {isModalEditing ? (
-                <>
-                  <button 
-                    onClick={() => {
-                      setIsModalEditing(false);
-                      setModalExercises(viewingWorkout.workout.exercises || []);
-                    }}
-                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] border border-[#1a1a1a] text-[#555] hover:text-white transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleUpdateDayExercises}
-                    disabled={loading}
-                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all flex items-center justify-center gap-2"
-                  >
-                    {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={16} />} Save Changes
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setViewingWorkout(null)}
-                  className="w-full py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all"
-                >
-                  Close View
-                </button>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Master Schedule Modal (Simplified Admin View) */}
+      {/* Master 7-Day Schedule Editor Modal */}
       {editingSchedule && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95">
-          <div className="w-full max-w-4xl bg-[#111] border border-[#1a1a1a] rounded-sm shadow-2xl h-[90vh] flex flex-col">
-            <div className="p-8 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0a0a0a]">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setEditingSchedule(false)}
+        >
+          <div 
+            className="w-full max-w-2xl bg-white border border-[#e7e2d5] rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-[#e7e2d5] bg-gradient-to-r from-gold-50/70 to-white flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-black text-primary uppercase tracking-tight">Edit Master Schedule</h3>
-                <p className="text-[#555] text-[10px] font-bold uppercase tracking-widest mt-1">Changes reflect across all members</p>
+                <h3 className="text-lg font-black uppercase tracking-tight text-neutral-900 font-athletic">
+                  Configure Master 7-Day Cycle
+                </h3>
+                <p className="text-xs text-neutral-500 font-medium">Global template used across all enrolled athletes</p>
               </div>
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => {
-                    if (window.confirm("This will reset the entire schedule to the default 7-day cycle. Continue?")) {
-                      setBaseSchedule(DEFAULT_7_DAY_CYCLE);
-                    }
-                  }}
-                  className="px-4 py-2 border border-primary/20 text-primary/60 text-[10px] font-bold uppercase tracking-widest hover:bg-primary/5 hover:text-primary transition-all rounded-sm"
-                >
-                  Reset to 7-Day Cycle
-                </button>
-                <button onClick={() => setEditingSchedule(false)} className="p-2 text-[#444] hover:text-white transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8 space-y-4">
-              {baseSchedule.map((day, idx) => (
-                <div key={day.id || idx} className="bg-[#0a0a0a] border border-[#1a1a1a] p-6 rounded-sm space-y-4 relative group/day">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-[10px] font-black text-[#444] uppercase tracking-[0.3em]">Day {day.day}</span>
-                      <button 
-                        onClick={() => {
-                          const newSched = baseSchedule.filter((_, i) => i !== idx)
-                            .map((d, i) => ({ ...d, day: i + 1 }));
-                          setBaseSchedule(newSched);
-                        }}
-                        className="opacity-0 group-hover/day:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all"
-                        title="Delete Day"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={day.isRest} 
-                        onChange={e => {
-                          const newSched = [...baseSchedule];
-                          newSched[idx].isRest = e.target.checked;
-                          newSched[idx].title = e.target.checked ? "REST DAY" : "NEW WORKOUT";
-                          setBaseSchedule(newSched);
-                        }}
-                        className="w-4 h-4 accent-primary" 
-                      />
-                      <span className="text-[10px] font-bold text-[#555] uppercase">Rest Day</span>
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input 
-                      value={day.title} 
-                      onChange={e => {
-                        const newSched = [...baseSchedule];
-                        newSched[idx].title = e.target.value;
-                        setBaseSchedule(newSched);
-                      }}
-                      className="bg-[#111] border border-[#1a1a1a] p-3 text-xs font-bold text-primary uppercase focus:outline-none focus:border-primary/40 rounded-sm"
-                      placeholder="Title (e.g. PUSH DAY)"
-                    />
-                    <input 
-                      value={day.muscles} 
-                      onChange={e => {
-                        const newSched = [...baseSchedule];
-                        newSched[idx].muscles = e.target.value;
-                        setBaseSchedule(newSched);
-                      }}
-                      className="bg-[#111] border border-[#1a1a1a] p-3 text-xs font-bold text-[#666] focus:outline-none focus:border-primary/40 rounded-sm"
-                      placeholder="Muscles (e.g. Chest · Triceps)"
-                    />
-                  </div>
-
-                  {/* Exercises Editing Section */}
-                  {!day.isRest && (
-                    <div className="mt-6 space-y-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-[10px] font-black text-[#333] uppercase tracking-[0.2em]">Exercises</h4>
-                        <button 
-                          onClick={() => {
-                            const newSched = [...baseSchedule];
-                            if (!newSched[idx].exercises) newSched[idx].exercises = [];
-                            newSched[idx].exercises.push({ name: "", sets: "", reps: "", notes: "" });
-                            setBaseSchedule(newSched);
-                          }}
-                          className="flex items-center gap-1 text-[8px] font-black text-primary uppercase hover:text-white transition-colors"
-                        >
-                          <Plus size={10} /> Add Exercise
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {day.exercises?.map((ex, exIdx) => (
-                          <div key={exIdx} className="grid grid-cols-12 gap-2 bg-[#111] p-3 rounded-sm border border-[#1a1a1a] group/ex">
-                            <div className="col-span-5">
-                              <input 
-                                value={ex.name}
-                                onChange={e => {
-                                  const newSched = [...baseSchedule];
-                                  newSched[idx].exercises[exIdx].name = e.target.value;
-                                  setBaseSchedule(newSched);
-                                }}
-                                className="w-full bg-transparent text-[10px] font-bold text-primary uppercase focus:outline-none"
-                                placeholder="Exercise Name"
-                              />
-                              <input 
-                                value={ex.notes}
-                                onChange={e => {
-                                  const newSched = [...baseSchedule];
-                                  newSched[idx].exercises[exIdx].notes = e.target.value;
-                                  setBaseSchedule(newSched);
-                                }}
-                                className="w-full bg-transparent text-[8px] font-bold text-[#444] mt-1 focus:outline-none"
-                                placeholder="Notes (optional)"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <input 
-                                value={ex.sets}
-                                onChange={e => {
-                                  const newSched = [...baseSchedule];
-                                  newSched[idx].exercises[exIdx].sets = e.target.value;
-                                  setBaseSchedule(newSched);
-                                }}
-                                className="w-full bg-transparent text-[10px] font-black text-center text-[#555] focus:outline-none"
-                                placeholder="Sets"
-                              />
-                            </div>
-                            <div className="col-span-3">
-                              <input 
-                                value={ex.reps}
-                                onChange={e => {
-                                  const newSched = [...baseSchedule];
-                                  newSched[idx].exercises[exIdx].reps = e.target.value;
-                                  setBaseSchedule(newSched);
-                                }}
-                                className="w-full bg-transparent text-[10px] font-black text-center text-[#555] focus:outline-none"
-                                placeholder="Reps"
-                              />
-                            </div>
-                            <div className="col-span-2 flex justify-end">
-                              <button 
-                                onClick={() => {
-                                  const newSched = [...baseSchedule];
-                                  newSched[idx].exercises = newSched[idx].exercises.filter((_, i) => i !== exIdx);
-                                  setBaseSchedule(newSched);
-                                }}
-                                className="p-1 text-[#333] hover:text-error transition-colors"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              
-              <button 
-                onClick={() => {
-                  const nextDay = baseSchedule.length + 1;
-                  setBaseSchedule([...baseSchedule, {
-                    day: nextDay,
-                    title: "NEW WORKOUT",
-                    muscles: "Add muscle groups...",
-                    exercises: [],
-                    isRest: false
-                  }]);
-                }}
-                className="w-full py-6 border-2 border-dashed border-[#1a1a1a] rounded-sm text-[#444] hover:border-primary/30 hover:text-primary transition-all flex flex-col items-center justify-center gap-2"
-              >
-                <Plus size={24} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Add Day {baseSchedule.length + 1}</span>
+              <button onClick={() => setEditingSchedule(false)} className="p-1.5 text-neutral-400 hover:text-neutral-900">
+                <X size={20} />
               </button>
             </div>
-            <div className="p-8 bg-[#0a0a0a] border-t border-[#1a1a1a] flex gap-4">
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+              {baseSchedule.map((day, idx) => (
+                <div key={day.day} className="p-4 rounded-2xl bg-[#faf9f6] border border-[#e7e2d5] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-gold-700 font-athletic">Day {day.day}</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-neutral-600">
+                      <input 
+                        type="checkbox" 
+                        checked={day.isRest}
+                        onChange={e => {
+                          const updated = [...baseSchedule];
+                          updated[idx].isRest = e.target.checked;
+                          if (e.target.checked) {
+                            updated[idx].title = "REST DAY";
+                            updated[idx].muscles = "Recovery & Stretching";
+                          }
+                          setBaseSchedule(updated);
+                        }}
+                        className="rounded accent-gold-500 w-4 h-4"
+                      />
+                      <span>Rest & Recovery</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block mb-1 font-athletic">Workout Title</label>
+                      <input 
+                        value={day.title}
+                        onChange={e => {
+                          const updated = [...baseSchedule];
+                          updated[idx].title = e.target.value;
+                          setBaseSchedule(updated);
+                        }}
+                        className="w-full bg-white border border-[#e7e2d5] rounded-xl px-3 py-2 text-xs font-bold text-neutral-900 focus:outline-none focus:border-gold-500"
+                        placeholder="e.g. CHEST WORKOUT"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block mb-1 font-athletic">Target Muscle Groups</label>
+                      <input 
+                        value={day.muscles}
+                        onChange={e => {
+                          const updated = [...baseSchedule];
+                          updated[idx].muscles = e.target.value;
+                          setBaseSchedule(updated);
+                        }}
+                        className="w-full bg-white border border-[#e7e2d5] rounded-xl px-3 py-2 text-xs font-bold text-neutral-900 focus:outline-none focus:border-gold-500"
+                        placeholder="e.g. Pecs, Triceps"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-[#e7e2d5] bg-[#faf9f6] flex justify-end gap-3">
               <button 
                 onClick={() => setEditingSchedule(false)}
-                className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] border border-[#1a1a1a] text-[#555] hover:text-white transition-all"
+                className="px-5 py-2.5 text-xs font-bold uppercase rounded-xl border border-[#e7e2d5] text-neutral-600 hover:bg-white"
               >
                 Cancel
               </button>
               <button 
-                onClick={() => handleUpdateSchedule(baseSchedule)}
-                className="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] bg-primary text-black hover:bg-white transition-all flex items-center justify-center gap-2"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    for (const item of baseSchedule) {
+                      await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
+                    }
+                    setEditingSchedule(false);
+                  } catch (err) {
+                    console.error("Save master schedule failed", err);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="px-6 py-2.5 text-xs font-black uppercase rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 shadow-gold-sm font-athletic"
               >
-                <Save size={16} /> Save All Changes
+                Save Master Template
               </button>
             </div>
           </div>
