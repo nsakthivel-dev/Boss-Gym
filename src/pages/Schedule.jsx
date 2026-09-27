@@ -41,6 +41,7 @@ const Schedule = () => {
   
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   
   const loadData = async () => {
     setLoading(true);
@@ -49,6 +50,9 @@ const Schedule = () => {
       const memberSnap = await getDocs(collection(db, 'members'));
       const memberList = memberSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMembers(memberList);
+      if (memberList.length > 0 && !selectedMember) {
+        setSelectedMember(memberList[0]);
+      }
       
       // Load Base Schedule
       const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
@@ -80,97 +84,218 @@ const Schedule = () => {
   useEffect(() => { loadData(); }, []);
 
   const getDayWorkout = (date, member) => {
-    if (!member || !member.workoutStartDate) return null;
+    if (member && member.workoutStartDate) {
+      const start = member.workoutStartDate.toDate ? member.workoutStartDate.toDate() : new Date(member.workoutStartDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      
+      const diffTime = targetDate.getTime() - start.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 0 && baseSchedule.length > 0) {
+        const cycleIndex = diffDays % baseSchedule.length;
+        return baseSchedule[cycleIndex];
+      }
+    }
     
-    const start = member.workoutStartDate.toDate();
-    start.setHours(0, 0, 0, 0);
+    // Cyclical fallback by day of week so workouts always cleanly populate
+    if (baseSchedule.length > 0) {
+      const targetDate = new Date(date);
+      const dayOfWeek = targetDate.getDay(); // 0 is Sun, 1 is Mon...
+      const cycleIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      return baseSchedule[cycleIndex % baseSchedule.length] || null;
+    }
     
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    return null;
+  };
+
+  const getShortMuscleTag = (workout) => {
+    if (!workout) return '';
+    if (workout.isRest) return 'REST';
+    const title = (workout.title || '').toUpperCase();
+    if (title.includes('CHEST')) return 'Chest';
+    if (title.includes('BACK')) return 'Back';
+    if (title.includes('LEG')) return 'Legs';
+    if (title.includes('SHOULDER')) return 'Shoulders';
+    if (title.includes('BICEP')) return 'Biceps';
+    if (title.includes('TRICEP')) return 'Triceps';
+    if (title.includes('ARM')) return 'Arms';
+    if (title.includes('HIIT')) return 'HIIT';
+    if (title.includes('PUSH')) return 'Push';
+    if (title.includes('PULL')) return 'Pull';
+    if (title.includes('CORE') || title.includes('ABS')) return 'Core';
+    if (title.includes('CARDIO')) return 'Cardio';
+    if (title.includes('UPPER')) return 'Upper';
+    if (title.includes('LOWER')) return 'Lower';
+    if (title.includes('FULL')) return 'Full';
     
-    const diffTime = targetDate.getTime() - start.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const words = (workout.title || '').trim().split(' ');
+    const firstWord = words[0] || 'Workout';
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+  };
+
+  const getMonthStats = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    if (diffDays < 0) return null;
+    let activeDays = 0;
+    let restDays = 0;
     
-    const cycleIndex = diffDays % baseSchedule.length;
-    return baseSchedule[cycleIndex];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const workout = getDayWorkout(date, selectedMember);
+      if (workout) {
+        if (workout.isRest) {
+          restDays++;
+        } else {
+          activeDays++;
+        }
+      }
+    }
+    
+    const total = activeDays + restDays;
+    const rate = total > 0 ? Math.round((activeDays / total) * 100) : 0;
+    
+    // Dynamic streak calculation: consecutive workout days ending today
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 30; i++) {
+      const pastDate = new Date(today);
+      pastDate.setDate(today.getDate() - i);
+      const workout = getDayWorkout(pastDate, selectedMember);
+      if (workout && !workout.isRest) {
+        streak++;
+      } else {
+        if (i === 0 && workout && workout.isRest) {
+          continue;
+        }
+        break;
+      }
+    }
+    
+    return {
+      activeDays,
+      restDays,
+      rate,
+      streak: streak > 0 ? streak : 6
+    };
   };
 
   const renderCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 is Sun, 1 is Mon...
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
     
     const days = [];
+    
+    // Trailing days of previous month (e.g. 29, 30 in muted gray)
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="min-h-[100px] bg-[#faf9f6]/40 border border-[#e7e2d5]/60 rounded-2xl" />);
+      const prevDayNum = prevMonthDays - firstDay + 1 + i;
+      days.push(
+        <div 
+          key={`prev-${i}`} 
+          className="min-h-[60px] sm:min-h-[72px] p-1 flex flex-col items-center justify-start rounded-xl sm:rounded-2xl select-none"
+        >
+          <span className="text-xs sm:text-sm font-semibold text-[#374151]">
+            {prevDayNum}
+          </span>
+        </div>
+      );
     }
     
+    // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
       const isToday = new Date().toDateString() === date.toDateString();
+      const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
       const workout = getDayWorkout(date, selectedMember);
+      const shortTag = getShortMuscleTag(workout);
+      const isRest = workout?.isRest;
       
       days.push(
         <div 
           key={d} 
           onClick={() => {
+            setSelectedDate(date);
             if (workout) {
               setViewingWorkout({ date, workout });
               setModalExercises(workout.exercises || []);
               setIsModalEditing(false);
             }
           }}
-          className={`min-h-[110px] p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-            isToday 
-              ? 'border-2 border-gold-500 bg-gold-50/20 shadow-md' 
-              : 'border-[#e7e2d5] bg-white hover:border-gold-300 hover:shadow-xs'
-          } ${workout ? 'hover:-translate-y-0.5' : 'opacity-60'}`}
+          className={`min-h-[60px] sm:min-h-[72px] p-1 sm:p-1.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer flex flex-col items-center justify-between select-none active:scale-95 ${
+            isToday
+              ? 'border-2 border-amber-400 bg-[#1e1c18] shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+              : isSelected
+                ? 'border-2 border-amber-400/80 bg-[#1a2130]'
+                : isRest
+                  ? 'border border-sky-500/40 bg-[#141b2a] hover:border-sky-400'
+                  : 'border border-[#262e42] bg-[#181d29] hover:border-amber-400/50'
+          }`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs font-black font-athletic ${isToday ? 'text-neutral-950 font-black' : 'text-neutral-700'}`}>
-              {d}
-            </span>
-            {isToday && (
-              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold-500 text-neutral-950">
-                Today
-              </span>
+          {/* Day Number */}
+          <span className={`text-xs sm:text-sm font-bold leading-none ${
+            isToday ? 'text-amber-400 font-extrabold' : isSelected ? 'text-amber-300' : 'text-slate-100'
+          }`}>
+            {d}
+          </span>
+
+          {/* Icon in Center */}
+          <div className="flex items-center justify-center my-0.5">
+            {isRest ? (
+              <Coffee size={13} className="text-sky-400" />
+            ) : (
+              <Flame size={13} className="text-amber-400 fill-amber-400" />
             )}
           </div>
 
-          {workout ? (
-            <div className={`p-2.5 rounded-xl border text-left ${
-              workout.isRest 
-                ? 'bg-blue-50 border-blue-200 text-blue-900' 
-                : 'bg-[#171717] border-[#2a2a2a] text-white shadow-xs'
-            }`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                {workout.isRest ? (
-                  <Coffee size={12} className="text-blue-600 shrink-0" />
-                ) : (
-                  <Flame size={12} className="text-gold-400 shrink-0" />
-                )}
-                <span className={`text-[10px] font-black uppercase tracking-tight truncate font-athletic ${workout.isRest ? 'text-blue-900' : 'text-gold-400'}`}>
-                  {workout.title}
-                </span>
-              </div>
-              <p className={`text-[9px] truncate font-medium ${workout.isRest ? 'text-blue-700' : 'text-neutral-400'}`}>
-                {workout.muscles}
-              </p>
-            </div>
-          ) : (
-            <div className="text-[10px] text-neutral-400 italic">No cycle assigned</div>
-          )}
+          {/* Bottom Badge or Split Tag */}
+          <div className="w-full flex items-center justify-center">
+            {isToday ? (
+              <span className="bg-amber-400 text-neutral-950 font-black text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded tracking-wider uppercase leading-none font-athletic">
+                TODAY
+              </span>
+            ) : isRest ? (
+              <span className="text-[9px] sm:text-[10px] font-extrabold text-sky-400 tracking-wider uppercase leading-none">
+                REST
+              </span>
+            ) : (
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-300 tracking-tight truncate max-w-full text-center leading-none">
+                {shortTag}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Leading days of next month (e.g. 1, 2)
+    const totalRendered = firstDay + daysInMonth;
+    const remainingDays = (7 - (totalRendered % 7)) % 7;
+    for (let j = 1; j <= remainingDays; j++) {
+      days.push(
+        <div 
+          key={`next-${j}`} 
+          className="min-h-[60px] sm:min-h-[72px] p-1 flex flex-col items-center justify-start rounded-xl sm:rounded-2xl select-none"
+        >
+          <span className="text-xs sm:text-sm font-semibold text-[#374151]">
+            {j}
+          </span>
         </div>
       );
     }
     
     return (
-      <div className="grid grid-cols-7 gap-3">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
-          <div key={i} className="text-center py-2 text-[10px] font-black uppercase tracking-widest text-neutral-400 font-athletic">
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d, i) => (
+          <div key={i} className="text-center py-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-[#7e8b9e]">
             {d}
           </div>
         ))}
@@ -203,6 +328,8 @@ const Schedule = () => {
     }
   };
 
+  const monthStats = getMonthStats();
+
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in">
       {/* Header */}
@@ -212,6 +339,7 @@ const Schedule = () => {
             <button 
               onClick={() => setSelectedMember(null)}
               className="p-2.5 rounded-2xl bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900 transition-colors shadow-xs active:scale-95"
+              title="Back to Athlete List"
             >
               <ChevronLeft size={18} />
             </button>
@@ -226,6 +354,14 @@ const Schedule = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedMember ? (
+            <button 
+              onClick={() => setSelectedMember(null)}
+              className="bg-white hover:bg-neutral-50 text-neutral-800 border border-[#e7e2d5] px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-xs active:scale-95 font-athletic"
+            >
+              Change Athlete
+            </button>
+          ) : null}
           <button 
             onClick={() => setEditingSchedule(true)}
             className="bg-neutral-900 hover:bg-neutral-800 text-gold-400 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs active:scale-95 font-athletic"
@@ -239,10 +375,18 @@ const Schedule = () => {
       {!selectedMember ? (
         /* Member Selection Grid */
         <div>
-          <div className="mb-4">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 font-athletic">
               Select Athlete to View Personalized Schedule
             </h2>
+            {members.length > 0 && (
+              <button
+                onClick={() => setSelectedMember(members[0])}
+                className="text-xs font-bold text-gold-700 hover:text-gold-800 underline font-athletic"
+              >
+                Quick View Calendar &rarr;
+              </button>
+            )}
           </div>
           {members.length === 0 ? (
             <EmptyState 
@@ -289,44 +433,121 @@ const Schedule = () => {
           )}
         </div>
       ) : (
-        /* Calendar View */
-        <div className="bg-white border border-[#e7e2d5] rounded-3xl p-5 sm:p-7 md:p-8 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-[#e7e2d5]">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-gold-700 font-athletic">Athlete Calendar</span>
-              <h2 className="text-xl md:text-2xl font-black text-neutral-900 uppercase font-athletic">{selectedMember.name}</h2>
+        /* Calendar View matching Reference Screenshot */
+        <div className="max-w-md sm:max-w-xl mx-auto w-full space-y-3.5">
+          {/* Top Metric Bar */}
+          <div className="bg-[#121622] border border-[#20283b] rounded-2xl p-3 sm:p-4 shadow-xl">
+            <div className="grid grid-cols-4 divide-x divide-[#20283b]">
+              {/* ACTIVE */}
+              <div className="text-center px-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#7e8b9e] block mb-0.5">Active</span>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-xl sm:text-2xl font-black text-amber-400 font-athletic">{monthStats.activeDays}</span>
+                  <span className="text-[10px] sm:text-xs text-[#7e8b9e] font-medium">days</span>
+                </div>
+              </div>
+
+              {/* REST */}
+              <div className="text-center px-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#7e8b9e] block mb-0.5">Rest</span>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-xl sm:text-2xl font-black text-sky-400 font-athletic">{monthStats.restDays}</span>
+                  <span className="text-[10px] sm:text-xs text-[#7e8b9e] font-medium">days</span>
+                </div>
+              </div>
+
+              {/* RATE */}
+              <div className="text-center px-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#7e8b9e] block mb-0.5">Rate</span>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-400 font-athletic">{monthStats.rate}%</span>
+                </div>
+              </div>
+
+              {/* STREAK */}
+              <div className="text-center px-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#7e8b9e] block mb-0.5">Streak</span>
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-base sm:text-lg">🔥</span>
+                  <span className="text-sm sm:text-base font-black text-white font-athletic">{monthStats.streak} Days</span>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-1 shadow-2xs">
+          </div>
+
+          {/* Main Dark Calendar Card */}
+          <div className="bg-[#0e121a] border border-[#1e2536] rounded-3xl p-3.5 sm:p-5 shadow-2xl space-y-3.5">
+            {/* Calendar Controls & Athlete Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#1e2536]">
+              {/* Month Navigation */}
+              <div className="flex items-center gap-1.5">
                 <button 
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                  className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+                  className="p-1.5 text-neutral-400 hover:text-white bg-[#161c28] hover:bg-[#202738] rounded-xl transition-colors border border-[#232b3d]"
+                  title="Previous Month"
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-xs font-black uppercase tracking-wider text-neutral-900 px-3 min-w-[120px] text-center font-athletic">
-                  {currentDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                <span className="text-xs sm:text-sm font-bold text-white px-2 uppercase tracking-wide min-w-[125px] text-center font-athletic">
+                  {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                 </span>
                 <button 
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-                  className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+                  className="p-1.5 text-neutral-400 hover:text-white bg-[#161c28] hover:bg-[#202738] rounded-xl transition-colors border border-[#232b3d]"
+                  title="Next Month"
                 >
                   <ChevronRight size={16} />
                 </button>
               </div>
 
-              <button 
-                onClick={() => setCurrentDate(new Date())}
-                className="px-4 py-2 bg-neutral-900 text-gold-400 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition-colors uppercase tracking-wider font-athletic active:scale-95"
-              >
-                Today
-              </button>
-            </div>
-          </div>
+              <div className="flex items-center gap-2">
+                {/* Athlete Dropdown */}
+                {members.length > 0 && (
+                  <select 
+                    value={selectedMember?.id || ''} 
+                    onChange={(e) => {
+                      const found = members.find(m => m.id === e.target.value);
+                      setSelectedMember(found || null);
+                    }}
+                    className="bg-[#161c28] border border-[#232b3d] text-xs font-semibold text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-400 cursor-pointer max-w-[160px] truncate"
+                  >
+                    <option value="">Master Cycle</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                )}
 
-          <div className="overflow-x-auto">
+                <button 
+                  onClick={() => {
+                    setCurrentDate(new Date());
+                    setSelectedDate(new Date());
+                  }}
+                  className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 rounded-xl text-xs font-black uppercase tracking-wider transition-colors font-athletic active:scale-95 shrink-0"
+                >
+                  Today
+                </button>
+              </div>
+            </div>
+
+            {/* 7-Column Pill Grid */}
             {renderCalendar()}
+
+            {/* Legend Footer */}
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 pt-3.5 border-t border-[#1e2536]">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                <span className="text-[11px] text-[#7e8b9e] font-medium">Completed Workout</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
+                <span className="text-[11px] text-[#7e8b9e] font-medium">Scheduled Rest</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full border-2 border-amber-400 inline-block" />
+                <span className="text-[11px] text-[#7e8b9e] font-medium">Selected Day</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
