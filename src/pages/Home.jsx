@@ -11,30 +11,30 @@ const Home = () => {
   const navigate = useNavigate();
   const { settings: gymSettings } = useSettings();
   
-  const disciplines = [
+  const transformationPillars = [
     {
-      title: "Heavy Iron & ISO Machines",
-      desc: "Biomechanical leverage machines, Olympic barbells, calibrated plates, and multi-grip cable stations.",
+      title: "STRENGTH",
+      desc: "Build strength with structured training and progressive workouts.",
       image: "/photos/gallery/1000076824.jpg",
-      tag: "Strength Zone"
+      objectPosition: "center 15%"
     },
     {
-      title: "Conditioning & Cardio Deck",
-      desc: "Commercial treadmills, spin cycles, and high-intensity interval gear engineered for stamina and heart health.",
+      title: "MUSCLE GROWTH",
+      desc: "Follow focused training plans designed around your fitness goals.",
+      image: "/photos/gallery/1000076800.jpg",
+      objectPosition: "center 20%"
+    },
+    {
+      title: "COACHING",
+      desc: "Get guidance on exercise form, training structure, and progression.",
       image: "/photos/gallery/1000076809.jpg",
-      tag: "Endurance"
+      objectPosition: "center 30%"
     },
     {
-      title: "Personal Coaching & Splits",
-      desc: "Progressive overload guidance, form correction, and tailored nutrition macros by certified master trainers.",
-      image: "/photos/gallery/1000076833.jpg",
-      tag: "Transformation"
-    },
-    {
-      title: "Clean Recovery & Lockers",
-      desc: "Dedicated personal lockers, active stretching zones, and a pristine air-conditioned workout floor.",
-      image: "/photos/gallery/1000076836.jpg",
-      tag: "Facility"
+      title: "CONSISTENCY",
+      desc: "Track your attendance, workouts, and progress throughout your journey.",
+      image: "/photos/gallery/1000076818.jpg",
+      objectPosition: "center 30%"
     }
   ];
 
@@ -266,55 +266,62 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 4. VISUAL GEAR & DISCIPLINES GRID WITH REAL GYM PHOTOS */}
+      {/* 4. TRANSFORMATION VALUE PILLARS */}
       <section className="py-20 md:py-28 bg-white border-y border-[#e7e2d5]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          {/* Section Header */}
+          <div className="text-center max-w-2xl mx-auto mb-14 md:mb-16">
             <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 block mb-2 font-athletic">
-              World-Class Equipment & Zones
+              TRAIN WITH PURPOSE
             </span>
-            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-neutral-900 font-athletic">
-              ENGINEERED FOR PERFORMANCE
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-neutral-900 leading-tight font-athletic">
+              BUILT FOR YOUR <br className="hidden sm:inline" />
+              <span className="text-neutral-900">TRANSFORMATION</span>
             </h2>
-            <p className="text-neutral-600 text-xs sm:text-sm font-medium mt-3 leading-relaxed">
-              Step inside our Muthaliyarpet gym floor. Every machine and training zone is selected to maximize muscle hypertrophy, functional strength, and injury-free workouts.
+            <p className="text-neutral-600 text-xs sm:text-sm font-medium mt-3 leading-relaxed max-w-xl mx-auto">
+              Whether you're starting your fitness journey or pushing for your next level, New Boss Gym gives you the environment, coaching, and consistency to keep progressing.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {disciplines.map((item, i) => (
+          {/* 4 Feature Cards Grid: 1 col on mobile, 2x2 on sm/md, 4 col on lg */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {transformationPillars.map((item, i) => (
               <div 
                 key={i} 
-                className="group bg-[#faf9f6] border border-[#e7e2d5] hover:border-gold-400 rounded-3xl overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                className="group bg-[#faf9f6] border border-[#e7e2d5] hover:border-gold-400 rounded-3xl overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
               >
                 <div>
-                  <div className="relative w-full aspect-[16/10] overflow-hidden">
+                  {/* Card Upper Image */}
+                  <div className="relative w-full aspect-[4/3] overflow-hidden bg-neutral-900">
                     <img 
                       src={item.image} 
                       alt={item.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      style={{ objectPosition: item.objectPosition }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <span className="absolute top-3 left-3 bg-[#111]/80 backdrop-blur-md border border-gold-400/40 text-gold-400 text-[9px] font-black uppercase px-2.5 py-1 rounded-full font-athletic">
-                      {item.tag}
-                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                   </div>
                   
+                  {/* Card Content */}
                   <div className="p-6">
-                    <h3 className="text-base font-black uppercase tracking-tight text-neutral-900 mb-2 font-athletic">
+                    <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight text-neutral-900 mb-2 font-athletic group-hover:text-gold-700 transition-colors">
                       {item.title}
                     </h3>
-                    <p className="text-xs text-neutral-600 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal">
                       {item.desc}
                     </p>
                   </div>
                 </div>
 
+                {/* Card Action Link */}
                 <div className="p-6 pt-0">
-                  <div className="pt-4 border-t border-[#e7e2d5] flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase text-gold-700 font-athletic">Full Access Included</span>
-                    <Link to="/training" className="text-neutral-400 hover:text-neutral-900 transition-colors">
-                      <ArrowRight size={16} />
+                  <div className="pt-4 border-t border-[#e7e2d5]">
+                    <Link 
+                      to="/training" 
+                      className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-neutral-900 group-hover:text-gold-700 transition-colors font-athletic"
+                    >
+                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform text-gold-600" />
+                      <span>EXPLORE TRAINING</span>
                     </Link>
                   </div>
                 </div>
