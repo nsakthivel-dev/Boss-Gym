@@ -211,13 +211,6 @@ const Home = () => {
                   style={{ objectPosition: 'center 16%' }}
                 />
               </div>
-              <div className="absolute -bottom-8 -right-4 w-2/3 aspect-[4/3] rounded-3xl overflow-hidden border-4 border-white shadow-2xl hidden sm:block z-20">
-                <img 
-                  src="/photos/gallery/1000076827.jpg" 
-                  alt="Boss Gym Muthaliyarpet" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
               {/* Gold frame accent */}
               <div className="absolute -top-4 -left-4 w-32 h-32 border-2 border-gold-400 rounded-3xl -z-10 hidden sm:block" />
             </div>
