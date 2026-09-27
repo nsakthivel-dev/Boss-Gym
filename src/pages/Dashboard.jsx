@@ -164,7 +164,7 @@ const Dashboard = () => {
     }
   };
 
-  // Live subscription for currently inside floor sessions
+  // Live subscription for currently inside floor sessions and today's stats
   useEffect(() => {
     const today = todayStr();
     const q = query(collection(db, 'sessions'), where('sessionDate', '==', today));
@@ -173,8 +173,14 @@ const Dashboard = () => {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a,b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
       
+      const uniqueMembersToday = new Set(allToday.map(s => s.memberId));
       setTodaySessions(allToday);
       setLiveInside(allToday.filter(s => s.status === 'open'));
+      setStats(prev => ({
+        ...prev,
+        presentToday: uniqueMembersToday.size,
+        totalToday: allToday.length,
+      }));
     }, (err) => {
       console.warn("Live sessions snapshot warning:", err);
     });

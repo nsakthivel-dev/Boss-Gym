@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Download, MapPin, QrCode, X, Sparkles } from 'lucide-react';
+import { Download, QrCode, X, Sparkles, ShieldCheck } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { getActiveGymQR } from '../utils/attendanceService';
 
 const WallQRModal = ({ onClose }) => {
   const { settings: gymSettings } = useSettings();
-  const checkinURL = `https://newbossgym.in.net/checkin`;
-  const latitude = gymSettings?.latitude || 0;
-  const longitude = gymSettings?.longitude || 0;
-  const geoURI = `geo:${latitude},${longitude}`;
+  const gymName = gymSettings?.gymName || "NEW BOSS GYM";
+  const radius = gymSettings?.radius || 50;
 
-  const [qrType, setQrType] = useState('url'); // Default to URL for wall QR
-  const qrValue = qrType === 'geo' ? geoURI : checkinURL;
+  const [activeToken, setActiveToken] = useState('');
+
+  useEffect(() => {
+    getActiveGymQR().then(cfg => {
+      if (cfg?.token) setActiveToken(cfg.token);
+    });
+  }, []);
+
+  const checkinBaseUrl = window.location.origin + '/checkin';
+  const qrValue = activeToken 
+    ? `${checkinBaseUrl}?token=${activeToken}` 
+    : `${checkinBaseUrl}`;
 
   const downloadQR = () => {
     const canvas = document.getElementById("wall-qr-canvas");
@@ -20,7 +29,7 @@ const WallQRModal = ({ onClose }) => {
     requestAnimationFrame(() => {
       const qrSize = canvas.width;
       const padding = 40;
-      const textAreaHeight = 110;
+      const textAreaHeight = 130;
       
       const exportCanvas = document.createElement("canvas");
       exportCanvas.width = qrSize + padding * 2;
@@ -45,7 +54,7 @@ const WallQRModal = ({ onClose }) => {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
-        (gymSettings?.gymName || "NEW BOSS GYM").toUpperCase(),
+        gymName.toUpperCase(),
         exportCanvas.width / 2,
         qrSize + padding + 32
       );
@@ -54,22 +63,30 @@ const WallQRModal = ({ onClose }) => {
       ctx.fillStyle = "#9f7d16";
       ctx.font = "bold 14px Montserrat, Arial, sans-serif";
       ctx.fillText(
-        qrType === 'geo' ? 'GPS FACILITY VERIFICATION CODE' : 'ATHLETE CHECK-IN KIOSK',
+        'OFFICIAL ENTRANCE ATTENDANCE QR',
         exportCanvas.width / 2,
         qrSize + padding + 62
       );
 
-      ctx.fillStyle = "#666666";
-      ctx.font = "11px Arial, sans-serif";
+      ctx.fillStyle = "#111111";
+      ctx.font = "bold 11px Arial, sans-serif";
       ctx.fillText(
         'SCAN UPON ENTERING & EXITING THE GYM',
         exportCanvas.width / 2,
         qrSize + padding + 85
       );
 
+      ctx.fillStyle = "#666666";
+      ctx.font = "10px Arial, sans-serif";
+      ctx.fillText(
+        `GPS Geofenced Area: ${radius}m Allowed Perimeter`,
+        exportCanvas.width / 2,
+        qrSize + padding + 105
+      );
+
       // Trigger download
       const link = document.createElement("a");
-      link.download = `${(gymSettings?.gymName || 'gym').toLowerCase()}_${qrType}_wall_qr.png`;
+      link.download = `${gymName.toLowerCase().replace(/\s+/g, '_')}_wall_qr.png`;
       link.href = exportCanvas.toDataURL("image/png");
       link.click();
     });
@@ -86,7 +103,7 @@ const WallQRModal = ({ onClose }) => {
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 p-2 rounded-xl hover:bg-neutral-100 transition-colors"
+          className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 p-2 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer"
         >
           <X size={20} />
         </button>
@@ -97,37 +114,11 @@ const WallQRModal = ({ onClose }) => {
 
         <h2 className="text-xl font-black text-neutral-900 uppercase tracking-tight font-athletic">Wall QR Poster</h2>
         <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto">
-          High-resolution QR code designed for front-desk printing and quick athlete attendance.
+          High-resolution QR code configured for gym entrance and turnstile scanning.
         </p>
-        
-        {/* QR Type Selector */}
-        <div className="flex gap-2 my-5 bg-[#faf9f6] p-1.5 rounded-2xl border border-[#e7e2d5]">
-          <button
-            onClick={() => setQrType('url')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all font-athletic ${
-              qrType === 'url'
-                ? 'bg-neutral-900 text-gold-400 shadow-sm'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            <QrCode size={15} />
-            <span>Check-in URL</span>
-          </button>
-          <button
-            onClick={() => setQrType('geo')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all font-athletic ${
-              qrType === 'geo'
-                ? 'bg-neutral-900 text-gold-400 shadow-sm'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            <MapPin size={15} />
-            <span>Geo URI</span>
-          </button>
-        </div>
 
         {/* QR Canvas Container */}
-        <div className="bg-white p-5 rounded-3xl border-2 border-dashed border-gold-300 mx-auto w-fit shadow-xs mb-5">
+        <div className="bg-white p-5 rounded-3xl border-2 border-dashed border-gold-300 mx-auto w-fit shadow-xs my-5">
           <QRCodeCanvas
             id="wall-qr-canvas"
             value={qrValue}
@@ -139,12 +130,19 @@ const WallQRModal = ({ onClose }) => {
           />
         </div>
 
+        <div className="mb-4">
+          <p className="text-neutral-900 font-black text-base uppercase font-athletic">{gymName}</p>
+          <p className="text-neutral-500 text-[11px] font-mono break-all mt-1">
+            {activeToken ? `Token: ${activeToken.slice(0, 16)}...` : 'Connecting to secure QR...'}
+          </p>
+        </div>
+
         <button
           onClick={downloadQR}
-          className="w-full min-h-[44px] py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all flex items-center justify-center gap-2 font-athletic active:scale-95"
+          className="w-full min-h-[44px] py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all flex items-center justify-center gap-2 font-athletic active:scale-95 cursor-pointer"
         >
           <Download size={16} />
-          <span>Download Printable PNG</span>
+          <span>Download Printable Poster PNG</span>
         </button>
       </div>
     </div>

@@ -17,6 +17,9 @@ import { sendExpiryAlert, sendWelcomeMessage } from '../utils/whatsapp';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { getMemberPhotoMap } from '../utils/supabaseStorage';
+import MemberFormModal from '../components/MemberFormModal';
+import { fetchMemberTodayWorkout } from '../utils/attendanceService';
+import { onSnapshot } from 'firebase/firestore';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -47,6 +50,7 @@ const Modal = ({ title, children, onClose, maxWidth = 'max-w-lg' }) => (
 
 const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onProfilePictureUpdate }) => {
   const [sessions, setSessions] = useState([]);
+  const [todaysWorkout, setTodaysWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -55,11 +59,17 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
     const loadProfile = async () => {
       try {
         const sessionQ = query(collection(db, 'sessions'), where('memberId', '==', member.id));
-        const snap = await getDocs(sessionQ);
+        const [snap, workoutData] = await Promise.all([
+          getDocs(sessionQ),
+          fetchMemberTodayWorkout(member)
+        ]);
+
         const allSessions = snap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
-        setSessions(allSessions.slice(0, 10));
+
+        setSessions(allSessions.slice(0, 15));
+        setTodaysWorkout(workoutData);
       } finally {
         setLoading(false);
       }
@@ -287,14 +297,109 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
           </button>
         </div>
 
-        {/* Recent Attendance History */}
+        {/* Today's Live Attendance Status */}
+        <div className="border-t border-[#e7e2d5] pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+              <Clock size={14} className="text-gold-600" />
+              <span>Today's Attendance Status</span>
+            </h4>
+            <span className="text-[10px] font-mono text-neutral-400">
+              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </span>
+          </div>
+
+          {todaySession ? (
+            <div className={`p-3.5 rounded-2xl border ${
+              todaySession.status === 'open' 
+                ? 'bg-emerald-50/70 border-emerald-300' 
+                : 'bg-blue-50/70 border-blue-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${
+                    todaySession.status === 'open' ? 'bg-emerald-500 animate-ping' : 'bg-blue-500'
+                  }`} />
+                  <span className={`text-xs font-black uppercase font-athletic ${
+                    todaySession.status === 'open' ? 'text-emerald-800' : 'text-blue-800'
+                  }`}>
+                    {todaySession.status === 'open' ? 'Checked In · Active On Floor' : 'Checked Out · Session Finished'}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-neutral-600 font-mono">
+                  {todaySession.status === 'open' ? `Entry: ${entryFormatted}` : `${entryFormatted} — ${exitFormatted}`}
+                </span>
+              </div>
+              {todaySession.durationMinutes && (
+                <p className="text-[11px] text-neutral-500 mt-1 font-medium">
+                  Total Floor Duration: <strong className="text-neutral-900 font-black">{todaySession.durationMinutes} minutes</strong>
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl flex items-center justify-between text-xs">
+              <span className="text-neutral-500 font-medium">Not checked in today yet</span>
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600 font-athletic">
+                Awaiting Check-in
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Today's Assigned Workout Routine */}
+        <div className="border-t border-[#e7e2d5] pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+              <Flame size={14} className="text-gold-600" />
+              <span>Today's Assigned Workout</span>
+            </h4>
+            <span className="text-[10px] font-bold text-gold-700 uppercase font-athletic">Daily Split</span>
+          </div>
+
+          {todaysWorkout ? (
+            <div className="bg-[#171717] border border-[#2a2a2a] rounded-2xl p-4 text-white space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase text-white font-athletic leading-tight">
+                    {todaysWorkout.title}
+                  </p>
+                  <p className="text-[11px] text-gold-400 font-medium mt-0.5">
+                    {todaysWorkout.muscles || 'Target Routine'}
+                  </p>
+                </div>
+                {todaysWorkout.isRest && (
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase font-athletic">
+                    Rest Day
+                  </span>
+                )}
+              </div>
+
+              {todaysWorkout.exercises && todaysWorkout.exercises.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-[#2a2a2a]">
+                  {todaysWorkout.exercises.map((ex, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs py-1 px-2 rounded-lg bg-[#202020]">
+                      <span className="font-bold text-neutral-200">{ex.name}</span>
+                      <span className="font-mono text-gold-400 font-bold text-[11px]">{ex.sets} × {ex.reps}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl text-xs text-neutral-400 text-center">
+              No workout has been assigned for today.
+            </div>
+          )}
+        </div>
+
+        {/* Detailed Attendance History */}
         <div className="border-t border-[#e7e2d5] pt-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
               <CalendarCheck size={14} className="text-gold-600" />
-              <span>Recent Workout History</span>
+              <span>Attendance History</span>
             </h4>
-            <span className="text-[10px] font-bold text-neutral-500 uppercase">Last 10 Logged</span>
+            <span className="text-[10px] font-bold text-neutral-500 uppercase">Recent Sessions</span>
           </div>
 
           {loading ? (
@@ -302,17 +407,40 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
               <RefreshCw className="w-5 h-5 animate-spin" />
             </div>
           ) : sessions.length === 0 ? (
-            <p className="text-neutral-400 text-xs text-center py-4">No workout sessions logged yet for this athlete.</p>
+            <p className="text-neutral-400 text-xs text-center py-4">No attendance sessions logged yet for this athlete.</p>
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {sessions.map(s => (
-                <div key={s.id} className="flex justify-between items-center py-2.5 px-3.5 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-xs">
-                  <span className="font-mono text-neutral-600 font-medium">{s.sessionDate}</span>
-                  <span className="font-bold text-neutral-900">
-                    {s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || '—'}
-                  </span>
-                </div>
-              ))}
+              {sessions.map(s => {
+                const entry = s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || '—';
+                const exit = s.exitTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || (s.status === 'open' ? 'Active' : '—');
+
+                return (
+                  <div key={s.id} className="flex justify-between items-center py-2.5 px-3.5 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-xs">
+                    <div>
+                      <span className="font-mono font-bold text-neutral-900 block">{s.sessionDate}</span>
+                      <span className="text-[10px] text-neutral-500 font-mono">
+                        {entry} {s.exitTime ? `— ${exit}` : ''}
+                      </span>
+                    </div>
+                    <div className="text-right flex items-center gap-2">
+                      {s.durationMinutes != null && (
+                        <span className="font-bold text-neutral-700 bg-white border border-[#e7e2d5] px-2 py-0.5 rounded-lg text-[10px]">
+                          {s.durationMinutes}m
+                        </span>
+                      )}
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        s.status === 'open' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : s.status === 'no-exit' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {s.status === 'open' ? 'Active' : 'Completed'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -355,210 +483,6 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
   );
 };
 
-const MemberFormModal = ({ editingMember, onClose, onSaved }) => {
-  const { settings: gymSettings } = useSettings();
-  const [form, setForm] = useState({
-    name: editingMember?.name || '',
-    phone: editingMember?.phone || '',
-    email: editingMember?.email || '',
-    price: editingMember?.price || 800,
-    durationDays: editingMember?.durationDays || 30,
-    startDate: editingMember?.startDate 
-      ? new Date(editingMember.startDate.toDate?.() || editingMember.startDate).toISOString().split('T')[0]
-      : todayStr(),
-    workoutStartPreference: 'today'
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.phone || !form.price || !form.durationDays || !form.startDate) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const start = new Date(form.startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start.getTime() + Number(form.durationDays) * 86400000);
-
-      const memberData = {
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim(),
-        price: Number(form.price),
-        durationDays: Number(form.durationDays),
-        startDate: Timestamp.fromDate(start),
-        endDate: Timestamp.fromDate(end),
-        status: 'active',
-        updatedAt: Timestamp.fromDate(new Date()),
-      };
-
-      if (editingMember) {
-        await updateDoc(doc(db, 'members', editingMember.id), memberData);
-      } else {
-        memberData.createdAt = Timestamp.fromDate(new Date());
-        memberData.profilePictureUrl = '';
-        const docRef = await addDoc(collection(db, 'members'), memberData);
-
-        // Optional welcome WhatsApp
-        try {
-          sendWelcomeMessage({ ...memberData, id: docRef.id }, gymSettings?.gymName);
-        } catch (we) {
-          console.warn("Welcome message failed:", we);
-        }
-      }
-
-      onSaved();
-      onClose();
-    } catch (err) {
-      console.error(err);
-      setError('Failed to save athlete record.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const inputClass = "w-full bg-[#faf9f6] border border-[#e7e2d5] rounded-xl px-4 py-3 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-gold-500 focus:bg-white transition-all";
-  const labelClass = "text-[10px] font-black uppercase tracking-wider text-neutral-600 block mb-1 font-athletic";
-
-  return (
-    <Modal title={editingMember ? "Edit Athlete Details" : "Enrol New Athlete"} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl p-3">
-            {error}
-          </div>
-        )}
-
-        <div>
-          <label className={labelClass}>Athlete Full Name *</label>
-          <input 
-            required 
-            value={form.name} 
-            onChange={e => setForm({ ...form, name: e.target.value })} 
-            className={inputClass} 
-            placeholder="e.g. SAKTHIVEL N" 
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Phone Number *</label>
-            <input 
-              required 
-              type="tel"
-              value={form.phone} 
-              onChange={e => setForm({ ...form, phone: e.target.value })} 
-              className={inputClass} 
-              placeholder="e.g. 9876543210" 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Email Address</label>
-            <input 
-              type="email"
-              value={form.email} 
-              onChange={e => setForm({ ...form, email: e.target.value })} 
-              className={inputClass} 
-              placeholder="athlete@example.com" 
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Membership Fee (₹) *</label>
-            <input 
-              type="number" 
-              required 
-              value={form.price} 
-              onChange={e => setForm({ ...form, price: e.target.value })} 
-              className={inputClass} 
-              placeholder="800" 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Duration (Days) *</label>
-            <input 
-              type="number" 
-              required 
-              value={form.durationDays} 
-              onChange={e => setForm({ ...form, durationDays: e.target.value })} 
-              className={inputClass} 
-              placeholder="30" 
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label className={labelClass}>Subscription Start Date *</label>
-          <input 
-            type="date" 
-            required 
-            value={form.startDate} 
-            onChange={e => setForm({ ...form, startDate: e.target.value })} 
-            className={inputClass} 
-          />
-        </div>
-
-        {!editingMember && (
-          <div className="bg-gold-50/50 border border-gold-200/80 p-3.5 rounded-2xl space-y-2">
-            <label className="text-gold-800 text-[10px] font-black tracking-wider uppercase block font-athletic">
-              Workout Cycle Commencement
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, workoutStartPreference: 'today' })}
-                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
-                  form.workoutStartPreference === 'today' 
-                    ? 'bg-gold-500 text-neutral-950 font-black shadow-sm' 
-                    : 'bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, workoutStartPreference: 'tomorrow' })}
-                className={`py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
-                  form.workoutStartPreference === 'tomorrow' 
-                    ? 'bg-gold-500 text-neutral-950 font-black shadow-sm' 
-                    : 'bg-white border border-[#e7e2d5] text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Tomorrow
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-3 pt-3">
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="flex-1 py-3 text-xs font-bold uppercase tracking-wider rounded-xl border border-[#e7e2d5] text-neutral-600 hover:bg-[#faf9f6] transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            disabled={loading} 
-            className="flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 shadow-gold-sm transition-all disabled:opacity-50 active:scale-95 font-athletic"
-          >
-            {loading ? 'Saving...' : (editingMember ? 'Save Changes' : 'Confirm Enrolment')}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-};
-
 const Members = () => {
   const { settings: gymSettings } = useSettings();
   const [members, setMembers] = useState([]);
@@ -569,6 +493,7 @@ const Members = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [viewMember, setViewMember] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
+  const [todaySessions, setTodaySessions] = useState({});
 
   const loadData = async () => {
     try {
@@ -628,7 +553,23 @@ const Members = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData();
+
+    // Subscribe to today's attendance sessions in real time
+    const today = todayStr();
+    const q = query(collection(db, 'sessions'), where('sessionDate', '==', today));
+    const unsub = onSnapshot(q, (snap) => {
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        map[data.memberId] = data;
+      });
+      setTodaySessions(map);
+    }, (err) => console.warn("Live sessions snapshot warning in Members:", err));
+
+    return () => unsub();
+  }, []);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -865,9 +806,22 @@ const Members = () => {
                             </div>
                           )}
                           <div>
-                            <span className="font-bold text-neutral-900 group-hover:text-gold-700 transition-colors block font-athletic">
-                              {m.name}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-neutral-900 group-hover:text-gold-700 transition-colors block font-athletic">
+                                {m.name}
+                              </span>
+                              {todaySessions[m.id]?.status === 'open' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase font-athletic">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                  Inside
+                                </span>
+                              )}
+                              {todaySessions[m.id]?.status === 'closed' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[9px] font-black uppercase font-athletic">
+                                  Trained
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-neutral-400 font-mono">ID: {m.id.slice(0, 8)}</span>
                           </div>
                         </div>
@@ -982,7 +936,20 @@ const Members = () => {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="font-black text-sm text-neutral-900 truncate font-athletic">{m.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-black text-sm text-neutral-900 truncate font-athletic">{m.name}</p>
+                          {todaySessions[m.id]?.status === 'open' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-black uppercase font-athletic">
+                              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
+                              Inside
+                            </span>
+                          )}
+                          {todaySessions[m.id]?.status === 'closed' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[8px] font-black uppercase font-athletic">
+                              Trained
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-neutral-500 font-mono">{m.phone}</p>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import {
-  collection, query, where, getDocs, doc, updateDoc
+  collection, query, where, getDocs, doc, updateDoc, onSnapshot
 } from 'firebase/firestore';
 import { CalendarCheck, Edit2, X, RefreshCw, Clock, UserCheck, Calendar, Activity, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -144,14 +144,14 @@ const Attendance = () => {
   const [loading, setLoading] = useState(true);
   const [editingSession, setEditingSession] = useState(null);
 
-  const fetchSessions = async () => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      const q = query(
-        collection(db, 'sessions'),
-        where('sessionDate', '==', selectedDate)
-      );
-      const snap = await getDocs(q);
+    const q = query(
+      collection(db, 'sessions'),
+      where('sessionDate', '==', selectedDate)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       docs.sort((a, b) => {
         const at = a.entryTime?.toDate?.() ?? new Date(a.entryTime);
@@ -159,15 +159,13 @@ const Attendance = () => {
         return bt - at;
       });
       setSessions(docs);
-    } catch (err) {
-      console.error(err);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (err) => {
+      console.error("Attendance snapshot error:", err);
+      setLoading(false);
+    });
 
-  useEffect(() => {
-    fetchSessions();
+    return () => unsub();
   }, [selectedDate]);
 
   const insideCount = sessions.filter(s => s.status === 'open').length;
@@ -344,7 +342,7 @@ const Attendance = () => {
           session={editingSession}
           currentUser={currentUser}
           onClose={() => setEditingSession(null)}
-          onSaved={fetchSessions}
+          onSaved={() => setEditingSession(null)}
         />
       )}
     </div>

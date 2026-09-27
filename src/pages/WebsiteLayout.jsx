@@ -109,10 +109,11 @@ const WebsiteLayout = () => {
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NavLink
               to="/checkin"
-              className="hidden sm:inline-flex items-center gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-3.5 sm:px-4 h-9 sm:h-10 rounded-lg sm:rounded-xl font-black uppercase text-[11px] tracking-wider transition-all font-athletic active:scale-95"
+              className="inline-flex items-center gap-1.5 sm:gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-2.5 sm:px-4 h-9 sm:h-10 rounded-lg sm:rounded-xl font-black uppercase text-[10px] sm:text-[11px] tracking-wider transition-all font-athletic active:scale-95"
+              title="Athlete Check-In Kiosk"
             >
-              <UserCheck size={15} className="text-emerald-400" />
-              <span>Athlete Check-In</span>
+              <UserCheck size={14} className="text-emerald-400 shrink-0" />
+              <span>Check In</span>
             </NavLink>
 
             {currentUser ? (
