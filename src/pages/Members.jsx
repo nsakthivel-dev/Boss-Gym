@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { supabase } from '../supabase/config';
 import {
-  collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where,
-  Timestamp
+  collection, getDocs, getDoc, addDoc, doc, updateDoc, deleteDoc, query, where,
+  Timestamp, onSnapshot
 } from 'firebase/firestore';
 import { useSettings } from '../context/SettingsContext';
 import {
@@ -19,7 +20,6 @@ import EmptyState from '../components/ui/EmptyState';
 import { getMemberPhotoMap } from '../utils/supabaseStorage';
 import MemberFormModal from '../components/MemberFormModal';
 import { fetchMemberTodayWorkout } from '../utils/attendanceService';
-import { onSnapshot } from 'firebase/firestore';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -36,7 +36,7 @@ const Modal = ({ title, children, onClose, maxWidth = 'max-w-lg' }) => (
         <h3 className="text-neutral-900 font-black text-lg uppercase tracking-tight font-athletic">{title}</h3>
         <button 
           onClick={onClose} 
-          className="p-2 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition-colors"
+          className="p-2 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -56,26 +56,77 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
   const [showLightbox, setShowLightbox] = useState(false);
 
   useEffect(() => {
+    if (!member?.id) {
+      setLoading(false);
+      return;
+    }
+
     const loadProfile = async () => {
       try {
-        const sessionQ = query(collection(db, 'sessions'), where('memberId', '==', member.id));
-        const [snap, workoutData] = await Promise.all([
-          getDocs(sessionQ),
-          fetchMemberTodayWorkout(member)
-        ]);
+        let allSessions = [];
+        
+        // 1. Fetch from Firestore
+        try {
+          const sessionQ = query(collection(db, 'sessions'), where('memberId', '==', member.id));
+          const [snap, workoutData] = await Promise.all([
+            getDocs(sessionQ),
+            fetchMemberTodayWorkout(member)
+          ]);
+          allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setTodaysWorkout(workoutData);
+        } catch (fsErr) {
+          console.warn("Firestore sessions query warning:", fsErr);
+        }
 
-        const allSessions = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (b.entryTime?.toDate?.() || 0) - (a.entryTime?.toDate?.() || 0));
+        // 2. Fetch from Supabase attendance_sessions
+        try {
+          if (supabase) {
+            const { data: sbSessions } = await supabase
+              .from('attendance_sessions')
+              .select('*')
+              .eq('member_id', member.id)
+              .order('created_at', { ascending: false })
+              .limit(20);
+
+            if (Array.isArray(sbSessions)) {
+              const existingIds = new Set(allSessions.map(s => s.id));
+              sbSessions.forEach(sb => {
+                if (!existingIds.has(sb.id)) {
+                  allSessions.push({
+                    id: sb.id,
+                    memberId: sb.member_id,
+                    memberName: sb.member_name,
+                    sessionDate: sb.session_date,
+                    entryTime: sb.entry_time,
+                    exitTime: sb.exit_time,
+                    durationMinutes: sb.duration_minutes,
+                    status: sb.status
+                  });
+                }
+              });
+            }
+          }
+        } catch (sbErr) {
+          console.warn("Supabase sessions query warning:", sbErr);
+        }
+
+        // Sort descending by entry time safely
+        allSessions.sort((a, b) => {
+          const timeA = a.entryTime?.toDate?.()?.getTime?.() || new Date(a.entryTime || a.created_at || 0).getTime() || 0;
+          const timeB = b.entryTime?.toDate?.()?.getTime?.() || new Date(b.entryTime || b.created_at || 0).getTime() || 0;
+          return timeB - timeA;
+        });
 
         setSessions(allSessions.slice(0, 15));
-        setTodaysWorkout(workoutData);
+      } catch (err) {
+        console.error("Error loading athlete profile:", err);
       } finally {
         setLoading(false);
       }
     };
+
     loadProfile();
-  }, [member.id]);
+  }, [member?.id]);
 
   const handleProfilePictureUpload = async (event) => {
     const file = event.target.files[0];
@@ -137,12 +188,47 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
     }
   };
 
+  const formatSessionTime = (ts) => {
+    if (!ts) return null;
+    try {
+      const d = ts.toDate?.() ?? (ts instanceof Date ? ts : new Date(ts));
+      if (isNaN(d.getTime())) return null;
+      return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch (e) {
+      return null;
+    }
+  };
+
+  if (!member) {
+    return (
+      <Modal title="Athlete Passport" onClose={onClose} maxWidth="max-w-md">
+        <div className="text-center py-8 space-y-3">
+          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+          <h3 className="text-base font-black uppercase text-neutral-900 font-athletic">Member Not Found</h3>
+          <p className="text-xs text-neutral-500">The requested athlete record does not exist or has been removed.</p>
+          <button 
+            onClick={onClose}
+            className="px-5 py-2.5 bg-neutral-900 text-white rounded-xl font-bold text-xs uppercase font-athletic"
+          >
+            Close
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   const initials = member.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const endDate = member.endDate?.toDate?.() ?? (member.endDate ? new Date(member.endDate) : null);
   const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-  const progressPercent = Math.max(0, Math.min(100, Math.round(((Number(member.durationDays) - daysLeft) / Number(member.durationDays)) * 100)));
+  const progressPercent = Math.max(0, Math.min(100, Math.round(((Number(member.durationDays || 30) - daysLeft) / Number(member.durationDays || 30)) * 100)));
+
+  // Resolve today's attendance session safely
+  const todayStrDate = todayStr();
+  const todaySession = sessions.find(s => s.sessionDate === todayStrDate || s.session_date === todayStrDate) || null;
+  const entryFormatted = formatSessionTime(todaySession?.entryTime || todaySession?.entry_time) || '—';
+  const exitFormatted = formatSessionTime(todaySession?.exitTime || todaySession?.exit_time) || (todaySession?.status === 'open' ? 'Active' : '—');
 
   return (
     <>
@@ -158,7 +244,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
             >
               <div className="absolute inset-0 bg-gradient-to-t from-[#151515] via-[#151515]/60 to-black/40" />
               <div className="absolute top-3 left-4 text-[10px] text-neutral-400 font-mono tracking-wider">
-                ID: {member.id.slice(0, 8)}
+                ID: {String(member.id || '').slice(0, 8)}
               </div>
               <div className="absolute top-3 right-3 flex items-center gap-2">
                 <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${
@@ -172,7 +258,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
               </div>
             </div>
 
-            {/* Profile Content Section: Desktop side-by-side, Mobile stacked */}
+            {/* Profile Content Section */}
             <div className="px-5 sm:px-6 pb-6 -mt-12 sm:-mt-14 relative z-10">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                 
@@ -201,7 +287,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
                       )}
                     </div>
 
-                    {/* Camera / Edit button placed safely outside the face area */}
+                    {/* Camera / Edit button safely positioned */}
                     <label 
                       className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 p-2 sm:p-2.5 rounded-xl cursor-pointer transition-all hover:scale-110 shadow-lg border border-gold-300 z-20"
                       title="Upload or Change Photo"
@@ -235,7 +321,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
                       {member.name}
                     </h3>
                     <p className="text-xs sm:text-sm text-gold-400 font-bold">
-                      {member.price ? `₹${member.price} / ${member.durationDays} Days Plan` : (member.planName || 'Standard Plan')}
+                      {member.price ? `₹${member.price} / ${member.durationDays || 30} Days Plan` : (member.planName || 'Standard Plan')}
                     </p>
                   </div>
 
@@ -272,180 +358,180 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
             </div>
           </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3">
-          <button 
-            onClick={() => { onWhatsApp(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors active:scale-95"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">WhatsApp</span>
-          </button>
-          <button 
-            onClick={() => { onEdit(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-gold-50 border border-gold-200 text-gold-800 hover:bg-gold-100 transition-colors active:scale-95"
-          >
-            <Edit className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Edit Details</span>
-          </button>
-          <button 
-            onClick={() => { onDelete(member); onClose(); }}
-            className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors active:scale-95"
-          >
-            <Trash2 className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Remove</span>
-          </button>
-        </div>
-
-        {/* Today's Live Attendance Status */}
-        <div className="border-t border-[#e7e2d5] pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
-              <Clock size={14} className="text-gold-600" />
-              <span>Today's Attendance Status</span>
-            </h4>
-            <span className="text-[10px] font-mono text-neutral-400">
-              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-            </span>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-3 gap-3">
+            <button 
+              onClick={() => { onWhatsApp(member); onClose(); }}
+              className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors active:scale-95 cursor-pointer"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span className="text-[10px] font-black uppercase tracking-wider font-athletic">WhatsApp</span>
+            </button>
+            <button 
+              onClick={() => { onEdit(member); onClose(); }}
+              className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-gold-50 border border-gold-200 text-gold-800 hover:bg-gold-100 transition-colors active:scale-95 cursor-pointer"
+            >
+              <Edit className="w-5 h-5" />
+              <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Edit Details</span>
+            </button>
+            <button 
+              onClick={() => { onDelete(member); onClose(); }}
+              className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors active:scale-95 cursor-pointer"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span className="text-[10px] font-black uppercase tracking-wider font-athletic">Remove</span>
+            </button>
           </div>
 
-          {todaySession ? (
-            <div className={`p-3.5 rounded-2xl border ${
-              todaySession.status === 'open' 
-                ? 'bg-emerald-50/70 border-emerald-300' 
-                : 'bg-blue-50/70 border-blue-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${
-                    todaySession.status === 'open' ? 'bg-emerald-500 animate-ping' : 'bg-blue-500'
-                  }`} />
-                  <span className={`text-xs font-black uppercase font-athletic ${
-                    todaySession.status === 'open' ? 'text-emerald-800' : 'text-blue-800'
-                  }`}>
-                    {todaySession.status === 'open' ? 'Checked In · Active On Floor' : 'Checked Out · Session Finished'}
-                  </span>
-                </div>
-                <span className="text-[11px] font-bold text-neutral-600 font-mono">
-                  {todaySession.status === 'open' ? `Entry: ${entryFormatted}` : `${entryFormatted} — ${exitFormatted}`}
-                </span>
-              </div>
-              {todaySession.durationMinutes && (
-                <p className="text-[11px] text-neutral-500 mt-1 font-medium">
-                  Total Floor Duration: <strong className="text-neutral-900 font-black">{todaySession.durationMinutes} minutes</strong>
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl flex items-center justify-between text-xs">
-              <span className="text-neutral-500 font-medium">Not checked in today yet</span>
-              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600 font-athletic">
-                Awaiting Check-in
+          {/* Today's Live Attendance Status */}
+          <div className="border-t border-[#e7e2d5] pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+                <Clock size={14} className="text-gold-600" />
+                <span>Today's Attendance Status</span>
+              </h4>
+              <span className="text-[10px] font-mono text-neutral-400">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             </div>
-          )}
-        </div>
 
-        {/* Today's Assigned Workout Routine */}
-        <div className="border-t border-[#e7e2d5] pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
-              <Flame size={14} className="text-gold-600" />
-              <span>Today's Assigned Workout</span>
-            </h4>
-            <span className="text-[10px] font-bold text-gold-700 uppercase font-athletic">Daily Split</span>
-          </div>
-
-          {todaysWorkout ? (
-            <div className="bg-[#171717] border border-[#2a2a2a] rounded-2xl p-4 text-white space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase text-white font-athletic leading-tight">
-                    {todaysWorkout.title}
-                  </p>
-                  <p className="text-[11px] text-gold-400 font-medium mt-0.5">
-                    {todaysWorkout.muscles || 'Target Routine'}
-                  </p>
-                </div>
-                {todaysWorkout.isRest && (
-                  <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase font-athletic">
-                    Rest Day
+            {todaySession ? (
+              <div className={`p-3.5 rounded-2xl border ${
+                todaySession.status === 'open' 
+                  ? 'bg-emerald-50/70 border-emerald-300' 
+                  : 'bg-blue-50/70 border-blue-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${
+                      todaySession.status === 'open' ? 'bg-emerald-500 animate-ping' : 'bg-blue-500'
+                    }`} />
+                    <span className={`text-xs font-black uppercase font-athletic ${
+                      todaySession.status === 'open' ? 'text-emerald-800' : 'text-blue-800'
+                    }`}>
+                      {todaySession.status === 'open' ? 'Checked In · Active On Floor' : 'Checked Out · Session Finished'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold text-neutral-600 font-mono">
+                    {todaySession.status === 'open' ? `Entry: ${entryFormatted}` : `${entryFormatted} — ${exitFormatted}`}
                   </span>
+                </div>
+                {todaySession.durationMinutes && (
+                  <p className="text-[11px] text-neutral-500 mt-1 font-medium">
+                    Total Floor Duration: <strong className="text-neutral-900 font-black">{todaySession.durationMinutes} minutes</strong>
+                  </p>
                 )}
               </div>
-
-              {todaysWorkout.exercises && todaysWorkout.exercises.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-[#2a2a2a]">
-                  {todaysWorkout.exercises.map((ex, i) => (
-                    <div key={i} className="flex justify-between items-center text-xs py-1 px-2 rounded-lg bg-[#202020]">
-                      <span className="font-bold text-neutral-200">{ex.name}</span>
-                      <span className="font-mono text-gold-400 font-bold text-[11px]">{ex.sets} × {ex.reps}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl text-xs text-neutral-400 text-center">
-              No workout has been assigned for today.
-            </div>
-          )}
-        </div>
-
-        {/* Detailed Attendance History */}
-        <div className="border-t border-[#e7e2d5] pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
-              <CalendarCheck size={14} className="text-gold-600" />
-              <span>Attendance History</span>
-            </h4>
-            <span className="text-[10px] font-bold text-neutral-500 uppercase">Recent Sessions</span>
+            ) : (
+              <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">Not checked in today yet</span>
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600 font-athletic">
+                  Awaiting Check-in
+                </span>
+              </div>
+            )}
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-6 text-gold-600">
-              <RefreshCw className="w-5 h-5 animate-spin" />
+          {/* Today's Assigned Workout Routine */}
+          <div className="border-t border-[#e7e2d5] pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+                <Flame size={14} className="text-gold-600" />
+                <span>Today's Assigned Workout</span>
+              </h4>
+              <span className="text-[10px] font-bold text-gold-700 uppercase font-athletic">Daily Split</span>
             </div>
-          ) : sessions.length === 0 ? (
-            <p className="text-neutral-400 text-xs text-center py-4">No attendance sessions logged yet for this athlete.</p>
-          ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {sessions.map(s => {
-                const entry = s.entryTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || '—';
-                const exit = s.exitTime?.toDate?.()?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || (s.status === 'open' ? 'Active' : '—');
 
-                return (
-                  <div key={s.id} className="flex justify-between items-center py-2.5 px-3.5 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-xs">
-                    <div>
-                      <span className="font-mono font-bold text-neutral-900 block">{s.sessionDate}</span>
-                      <span className="text-[10px] text-neutral-500 font-mono">
-                        {entry} {s.exitTime ? `— ${exit}` : ''}
-                      </span>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      {s.durationMinutes != null && (
-                        <span className="font-bold text-neutral-700 bg-white border border-[#e7e2d5] px-2 py-0.5 rounded-lg text-[10px]">
-                          {s.durationMinutes}m
-                        </span>
-                      )}
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        s.status === 'open' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : s.status === 'no-exit' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {s.status === 'open' ? 'Active' : 'Completed'}
-                      </span>
-                    </div>
+            {todaysWorkout ? (
+              <div className="bg-[#171717] border border-[#2a2a2a] rounded-2xl p-4 text-white space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black uppercase text-white font-athletic leading-tight">
+                      {todaysWorkout.title}
+                    </p>
+                    <p className="text-[11px] text-gold-400 font-medium mt-0.5">
+                      {todaysWorkout.muscles || 'Target Routine'}
+                    </p>
                   </div>
-                );
-              })}
+                  {todaysWorkout.isRest && (
+                    <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase font-athletic">
+                      Rest Day
+                    </span>
+                  )}
+                </div>
+
+                {todaysWorkout.exercises && todaysWorkout.exercises.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-[#2a2a2a]">
+                    {todaysWorkout.exercises.map((ex, i) => (
+                      <div key={i} className="flex justify-between items-center text-xs py-1 px-2 rounded-lg bg-[#202020]">
+                        <span className="font-bold text-neutral-200">{ex.name}</span>
+                        <span className="font-mono text-gold-400 font-bold text-[11px]">{ex.sets} × {ex.reps}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl text-xs text-neutral-400 text-center">
+                No workout has been assigned for today.
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Attendance History */}
+          <div className="border-t border-[#e7e2d5] pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-black uppercase tracking-wider text-neutral-900 font-athletic flex items-center gap-2">
+                <CalendarCheck size={14} className="text-gold-600" />
+                <span>Attendance History</span>
+              </h4>
+              <span className="text-[10px] font-bold text-neutral-500 uppercase">Recent Sessions</span>
             </div>
-          )}
+
+            {loading ? (
+              <div className="flex justify-center py-6 text-gold-600">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <p className="text-neutral-400 text-xs text-center py-4">No attendance sessions logged yet for this athlete.</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                {sessions.map(s => {
+                  const entry = formatSessionTime(s.entryTime || s.entry_time) || '—';
+                  const exit = formatSessionTime(s.exitTime || s.exit_time) || (s.status === 'open' ? 'Active' : '—');
+
+                  return (
+                    <div key={s.id} className="flex justify-between items-center py-2.5 px-3.5 rounded-xl bg-[#faf9f6] border border-[#e7e2d5] text-xs">
+                      <div>
+                        <span className="font-mono font-bold text-neutral-900 block">{s.sessionDate || s.session_date}</span>
+                        <span className="text-[10px] text-neutral-500 font-mono">
+                          {entry} {s.exitTime || s.exit_time ? `— ${exit}` : ''}
+                        </span>
+                      </div>
+                      <div className="text-right flex items-center gap-2">
+                        {s.durationMinutes != null && (
+                          <span className="font-bold text-neutral-700 bg-white border border-[#e7e2d5] px-2 py-0.5 rounded-lg text-[10px]">
+                            {s.durationMinutes}m
+                          </span>
+                        )}
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          s.status === 'open' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : s.status === 'no-exit' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {s.status === 'open' ? 'Active' : 'Completed'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
 
       {/* Lightbox Photo Preview Modal */}
       {showLightbox && member.profilePictureUrl && (
@@ -484,6 +570,8 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
 };
 
 const Members = () => {
+  const { memberId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { settings: gymSettings } = useSettings();
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
@@ -492,6 +580,7 @@ const Members = () => {
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [viewMember, setViewMember] = useState(null);
+  const [memberNotFound, setMemberNotFound] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [todaySessions, setTodaySessions] = useState({});
 
@@ -553,6 +642,30 @@ const Members = () => {
     }
   };
 
+  // Synchronize route/URL parameter for direct Passport view
+  useEffect(() => {
+    const targetId = memberId || searchParams.get('view');
+    if (!targetId) return;
+
+    if (members.length > 0) {
+      const match = members.find(m => m.id === targetId);
+      if (match) {
+        setViewMember(match);
+        setMemberNotFound(false);
+      } else if (!loading) {
+        // Fallback: try fetching member directly
+        getDoc(doc(db, 'members', targetId)).then(snap => {
+          if (snap.exists()) {
+            setViewMember({ id: snap.id, ...snap.data() });
+            setMemberNotFound(false);
+          } else {
+            setMemberNotFound(true);
+          }
+        }).catch(() => setMemberNotFound(true));
+      }
+    }
+  }, [memberId, searchParams, members, loading]);
+
   useEffect(() => { 
     loadData();
 
@@ -570,6 +683,26 @@ const Members = () => {
 
     return () => unsub();
   }, []);
+
+  const handleOpenPassport = (m) => {
+    setViewMember(m);
+    setMemberNotFound(false);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('view', m.id);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleClosePassport = () => {
+    setViewMember(null);
+    setMemberNotFound(false);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('view');
+      return next;
+    }, { replace: true });
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -759,93 +892,107 @@ const Members = () => {
       {loading ? (
         <TableSkeleton rows={6} cols={5} />
       ) : filtered.length === 0 ? (
-        <EmptyState 
+        <EmptyState
           icon={Users}
-          title="No athletes found"
-          description={search ? `No athletes matched "${search}".` : "No athletes found in this category."}
-          actionLabel="Enrol New Athlete"
+          title={search ? "No athletes matching your query" : "No athletes enrolled yet"}
+          description={search ? "Try searching with a different name or phone number." : "Start by registering your first gym member into the system."}
+          actionLabel="Enrol Athlete"
           onAction={() => setShowAdd(true)}
         />
       ) : (
-        <div className="bg-white border border-[#e7e2d5] rounded-3xl shadow-xs overflow-hidden">
+        <div className="bg-white border border-[#e7e2d5] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs">
+          
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-[#faf9f6] border-b border-[#e7e2d5] text-[10px] font-black tracking-wider text-neutral-500 uppercase font-athletic">
+                <tr className="border-b border-[#e7e2d5] bg-[#faf9f6] text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">
                   <th className="px-6 py-4">Athlete Passport</th>
                   <th className="px-6 py-4">Contact</th>
                   <th className="px-6 py-4">Plan & Fee</th>
-                  <th className="px-6 py-4">Validity & Cycle</th>
+                  <th className="px-6 py-4">Live Floor Status</th>
+                  <th className="px-6 py-4">Subscription Validity</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f0ece2] text-xs">
+              <tbody className="divide-y divide-[#f0ece2]">
                 {filtered.map((m) => {
                   const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                   const isExpired = m.status === 'expired';
-                  const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+                  const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
+                  const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
                   const progress = Math.max(0, Math.min(100, Math.round(((Number(m.durationDays || 30) - daysLeft) / Number(m.durationDays || 30)) * 100)));
+                  const memberTodaySession = todaySessions[m.id];
 
                   return (
-                    <tr key={m.id} className="hover:bg-gold-50/20 transition-colors">
+                    <tr key={m.id} className="hover:bg-[#faf9f6]/70 transition-colors">
+                      {/* Athlete Identity & Photo */}
                       <td className="px-6 py-4">
                         <div 
-                          className="flex items-center gap-3.5 cursor-pointer group"
-                          onClick={() => setViewMember(m)}
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => handleOpenPassport(m)}
                         >
                           {m.profilePictureUrl ? (
                             <img
                               src={m.profilePictureUrl}
                               alt={m.name}
-                              className="w-11 h-11 rounded-2xl object-cover border-2 border-gold-300 shrink-0 shadow-xs"
+                              className="w-11 h-11 rounded-2xl object-cover border border-gold-300 shadow-xs group-hover:scale-105 transition-transform shrink-0"
                             />
                           ) : (
-                            <div className="w-11 h-11 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 font-black flex items-center justify-center shrink-0 font-athletic">
+                            <div className="w-11 h-11 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 font-black flex items-center justify-center font-athletic shrink-0 group-hover:scale-105 transition-transform">
                               {initials}
                             </div>
                           )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-neutral-900 group-hover:text-gold-700 transition-colors block font-athletic">
-                                {m.name}
-                              </span>
-                              {todaySessions[m.id]?.status === 'open' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase font-athletic">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                                  Inside
-                                </span>
-                              )}
-                              {todaySessions[m.id]?.status === 'closed' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[9px] font-black uppercase font-athletic">
-                                  Trained
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-neutral-400 font-mono">ID: {m.id.slice(0, 8)}</span>
+                          <div className="min-w-0">
+                            <p className="font-black text-sm text-neutral-900 group-hover:text-gold-700 transition-colors truncate font-athletic">
+                              {m.name}
+                            </p>
+                            <span className="text-[10px] text-neutral-400 font-mono tracking-wider">
+                              ID: {String(m.id || '').slice(0, 8)}
+                            </span>
                           </div>
                         </div>
                       </td>
 
+                      {/* Contact */}
                       <td className="px-6 py-4">
-                        <span className="font-mono text-neutral-800 font-bold block">{m.phone}</span>
-                        {m.email && <span className="text-[10px] text-neutral-400 block truncate max-w-[140px]">{m.email}</span>}
+                        <p className="font-mono font-bold text-neutral-900">{m.phone}</p>
+                        <p className="text-[11px] text-neutral-400 truncate max-w-[140px]">{m.email || '—'}</p>
                       </td>
 
+                      {/* Plan */}
                       <td className="px-6 py-4">
-                        <span className="font-black text-neutral-900 block font-athletic">₹{m.price} / {m.durationDays}d</span>
-                        <span className="text-[10px] text-neutral-500 block">
-                          Start: {m.startDate?.toDate?.().toLocaleDateString('en-GB') || '—'}
-                        </span>
+                        <p className="font-black text-neutral-900 font-athletic">₹{m.price}</p>
+                        <p className="text-[10px] text-neutral-500">{m.durationDays || 30} Days Active Split</p>
                       </td>
 
+                      {/* Live Floor Status */}
                       <td className="px-6 py-4">
-                        <div className="space-y-1.5 w-40">
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className={`font-black uppercase px-2 py-0.5 rounded-full ${
+                        {memberTodaySession?.status === 'open' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase font-athletic">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                            Inside Now
+                          </span>
+                        ) : memberTodaySession?.status === 'closed' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-black uppercase font-athletic">
+                            <Check size={11} className="text-blue-600" />
+                            Trained Today
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-600 text-[10px] font-bold uppercase font-athletic">
+                            Not In Today
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Validity */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5 max-w-[140px]">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className={`font-black font-athletic ${
                               m.status === 'active' 
-                                ? (daysLeft <= 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800') 
-                                : 'bg-red-100 text-red-800'
+                                ? (daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600') 
+                                : 'text-red-600'
                             }`}>
                               {m.status === 'active' ? (daysLeft <= 3 ? 'Expiring' : 'Active') : 'Expired'}
                             </span>
@@ -862,25 +1009,27 @@ const Members = () => {
                         </div>
                       </td>
 
+                      {/* Actions */}
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
-                            className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+                            className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors cursor-pointer"
                             title="Send WhatsApp Alert"
                           >
                             <MessageCircle size={15} />
                           </button>
                           <button
-                            onClick={() => setViewMember(m)}
-                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5]"
-                            title="Athlete Passport"
+                            onClick={() => handleOpenPassport(m)}
+                            className="px-3 py-2 rounded-xl bg-gold-50 hover:bg-gold-100 text-gold-800 transition-colors border border-gold-200 flex items-center gap-1 font-athletic text-[11px] font-bold cursor-pointer"
+                            title={`View ${m.name}'s Athlete Passport`}
                           >
-                            <Eye size={15} />
+                            <Eye size={14} />
+                            <span>View</span>
                           </button>
                           <button
                             onClick={() => setEditingMember(m)}
-                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5]"
+                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-gold-50 text-neutral-600 hover:text-gold-700 transition-colors border border-[#e7e2d5] cursor-pointer"
                             title="Edit Record"
                           >
                             <Edit size={15} />
@@ -888,7 +1037,7 @@ const Members = () => {
                           {isExpired && (
                             <button
                               onClick={() => handleRenew(m)}
-                              className="px-3.5 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-neutral-950 font-black text-[10px] uppercase tracking-wider transition-all font-athletic"
+                              className="px-3.5 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-neutral-950 font-black text-[10px] uppercase tracking-wider transition-all font-athletic cursor-pointer"
                               title="Renew Subscription"
                             >
                               Renew
@@ -896,7 +1045,7 @@ const Members = () => {
                           )}
                           <button
                             onClick={() => handleDelete(m)}
-                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-red-50 text-neutral-600 hover:text-red-700 transition-colors border border-[#e7e2d5]"
+                            className="p-2.5 rounded-xl bg-[#faf9f6] hover:bg-red-50 text-neutral-600 hover:text-red-700 transition-colors border border-[#e7e2d5] cursor-pointer"
                             title="Remove Athlete"
                           >
                             <Trash2 size={15} />
@@ -915,14 +1064,16 @@ const Members = () => {
             {filtered.map((m) => {
               const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
               const isExpired = m.status === 'expired';
-              const daysLeft = m.endDate ? Math.ceil((m.endDate.toDate() - new Date()) / 86400000) : 0;
+              const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
+              const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
+              const memberTodaySession = todaySessions[m.id];
 
               return (
                 <div key={m.id} className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div 
                       className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-                      onClick={() => setViewMember(m)}
+                      onClick={() => handleOpenPassport(m)}
                     >
                       {m.profilePictureUrl ? (
                         <img
@@ -938,13 +1089,13 @@ const Members = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-black text-sm text-neutral-900 truncate font-athletic">{m.name}</p>
-                          {todaySessions[m.id]?.status === 'open' && (
+                          {memberTodaySession?.status === 'open' && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-black uppercase font-athletic">
                               <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
                               Inside
                             </span>
                           )}
-                          {todaySessions[m.id]?.status === 'closed' && (
+                          {memberTodaySession?.status === 'closed' && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[8px] font-black uppercase font-athletic">
                               Trained
                             </span>
@@ -965,7 +1116,7 @@ const Members = () => {
                   <div className="bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-3 flex items-center justify-between text-xs">
                     <div>
                       <span className="text-[10px] text-neutral-400 uppercase font-athletic block">Plan</span>
-                      <span className="font-bold text-neutral-900">₹{m.price} / {m.durationDays}d</span>
+                      <span className="font-bold text-neutral-900">₹{m.price} / {m.durationDays || 30}d</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-neutral-400 uppercase font-athletic block">Validity</span>
@@ -978,20 +1129,21 @@ const Members = () => {
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={() => sendExpiryAlert(m, daysLeft, gymSettings?.gymName)}
-                      className="flex-1 min-h-[44px] py-2 px-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 font-athletic"
+                      className="flex-1 min-h-[44px] py-2 px-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 font-athletic cursor-pointer"
                     >
                       <MessageCircle size={15} /> WhatsApp
                     </button>
                     <button
-                      onClick={() => setViewMember(m)}
-                      className="min-h-[44px] px-3.5 bg-white border border-[#e7e2d5] text-neutral-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
+                      onClick={() => handleOpenPassport(m)}
+                      className="min-h-[44px] px-3.5 bg-gold-50 hover:bg-gold-100 border border-gold-200 text-gold-800 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center gap-1 font-athletic cursor-pointer"
                       title="View Passport"
                     >
                       <Eye size={16} />
+                      <span>View</span>
                     </button>
                     <button
                       onClick={() => setEditingMember(m)}
-                      className="min-h-[44px] px-3.5 bg-white border border-[#e7e2d5] text-neutral-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
+                      className="min-h-[44px] px-3.5 bg-white border border-[#e7e2d5] text-neutral-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center cursor-pointer"
                       title="Edit"
                     >
                       <Edit size={16} />
@@ -999,7 +1151,7 @@ const Members = () => {
                     {isExpired && (
                       <button
                         onClick={() => handleRenew(m)}
-                        className="min-h-[44px] px-3.5 bg-gold-500 text-neutral-950 rounded-xl font-black text-xs uppercase active:scale-95 font-athletic"
+                        className="min-h-[44px] px-3.5 bg-gold-500 text-neutral-950 rounded-xl font-black text-xs uppercase active:scale-95 font-athletic cursor-pointer"
                       >
                         Renew
                       </button>
@@ -1031,7 +1183,7 @@ const Members = () => {
       {viewMember && (
         <MemberProfileModal
           member={viewMember}
-          onClose={() => setViewMember(null)}
+          onClose={handleClosePassport}
           onEdit={(m) => setEditingMember(m)}
           onDelete={handleDelete}
           onWhatsApp={(m) => sendExpiryAlert(m, 0, gymSettings?.gymName)}
@@ -1042,6 +1194,26 @@ const Members = () => {
             }
           }}
         />
+      )}
+
+      {memberNotFound && (
+        <Modal title="Athlete Passport" onClose={handleClosePassport} maxWidth="max-w-md">
+          <div className="text-center py-8 space-y-4">
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-black uppercase text-neutral-900 font-athletic">Member Not Found</h3>
+            <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+              The athlete ID could not be located in the current database. Please select an athlete from the roster.
+            </p>
+            <button
+              onClick={handleClosePassport}
+              className="px-6 py-2.5 bg-neutral-900 text-white rounded-xl font-black text-xs uppercase tracking-wider font-athletic hover:bg-neutral-800 transition-colors cursor-pointer"
+            >
+              Return to Athlete Directory
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

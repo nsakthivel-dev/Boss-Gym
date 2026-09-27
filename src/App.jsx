@@ -97,6 +97,8 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/checkin" element={<CheckinPage />} />
+              <Route path="/checkin/:token" element={<CheckinPage />} />
+              <Route path="/check-in/:token" element={<CheckinPage />} />
 
               {/* Website Public Routes */}
               <Route element={<WebsiteLayout />}>
@@ -114,6 +116,7 @@ function App() {
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/members" element={<Members />} />
+                  <Route path="/members/:memberId" element={<Members />} />
                   <Route path="/attendance" element={<Attendance />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/schedule" element={<Schedule />} />

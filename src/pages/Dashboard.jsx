@@ -11,7 +11,7 @@ import {
   MessageCircle, ShieldAlert, Sparkles, Dumbbell, Zap,
   Activity, ArrowUpRight, ChevronRight, QrCode, Plus,
   Flame, Award, ShieldCheck, TrendingUp, Calendar, ArrowRight,
-  Search, Phone, Filter, CheckCircle2, Image as ImageIcon
+  Search, Phone, Filter, CheckCircle2, Image as ImageIcon, Eye
 } from 'lucide-react';
 import { requestNotificationPermission } from "../utils/notifications";
 import { checkAndNotifyExpiring } from "../utils/alertChecker";
@@ -328,8 +328,10 @@ const Dashboard = () => {
             </div>
           </div>
           <div>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-athletic tracking-tight leading-none">{liveInside.length}</p>
-            <p className="text-[10px] sm:text-xs text-neutral-400 font-medium mt-1 truncate">Active on floor now</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-athletic tracking-tight leading-none">
+              {liveInside.length} / {members.filter(m => m.status === 'active').length || members.length}
+            </p>
+            <p className="text-[10px] sm:text-xs text-neutral-400 font-medium mt-1 truncate">Active on floor / Roster</p>
           </div>
         </div>
 
@@ -525,10 +527,11 @@ const Dashboard = () => {
                       <span>WhatsApp</span>
                     </button>
                     <Link
-                      to="/members"
-                      className="py-1.5 px-3 rounded-xl bg-white hover:bg-neutral-50 border border-[#e7e2d5] text-neutral-700 font-bold text-[11px] flex items-center justify-center transition-colors font-athletic"
-                      title="View in Members"
+                      to={`/members/${m.id}`}
+                      className="py-1.5 px-3 rounded-xl bg-gold-50 hover:bg-gold-100 border border-gold-200 text-gold-800 font-bold text-[11px] flex items-center justify-center gap-1 transition-colors font-athletic cursor-pointer"
+                      title={`View ${m.name}'s Athlete Passport`}
                     >
+                      <Eye size={12} />
                       <span>Passport</span>
                     </Link>
                   </div>

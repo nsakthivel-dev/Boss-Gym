@@ -2,45 +2,42 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
-import { processAttendance, fetchMemberTodayWorkout, extractCoordsFromScan } from '../utils/attendanceService';
+import { useAuth } from '../context/AuthContext';
+import { 
+  processAttendance, 
+  fetchMemberTodayWorkout, 
+  extractTokenFromScan,
+  getGymLocationConfig,
+  verifyGymLocationOnly
+} from '../utils/attendanceService';
 import MemberFormModal from '../components/MemberFormModal';
 import { 
   Camera, MapPin, XCircle, AlertTriangle, Ban, CheckCircle, 
   LogOut, Hourglass, Loader2, Dumbbell, ArrowRight, RefreshCw, 
   Smartphone, Flame, ShieldCheck, Zap, QrCode, ArrowLeft,
-  ChevronRight, Clock, UserPlus, Check, Award
+  ChevronRight, Clock, UserPlus, Check, Award, Compass, WifiOff
 } from 'lucide-react';
 
 const CheckinPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { settings: gymSettings, loading: settingsLoading } = useSettings();
+  const { currentUser } = useAuth();
 
-  // Page States: 'welcome', 'scanning', 'locating', 'phone_input', 'processing', 'success_checkin', 'success_checkout', 'error'
+  // Page States: 
+  // 'welcome', 'scanning', 'locating', 'phone_input', 'processing', 
+  // 'success_checkin', 'success_checkout', 'error', 'duplicate_scan', 'not_registered',
+  // 'manual_locating', 'manual_result'
   const [step, setStep] = useState('welcome');
   const [phone, setPhone] = useState(localStorage.getItem('nbg_saved_phone') || '');
-  const [scannedToken, setScannedToken] = useState(searchParams.get('token') || searchParams.get('qr') || '');
+  const [scannedToken, setScannedToken] = useState(searchParams.get('token') || '');
   const [coords, setCoords] = useState(null);
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
-  
-  // Target gym coordinates explicitly parsed from QR or URL parameters
-  const [targetGymCoords, setTargetGymCoords] = useState(() => {
-    const lat = searchParams.get('lat');
-    const lng = searchParams.get('lng');
-    const rad = searchParams.get('rad');
-    if (lat && lng) {
-      return {
-        latitude: parseFloat(lat),
-        longitude: parseFloat(lng),
-        radius: rad ? parseFloat(rad) : undefined
-      };
-    }
-    return null;
-  });
   
   // Results & Errors
   const [errorDetails, setErrorDetails] = useState(null);
   const [resultData, setResultData] = useState(null);
+  const [manualResult, setManualResult] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
@@ -48,27 +45,16 @@ const CheckinPage = () => {
   const html5QrCodeRef = useRef(null);
   const scannerContainerId = "html5-qr-reader";
 
-  // If token was passed via URL parameter (e.g. member scanned wall QR with native camera)
+  // If token was passed via URL parameter (e.g. member scanned wall QR with smartphone camera)
   useEffect(() => {
-    const urlToken = searchParams.get('token') || searchParams.get('qr');
+    const urlToken = searchParams.get('token') || '';
     if (urlToken) {
       setScannedToken(urlToken);
-      const lat = searchParams.get('lat');
-      const lng = searchParams.get('lng');
-      const rad = searchParams.get('rad');
-      if (lat && lng) {
-        setTargetGymCoords({
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-          radius: rad ? parseFloat(rad) : undefined
-        });
-      }
-      // Automatically proceed to location verification
       setStep('locating');
     }
   }, [searchParams]);
 
-  // When step is 'locating', request GPS
+  // When step is 'locating', acquire device GPS
   useEffect(() => {
     if (step === 'locating') {
       acquireLocation();
@@ -80,7 +66,6 @@ const CheckinPage = () => {
     if (step === 'scanning') {
       const startScanner = async () => {
         try {
-          // Wait for DOM element
           await new Promise(r => setTimeout(r, 150));
           const el = document.getElementById(scannerContainerId);
           if (!el) return;
@@ -98,27 +83,21 @@ const CheckinPage = () => {
             { facingMode: "environment" },
             config,
             (decodedText) => {
-              // Successfully decoded QR
               const onScanSuccess = () => {
-                setScannedToken(decodedText);
-                const coordsFromQR = extractCoordsFromScan(decodedText);
-                if (coordsFromQR) {
-                  setTargetGymCoords(coordsFromQR);
-                }
+                const token = extractTokenFromScan(decodedText);
+                setScannedToken(token || decodedText);
                 setStep('locating');
               };
 
               scanner.stop().then(onScanSuccess).catch(onScanSuccess);
             },
-            () => {
-              // Parse error / frame skipped
-            }
+            () => {}
           );
         } catch (err) {
           console.error("Camera scanner start failed:", err);
           setErrorDetails({
             code: 'CAMERA_DENIED',
-            message: 'Camera permission denied or camera not found. Please allow camera access in your browser settings or enter the code manually.'
+            message: 'Camera permission denied or camera not found. Please allow camera access in your browser settings.'
           });
           setStep('error');
         }
@@ -138,7 +117,7 @@ const CheckinPage = () => {
     }
   }, [step]);
 
-  // Countdown timer for duplicate scan
+  // Countdown timer for 30-second duplicate scan protection
   useEffect(() => {
     let timer;
     if (step === 'duplicate_scan' && secondsRemaining > 0) {
@@ -156,6 +135,15 @@ const CheckinPage = () => {
   }, [step, secondsRemaining]);
 
   const acquireLocation = () => {
+    if (!navigator.onLine) {
+      setErrorDetails({
+        code: 'OFFLINE',
+        message: "You're offline. Connect to the internet to verify attendance."
+      });
+      setStep('error');
+      return;
+    }
+
     if (!navigator.geolocation) {
       setErrorDetails({
         code: 'LOCATION_UNSUPPORTED',
@@ -170,6 +158,17 @@ const CheckinPage = () => {
         const { latitude, longitude, accuracy } = position.coords;
         setCoords({ latitude, longitude, accuracy });
         setGpsAccuracy(Math.round(accuracy));
+
+        // If GPS accuracy is too low
+        if (accuracy && accuracy > 100) {
+          setErrorDetails({
+            code: 'LOCATION_LOW_ACCURACY',
+            accuracy: Math.round(accuracy),
+            message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
+          });
+          setStep('error');
+          return;
+        }
 
         // If phone already available, proceed directly to verify
         if (phone && phone.trim().length === 10) {
@@ -188,7 +187,7 @@ const CheckinPage = () => {
         } else {
           setErrorDetails({
             code: 'LOCATION_ERROR',
-            message: 'Unable to retrieve your device coordinates. Please ensure GPS is turned on and try again.'
+            message: 'Unable to retrieve your device coordinates. Please ensure GPS is enabled with high accuracy and try again.'
           });
         }
         setStep('error');
@@ -211,23 +210,11 @@ const CheckinPage = () => {
     setErrorDetails(null);
 
     try {
-      const effectiveGymCoords = targetGymCoords || (
-        gymSettings?.latitude && gymSettings?.longitude
-          ? {
-              latitude: Number(gymSettings.latitude),
-              longitude: Number(gymSettings.longitude),
-              radius: Number(gymSettings.radius || 500)
-            }
-          : null
-      );
-
       const res = await processAttendance({
-        scannedText: scannedToken || searchParams.get('token') || searchParams.get('qr') || '',
+        scannedText: scannedToken || searchParams.get('token') || '',
         phone: athletePhone,
         coords: currentCoords,
-        memberOverride,
-        gymSettings,
-        targetCoords: effectiveGymCoords
+        memberOverride
       });
 
       if (!res.success) {
@@ -249,7 +236,7 @@ const CheckinPage = () => {
         return;
       }
 
-      // Success
+      // Success!
       setResultData(res);
       if (res.action === 'check_in') {
         setStep('success_checkin');
@@ -268,12 +255,42 @@ const CheckinPage = () => {
 
   const handleRegistrationCompleted = (newMember) => {
     setShowRegisterModal(false);
-    // Continue attendance flow seamlessly with the newly created member!
+    // Continue attendance flow seamlessly for the same member!
     if (coords) {
       handleExecuteAttendance(newMember.phone, coords, newMember);
     } else {
       setStep('locating');
     }
+  };
+
+  // Dedicated Manual Location Verification (Zero attendance recorded)
+  const handleStartManualVerification = () => {
+    setStep('manual_locating');
+    if (!navigator.geolocation) {
+      setManualResult({
+        verified: false,
+        message: 'Geolocation is not supported by your browser.'
+      });
+      setStep('manual_result');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        const result = await verifyGymLocationOnly({ latitude, longitude, accuracy });
+        setManualResult(result);
+        setStep('manual_result');
+      },
+      (err) => {
+        setManualResult({
+          verified: false,
+          message: 'Unable to retrieve device GPS. Please turn on location permissions.'
+        });
+        setStep('manual_result');
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   const containerClass = "min-h-screen bg-[#f8f7f3] flex items-center justify-center p-4 font-sans relative overflow-hidden";
@@ -296,7 +313,7 @@ const CheckinPage = () => {
               {gymSettings?.gymName || 'New Boss Gym'}
             </h1>
             <p className="text-gold-700 text-xs font-black uppercase tracking-widest mt-1 font-athletic">
-              Contactless Attendance Kiosk
+              Official Attendance Kiosk
             </p>
             <p className="text-neutral-500 text-xs mt-1 font-medium">
               Geofenced Check-in & Workout Routine
@@ -310,7 +327,7 @@ const CheckinPage = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Scan Entrance QR</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Point your camera at the official New Boss Gym poster.</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Point your camera at the official New Boss Gym entrance sign.</p>
               </div>
             </div>
 
@@ -319,8 +336,8 @@ const CheckinPage = () => {
                 2
               </div>
               <div>
-                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Verify GPS Location</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Ensure you are physically on-site within {gymSettings?.radius || 50}m.</p>
+                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">GPS Location Verification</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Confirm physical presence inside the configured gym geofence area.</p>
               </div>
             </div>
 
@@ -329,8 +346,8 @@ const CheckinPage = () => {
                 3
               </div>
               <div>
-                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Instant Workout Sync</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">View today's assigned split, exercises, sets, and reps.</p>
+                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Today's Assigned Workout</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Instantly load today's split, target exercises, sets, and reps.</p>
               </div>
             </div>
           </div>
@@ -349,13 +366,11 @@ const CheckinPage = () => {
               <span>Back to Home</span>
             </Link>
             <button
-              onClick={() => {
-                setScannedToken('NBG_ATTENDANCE_TOKEN:DEFAULT');
-                setStep('locating');
-              }}
-              className="text-gold-700 hover:text-gold-800 font-bold text-[11px] font-athletic cursor-pointer"
+              onClick={handleStartManualVerification}
+              className="text-gold-700 hover:text-gold-800 font-bold text-[11px] font-athletic cursor-pointer flex items-center gap-1"
             >
-              Manual Verification
+              <Compass size={13} />
+              <span>Manual Verification</span>
             </button>
           </div>
 
@@ -386,7 +401,7 @@ const CheckinPage = () => {
           </div>
 
           <p className="text-xs text-neutral-500 mb-4">
-            Align the New Boss Gym attendance QR code within the frame to verify attendance.
+            Align the official New Boss Gym entrance QR code within the frame to verify attendance.
           </p>
 
           {/* Scanner Viewfinder Box */}
@@ -395,16 +410,12 @@ const CheckinPage = () => {
             <div className="absolute inset-0 pointer-events-none border-4 border-gold-400/40 rounded-3xl animate-pulse" />
           </div>
 
-          <div className="mt-6 flex flex-col gap-2">
+          <div className="mt-6">
             <button
-              onClick={() => {
-                // Fallback manual token if camera is obstructed
-                setScannedToken('NBG_ATTENDANCE_TOKEN:DEFAULT');
-                setStep('locating');
-              }}
-              className="py-3 px-4 rounded-xl bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider font-athletic cursor-pointer"
+              onClick={handleStartManualVerification}
+              className="w-full py-3 px-4 rounded-xl bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider font-athletic cursor-pointer"
             >
-              Cannot Scan? Continue With GPS & Phone
+              Check Location First (Manual Verification)
             </button>
           </div>
 
@@ -430,7 +441,7 @@ const CheckinPage = () => {
             <Loader2 className="w-6 h-6 text-gold-600 animate-spin" />
           </div>
           <p className="text-neutral-500 text-xs mt-3 max-w-xs mx-auto font-medium">
-            Confirming physical presence at New Boss Gym premises within the allowed {gymSettings?.radius || 50}m radius.
+            Confirming physical presence at New Boss Gym premises within the allowed perimeter.
           </p>
         </div>
       </div>
@@ -438,7 +449,102 @@ const CheckinPage = () => {
   }
 
   // ==========================================
-  // 4. PHONE INPUT SCREEN (IDENTIFY ATHLETE)
+  // 4. MANUAL VERIFICATION - LOCATING
+  // ==========================================
+  if (step === 'manual_locating') {
+    return (
+      <div className={containerClass}>
+        <div className={cardClass}>
+          <div className="w-16 h-16 rounded-2xl bg-gold-50 border border-gold-300 flex items-center justify-center mx-auto mb-4 text-gold-700 animate-pulse">
+            <Compass className="w-8 h-8" />
+          </div>
+          <h2 className="text-neutral-900 text-lg font-black uppercase font-athletic">
+            Checking Physical Location
+          </h2>
+          <div className="mt-3 flex justify-center">
+            <Loader2 className="w-6 h-6 text-gold-600 animate-spin" />
+          </div>
+          <p className="text-neutral-500 text-xs mt-3 max-w-xs mx-auto font-medium">
+            Requesting device GPS and fetching current gym geofence configuration from backend...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 5. MANUAL VERIFICATION - RESULT (NO ATTENDANCE LOGGED)
+  // ==========================================
+  if (step === 'manual_result' && manualResult) {
+    const isVerified = manualResult.verified;
+
+    return (
+      <div className={containerClass}>
+        <div className={`${cardClass} ${isVerified ? 'border-emerald-300' : 'border-red-300'}`}>
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
+            isVerified ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+          }`}>
+            {isVerified ? <CheckCircle className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
+          </div>
+
+          <h2 className="text-xl font-black uppercase font-athletic text-neutral-900">
+            {isVerified ? "LOCATION VERIFIED" : "LOCATION NOT VERIFIED"}
+          </h2>
+
+          <p className={`text-xs mt-1.5 font-bold ${isVerified ? 'text-emerald-700' : 'text-red-700'}`}>
+            {isVerified 
+              ? "✓ You are inside the gym attendance area." 
+              : "✕ You are outside the gym attendance area."}
+          </p>
+
+          {/* Distance Info Grid */}
+          <div className="bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-4 my-5 grid grid-cols-2 gap-3 text-left text-xs">
+            <div>
+              <span className="text-[10px] uppercase font-black text-neutral-400 font-athletic block">Distance</span>
+              <span className="font-mono font-bold text-neutral-900 text-sm block mt-0.5">
+                {manualResult.distance != null ? `${manualResult.distance}m` : '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-black text-neutral-400 font-athletic block">Allowed Radius</span>
+              <span className="font-mono font-bold text-neutral-900 text-sm block mt-0.5">
+                {manualResult.allowedRadius != null ? `${manualResult.allowedRadius}m` : '50m'}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-neutral-400 mb-5">
+            Note: Manual Verification only confirms your GPS geofence. No attendance record has been created.
+          </p>
+
+          <div className="space-y-2">
+            <button
+              onClick={() => setStep('scanning')}
+              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Camera size={15} />
+              <span>Scan QR For Attendance</span>
+            </button>
+            <button
+              onClick={handleStartManualVerification}
+              className="w-full py-2.5 bg-white hover:bg-neutral-50 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl font-athletic cursor-pointer"
+            >
+              Re-check Location
+            </button>
+            <Link
+              to="/"
+              className="block py-2 text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+            >
+              Back to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 6. PHONE INPUT SCREEN (IDENTIFY ATHLETE)
   // ==========================================
   if (step === 'phone_input') {
     return (
@@ -447,66 +553,74 @@ const CheckinPage = () => {
           
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-4 font-athletic">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Facility Perimeter Verified ({gpsAccuracy ? `±${gpsAccuracy}m` : 'GPS Verified'})</span>
+            <span>Facility Geofence Verified ({gpsAccuracy ? `±${gpsAccuracy}m` : 'GPS Verified'})</span>
           </div>
 
-          <h2 className="text-xl font-black text-neutral-900 uppercase font-athletic mb-1">
+          <h2 className="text-neutral-900 text-xl font-black uppercase font-athletic">
             Athlete Identification
           </h2>
-          <p className="text-xs text-neutral-500 mb-6">
-            Enter your registered 10-digit mobile number to log check-in or check-out.
+          <p className="text-xs text-neutral-500 mt-1 mb-6">
+            Enter your 10-digit registered mobile number to log attendance.
           </p>
 
           <form onSubmit={handlePhoneSubmit} className="space-y-4">
             <div className="text-left">
-              <label className="text-[10px] font-black text-neutral-600 uppercase tracking-wider block mb-2 font-athletic">
+              <label className="text-[10px] font-black uppercase tracking-wider text-neutral-600 block mb-1.5 font-athletic">
                 Mobile Number
               </label>
               <div className="relative">
-                <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
-                <input 
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-xs text-neutral-400">
+                  +91
+                </span>
+                <input
                   type="tel"
-                  inputMode="numeric"
                   maxLength={10}
-                  placeholder="10-digit mobile number"
+                  placeholder="9876543210"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center text-xl font-black bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl py-4 pl-10 pr-4 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-gold-500 focus:bg-white transition-all font-mono"
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-[#faf9f6] border border-[#e7e2d5] rounded-xl pl-12 pr-4 py-3.5 text-sm font-mono font-bold text-neutral-900 focus:outline-none focus:border-gold-500 focus:bg-white transition-all tracking-wider"
                   autoFocus
                 />
               </div>
             </div>
 
-            <button 
+            <button
               type="submit"
-              disabled={phone.length < 10}
-              className="w-full min-h-[48px] py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-gold-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 font-athletic cursor-pointer"
+              disabled={phone.trim().length !== 10}
+              className="w-full py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all disabled:opacity-50 active:scale-95 font-athletic cursor-pointer"
             >
-              <span>Confirm & Process Attendance</span>
-              <ArrowRight size={16} />
+              Verify & Complete Attendance
             </button>
           </form>
 
+          <div className="mt-4 pt-4 border-t border-[#e7e2d5]">
+            <button
+              onClick={() => setStep('welcome')}
+              className="text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // 5. PROCESSING SCREEN
+  // 7. PROCESSING SCREEN
   // ==========================================
   if (step === 'processing') {
     return (
       <div className={containerClass}>
         <div className={cardClass}>
-          <div className="w-16 h-16 rounded-2xl bg-gold-50 border border-gold-300 flex items-center justify-center mx-auto mb-4 text-gold-700 animate-pulse">
+          <div className="w-16 h-16 rounded-2xl bg-gold-50 border border-gold-300 flex items-center justify-center mx-auto mb-4 text-gold-700">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
           <h2 className="text-neutral-900 text-lg font-black uppercase font-athletic">
             Processing Attendance
           </h2>
-          <p className="text-neutral-500 text-xs mt-2 max-w-xs mx-auto">
-            Validating membership, evaluating active session state, and fetching assigned workout...
+          <p className="text-neutral-500 text-xs mt-2">
+            Verifying membership validity and updating real-time attendance session...
           </p>
         </div>
       </div>
@@ -514,39 +628,73 @@ const CheckinPage = () => {
   }
 
   // ==========================================
-  // 6. NOT REGISTERED SCREEN (TRIGGER REGISTRATION)
+  // 8. DUPLICATE SCAN SCREEN (30-SECOND COOLDOWN)
+  // ==========================================
+  if (step === 'duplicate_scan') {
+    return (
+      <div className={containerClass}>
+        <div className={`${cardClass} border-amber-300`}>
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-center mx-auto mb-4 text-amber-600">
+            <Hourglass className="w-8 h-8 animate-pulse" />
+          </div>
+          <h2 className="text-neutral-900 text-lg font-black uppercase font-athletic">
+            Scan Cooldown Active
+          </h2>
+          <p className="text-neutral-600 text-xs mt-2 leading-relaxed">
+            You scanned recently. Please wait before scanning again.
+          </p>
+          <div className="my-6 py-4 bg-amber-50/70 border border-amber-200 rounded-2xl">
+            <span className="font-mono text-3xl font-black text-amber-700">
+              {secondsRemaining}s
+            </span>
+            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mt-1 font-athletic">
+              Cooldown Remaining
+            </p>
+          </div>
+          <Link
+            to="/"
+            className="block text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 9. UNREGISTERED MEMBER SCREEN
   // ==========================================
   if (step === 'not_registered') {
     return (
       <div className={containerClass}>
         <div className={`${cardClass} border-amber-300`}>
-          <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <AlertTriangle className="w-7 h-7" />
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-center mx-auto mb-4 text-amber-600">
+            <UserPlus className="w-8 h-8" />
           </div>
           <h2 className="text-neutral-900 text-lg font-black uppercase font-athletic">
             Member Registration Required
           </h2>
-          <p className="text-neutral-500 text-xs mt-2 leading-relaxed">
-            The mobile number <strong className="text-neutral-900 font-mono font-bold">{phone}</strong> is not currently registered in our athlete directory.
+          <p className="text-neutral-600 text-xs mt-2 leading-relaxed">
+            Mobile number <strong className="font-mono text-neutral-900">{phone}</strong> is not registered in our athlete database.
           </p>
-          <p className="text-neutral-500 text-xs mt-1">
-            Enrol now to register and proceed directly into today's attendance session.
-          </p>
-
-          <button
-            onClick={() => setShowRegisterModal(true)}
-            className="mt-6 w-full py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-gold-sm transition-all flex items-center justify-center gap-2 font-athletic active:scale-95 cursor-pointer"
-          >
-            <UserPlus size={16} />
-            <span>Complete Athlete Registration</span>
-          </button>
-
-          <button
-            onClick={() => setStep('phone_input')}
-            className="mt-3 w-full py-3 bg-[#faf9f6] text-neutral-600 rounded-xl text-xs font-bold uppercase hover:bg-neutral-100 transition-colors"
-          >
-            Re-enter Mobile Number
-          </button>
+          <div className="my-6 space-y-3">
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="w-full py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95 cursor-pointer"
+            >
+              Enrol as New Athlete
+            </button>
+            <button
+              onClick={() => {
+                setPhone('');
+                setStep('phone_input');
+              }}
+              className="w-full py-3 bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl font-athletic cursor-pointer"
+            >
+              Enter Different Phone Number
+            </button>
+          </div>
         </div>
 
         {showRegisterModal && (
@@ -561,47 +709,7 @@ const CheckinPage = () => {
   }
 
   // ==========================================
-  // 7. DUPLICATE SCAN SCREEN (30-SEC COOLDOWN)
-  // ==========================================
-  if (step === 'duplicate_scan') {
-    return (
-      <div className={containerClass}>
-        <div className={`${cardClass} border-amber-300`}>
-          <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <Hourglass className="w-7 h-7 animate-pulse" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 font-athletic">
-            Duplicate Protection Active
-          </span>
-          <h2 className="text-xl font-black text-neutral-900 uppercase font-athletic mt-1">
-            You Scanned Recently
-          </h2>
-          {errorDetails?.memberName && (
-            <p className="text-sm font-bold text-neutral-800 mt-1">{errorDetails.memberName}</p>
-          )}
-
-          <div className="my-5 p-4 bg-[#faf9f6] rounded-2xl border border-amber-200">
-            <p className="text-3xl font-black text-gold-700 font-athletic tracking-tight">
-              {secondsRemaining}s
-            </p>
-            <p className="text-xs text-neutral-500 mt-1">
-              Please wait before scanning again.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setStep('phone_input')}
-            className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors font-athletic cursor-pointer"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ==========================================
-  // 8. CHECK-IN SUCCESS SCREEN (WITH WORKOUT!)
+  // 10. CHECK-IN SUCCESS SCREEN (WITH WORKOUT!)
   // ==========================================
   if (step === 'success_checkin' && resultData) {
     const { member, session, workout } = resultData;
@@ -618,16 +726,19 @@ const CheckinPage = () => {
             <CheckCircle className="w-8 h-8" />
           </div>
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700 font-athletic block">
-            Check-In Successful
+            CHECK-IN SUCCESSFUL
           </span>
           <h2 className="text-2xl font-black text-neutral-900 uppercase mt-0.5 mb-1 font-athletic">
             {member.name}
           </h2>
+          <span className="text-xs font-bold text-emerald-600 flex items-center justify-center gap-1">
+            <Check size={14} /> Attendance Registered
+          </span>
 
           {/* Verification Details Strip */}
           <div className="bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-3.5 my-4 grid grid-cols-3 gap-2 text-center text-xs">
             <div>
-              <span className="text-[10px] uppercase font-bold text-neutral-400 font-athletic block">Checked In</span>
+              <span className="text-[10px] uppercase font-bold text-neutral-400 font-athletic block">Check-in</span>
               <span className="font-mono font-bold text-neutral-900 text-[11px] block mt-0.5">{timeFormatted}</span>
             </div>
             <div>
@@ -636,7 +747,7 @@ const CheckinPage = () => {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-neutral-400 font-athletic block">Distance</span>
-              <span className="font-mono font-bold text-neutral-900 text-[11px] block mt-0.5">{session.distance} m</span>
+              <span className="font-mono font-bold text-neutral-900 text-[11px] block mt-0.5">{session.distance}m</span>
             </div>
           </div>
 
@@ -645,7 +756,7 @@ const CheckinPage = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-gold-700 font-athletic flex items-center gap-1.5">
                 <Flame size={14} className="text-gold-600" />
-                <span>Today's Assigned Workout</span>
+                <span>TODAY'S WORKOUT</span>
               </span>
               <span className="text-[10px] font-bold text-neutral-400 font-mono">
                 {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -666,7 +777,7 @@ const CheckinPage = () => {
                 {workout.exercises && workout.exercises.length > 0 ? (
                   <div className="space-y-2 border-t border-[#262626] pt-3">
                     <span className="text-[10px] uppercase font-black text-neutral-400 font-athletic block">
-                      Routine Breakdown
+                      Routine Exercises
                     </span>
                     {workout.exercises.map((ex, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-[#202020] text-xs">
@@ -684,7 +795,7 @@ const CheckinPage = () => {
                   </div>
                 ) : (
                   <div className="p-3 bg-[#202020] rounded-xl text-xs text-neutral-300">
-                    Standard athletic training split active. Consult Master Mani Suni for target weights.
+                    Standard training routine active. Focus on controlled form.
                   </div>
                 )}
               </div>
@@ -697,18 +808,22 @@ const CheckinPage = () => {
             )}
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons for Current Member Only */}
           <div className="space-y-2 pt-2 border-t border-[#e7e2d5]">
-            <button
-              onClick={() => {
-                setStep('welcome');
-                setScannedToken('');
-                setResultData(null);
-              }}
-              className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-colors font-athletic cursor-pointer active:scale-95"
+            <Link
+              to={`/members/${member.id}`}
+              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all font-athletic flex items-center justify-center gap-2 shadow-gold-sm active:scale-95"
             >
-              Done / Log Another Athlete
-            </button>
+              <Award size={15} />
+              <span>VIEW MY ATTENDANCE</span>
+            </Link>
+            <Link
+              to="/schedule"
+              className="w-full py-3 bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-800 font-black rounded-xl text-xs uppercase tracking-wider transition-colors font-athletic flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Flame size={15} className="text-gold-600" />
+              <span>VIEW MY WORKOUT</span>
+            </Link>
             <Link
               to="/"
               className="block py-2 text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
@@ -723,10 +838,10 @@ const CheckinPage = () => {
   }
 
   // ==========================================
-  // 9. CHECK-OUT SUCCESS SCREEN
+  // 11. CHECK-OUT SUCCESS SCREEN
   // ==========================================
   if (step === 'success_checkout' && resultData) {
-    const { member, session, workout } = resultData;
+    const { member, session } = resultData;
     const entryFormatted = session.entryTime.toLocaleTimeString('en-IN', { 
       hour: '2-digit', minute: '2-digit', hour12: true 
     });
@@ -746,14 +861,14 @@ const CheckinPage = () => {
             <LogOut className="w-8 h-8" />
           </div>
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-700 font-athletic block">
-            Check-Out Successful
+            CHECK-OUT SUCCESSFUL
           </span>
           <h2 className="text-2xl font-black text-neutral-900 uppercase mt-0.5 mb-1 font-athletic">
             {member.name}
           </h2>
 
           <div className="my-3 inline-block bg-blue-50 border border-blue-200 text-blue-900 px-5 py-2 rounded-full font-black text-xs font-athletic">
-            Total Workout Duration: {durationDisplay}
+            Total Floor Duration: {durationDisplay}
           </div>
 
           <div className="bg-[#faf9f6] border border-[#e7e2d5] rounded-2xl p-4 my-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
@@ -771,7 +886,7 @@ const CheckinPage = () => {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-neutral-400 font-athletic block">Session</span>
-              <span className="font-black text-blue-700 text-[11px] block mt-0.5">COMPLETED</span>
+              <span className="font-black text-blue-700 text-[11px] block mt-0.5">CLOSED</span>
             </div>
           </div>
 
@@ -779,51 +894,57 @@ const CheckinPage = () => {
             Great training session today! Rest, refuel, and recover for your next workout.
           </p>
 
-          <button
-            onClick={() => {
-              setStep('welcome');
-              setScannedToken('');
-              setResultData(null);
-            }}
-            className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-colors font-athletic cursor-pointer active:scale-95"
-          >
-            Done / Mark Another Athlete
-          </button>
+          <div className="space-y-2 pt-2 border-t border-[#e7e2d5]">
+            <Link
+              to={`/members/${member.id}`}
+              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all font-athletic flex items-center justify-center gap-2 shadow-gold-sm active:scale-95"
+            >
+              <Award size={15} />
+              <span>VIEW MY ATTENDANCE</span>
+            </Link>
+            <Link
+              to="/"
+              className="block py-2 text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+            >
+              Back to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // 10. ERROR SCREEN
+  // 12. ERROR SCREEN
   // ==========================================
   if (step === 'error' && errorDetails) {
     const isOutside = errorDetails.code === 'OUTSIDE_GEOFENCE';
+    const isOffline = errorDetails.code === 'OFFLINE';
 
     return (
       <div className={containerClass}>
         <div className={`${cardClass} border-red-300`}>
           <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <XCircle className="w-7 h-7" />
+            {isOffline ? <WifiOff className="w-7 h-7" /> : <XCircle className="w-7 h-7" />}
           </div>
 
           <h2 className="text-neutral-900 text-lg font-black uppercase font-athletic">
-            {isOutside ? "Location Not Verified" : "Verification Failed"}
+            {isOutside ? "Location Not Verified" : isOffline ? "Offline" : "Verification Failed"}
           </h2>
 
           <p className="text-neutral-600 text-xs mt-2 leading-relaxed">
             {errorDetails.message || "An error occurred during verification."}
           </p>
 
-          {isOutside && (
+          {isOutside && errorDetails.detectedDistance != null && (
             <div className="mt-4 p-3.5 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left w-full text-xs font-mono space-y-1">
               <div className="flex justify-between">
-                <span className="text-neutral-500">Required Radius:</span>
-                <span className="font-bold text-neutral-900">{errorDetails.allowedRadius || 50} m</span>
+                <span className="text-neutral-500 font-sans font-medium">Distance:</span>
+                <span className="font-bold text-red-600">{errorDetails.detectedDistance}m</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-500">Detected Distance:</span>
-                <span className="font-bold text-red-600">{errorDetails.detectedDistance || 0} m</span>
+                <span className="text-neutral-500 font-sans font-medium">Allowed Radius:</span>
+                <span className="font-bold text-neutral-700">{errorDetails.allowedRadius || 50}m</span>
               </div>
             </div>
           )}
@@ -831,12 +952,18 @@ const CheckinPage = () => {
           <div className="mt-6 flex flex-col gap-2">
             <button
               onClick={() => {
-                setCoords(null);
-                setStep('locating');
+                setErrorDetails(null);
+                setStep('scanning');
               }}
-              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic cursor-pointer active:scale-95"
+              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95 cursor-pointer"
             >
-              {isOutside ? "Re-detect GPS Location & Try Again" : "Try Again"}
+              Try Again
+            </button>
+            <button
+              onClick={handleStartManualVerification}
+              className="w-full py-2.5 bg-white hover:bg-neutral-50 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl font-athletic cursor-pointer"
+            >
+              Manual Location Check
             </button>
             <Link
               to="/"

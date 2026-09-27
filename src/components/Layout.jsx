@@ -26,7 +26,6 @@ import {
   Zap,
   Activity
 } from 'lucide-react';
-import WallQRModal from './WallQRModal';
 
 const Layout = () => {
   const { userRole, currentUser } = useAuth();
@@ -35,7 +34,6 @@ const Layout = () => {
   const location = useLocation();
   const { settings: gymSettings } = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
 
@@ -502,11 +500,6 @@ const Layout = () => {
           </span>
         </button>
       </nav>
-
-      {/* Wall QR Modal */}
-      {showQRModal && (
-        <WallQRModal onClose={() => setShowQRModal(false)} />
-      )}
     </div>
   );
 };

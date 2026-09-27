@@ -2,7 +2,7 @@ import { db } from '../firebase/config';
 import { supabase } from '../supabase/config';
 import { 
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, 
-  query, where, serverTimestamp, Timestamp 
+  query, where, serverTimestamp, Timestamp, orderBy, limit 
 } from 'firebase/firestore';
 import { getDistanceMeters } from './distance';
 
@@ -29,40 +29,114 @@ export const generateSecureToken = () => {
 };
 
 /**
- * Fetch or initialize the active Gym QR configuration
+ * Single Source of Truth for Gym Location Configuration.
+ * Retrieves current active location, coordinates, and geofence radius.
+ * First queries Supabase gym_locations.
+ * Falls back to Firestore settings/config.
+ */
+export const getGymLocationConfig = async () => {
+  let config = null;
+
+  // 1. Try Supabase gym_locations (Source of Truth)
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('gym_locations')
+        .select('*')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data && data.latitude && data.longitude) {
+        config = {
+          gymId: data.id || 'NBG_MUTH_01',
+          gymName: data.name || 'New Boss Gym',
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          radius: Number(data.geofence_radius || 50),
+          address: data.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
+          phone: data.phone || '+91 98765 43210',
+          status: data.is_active ? 'active' : 'inactive',
+          updatedAt: data.updated_at
+        };
+      }
+    }
+  } catch (sbErr) {
+    // Continue safely to Firestore fallback
+  }
+
+  // 2. Query Firestore settings/config
+  if (!config) {
+    try {
+      const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
+      if (cfgSnap.exists()) {
+        const d = cfgSnap.data();
+        config = {
+          gymId: 'NBG_MUTH_01',
+          gymName: d.gymName || 'New Boss Gym',
+          latitude: Number(d.latitude || 11.9111586),
+          longitude: Number(d.longitude || 79.6347447),
+          radius: Number(d.radius || 50),
+          address: d.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
+          phone: d.phoneNumber || '+91 98765 43210',
+          status: 'active',
+          updatedAt: d.updatedAt || new Date().toISOString()
+        };
+      }
+    } catch (fsErr) {
+      console.warn("Could not read gym location from Firestore:", fsErr);
+    }
+  }
+
+  // 3. Fallback default
+  if (!config) {
+    config = {
+      gymId: 'NBG_MUTH_01',
+      gymName: 'New Boss Gym',
+      latitude: 11.9111586,
+      longitude: 79.6347447,
+      radius: 50,
+      address: 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
+      phone: '+91 98765 43210',
+      status: 'active',
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  return config;
+};
+
+/**
+ * Fetch or initialize the active Gym QR configuration.
+ * QR does not encode static coordinates.
  */
 export const getActiveGymQR = async () => {
   try {
     const qrDocRef = doc(db, 'settings', 'qr_config');
     const snap = await getDoc(qrDocRef);
 
-    // Read latest coordinates from settings/config to guarantee active geo sync
-    let latestSettings = null;
-    try {
-      const configSnap = await getDoc(doc(db, 'settings', 'config'));
-      if (configSnap.exists()) {
-        latestSettings = configSnap.data();
-      }
-    } catch (e) {}
+    // Retrieve latest gym location config dynamically
+    const locationConfig = await getGymLocationConfig();
 
     if (snap.exists()) {
       const qrData = snap.data();
       return {
         ...qrData,
-        latitude: latestSettings?.latitude ?? qrData.latitude ?? 11.9111586,
-        longitude: latestSettings?.longitude ?? qrData.longitude ?? 79.6347447,
-        radius: latestSettings?.radius ?? qrData.radius ?? 500,
-        gymName: latestSettings?.gymName ?? qrData.gymName ?? 'New Boss Gym'
+        latitude: locationConfig.latitude,
+        longitude: locationConfig.longitude,
+        radius: locationConfig.radius,
+        gymName: locationConfig.gymName
       };
     }
 
     // Default seed if no QR generated yet
     const initialConfig = {
-      gymId: 'NBG_MUTH_01',
-      gymName: latestSettings?.gymName || 'New Boss Gym',
-      latitude: latestSettings?.latitude || 11.9111586,
-      longitude: latestSettings?.longitude || 79.6347447,
-      radius: latestSettings?.radius || 500,
+      gymId: locationConfig.gymId || 'NBG_MUTH_01',
+      gymName: locationConfig.gymName || 'New Boss Gym',
+      latitude: locationConfig.latitude,
+      longitude: locationConfig.longitude,
+      radius: locationConfig.radius,
       token: generateSecureToken(),
       status: 'active', // 'active' | 'revoked'
       createdAt: new Date().toISOString(),
@@ -72,15 +146,15 @@ export const getActiveGymQR = async () => {
 
     await setDoc(qrDocRef, initialConfig);
 
-    // Sync to Supabase safely if table exists
+    // Sync to Supabase attendance_qr
     try {
-      await supabase.from('attendance_qr').insert({
-        secure_token: initialConfig.token,
-        status: 'active'
-      });
-    } catch (sbErr) {
-      // Table might not exist yet, continue safely
-    }
+      if (supabase) {
+        await supabase.from('attendance_qr').insert({
+          secure_token: initialConfig.token,
+          status: 'active'
+        });
+      }
+    } catch (sbErr) {}
 
     return initialConfig;
   } catch (err) {
@@ -99,28 +173,14 @@ export const regenerateGymQR = async (expirationDays = null) => {
       ? new Date(Date.now() + expirationDays * 86400000).toISOString() 
       : null;
 
-    let lat = 11.9111586;
-    let lng = 79.6347447;
-    let rad = 500;
-    let gymName = 'New Boss Gym';
-
-    try {
-      const configSnap = await getDoc(doc(db, 'settings', 'config'));
-      if (configSnap.exists()) {
-        const c = configSnap.data();
-        if (c.latitude) lat = Number(c.latitude);
-        if (c.longitude) lng = Number(c.longitude);
-        if (c.radius) rad = Number(c.radius);
-        if (c.gymName) gymName = c.gymName;
-      }
-    } catch (e) {}
+    const locationConfig = await getGymLocationConfig();
 
     const qrConfig = {
-      gymId: 'NBG_MUTH_01',
-      gymName,
-      latitude: lat,
-      longitude: lng,
-      radius: rad,
+      gymId: locationConfig.gymId || 'NBG_MUTH_01',
+      gymName: locationConfig.gymName || 'New Boss Gym',
+      latitude: locationConfig.latitude,
+      longitude: locationConfig.longitude,
+      radius: locationConfig.radius,
       token: newToken,
       status: 'active',
       createdAt: new Date().toISOString(),
@@ -132,14 +192,14 @@ export const regenerateGymQR = async (expirationDays = null) => {
 
     // Sync to Supabase
     try {
-      await supabase.from('attendance_qr').insert({
-        secure_token: newToken,
-        status: 'active',
-        expires_at: expiresAt
-      });
-    } catch (e) {
-      // Ignored if table not created
-    }
+      if (supabase) {
+        await supabase.from('attendance_qr').insert({
+          secure_token: newToken,
+          status: 'active',
+          expires_at: expiresAt
+        });
+      }
+    } catch (e) {}
 
     return { success: true, qrConfig };
   } catch (err) {
@@ -167,7 +227,7 @@ export const revokeGymQR = async () => {
 
     // Sync to Supabase
     try {
-      if (current.token) {
+      if (supabase && current.token) {
         await supabase
           .from('attendance_qr')
           .update({ status: 'revoked', revoked_at: new Date().toISOString() })
@@ -183,55 +243,7 @@ export const revokeGymQR = async () => {
 };
 
 /**
- * Extract GPS coordinates & perimeter from scanned QR text if present
- * Supports geo:lat,lng and URL query params ?lat=..&lng=..&rad=..
- */
-export const extractCoordsFromScan = (rawText) => {
-  if (!rawText) return null;
-  const trimmed = rawText.trim();
-
-  // Pattern 1: geo:11.9111586,79.6347447 or geo:11.9111586,79.6347447?q=...
-  const geoMatch = trimmed.match(/^geo:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
-  if (geoMatch) {
-    return {
-      latitude: parseFloat(geoMatch[1]),
-      longitude: parseFloat(geoMatch[2])
-    };
-  }
-
-  // Pattern 2: URL with lat= & lng= query params
-  if (trimmed.includes('lat=') && trimmed.includes('lng=')) {
-    try {
-      const url = new URL(trimmed.startsWith('http') ? trimmed : 'https://' + trimmed);
-      const lat = url.searchParams.get('lat');
-      const lng = url.searchParams.get('lng');
-      const rad = url.searchParams.get('rad');
-      if (lat && lng) {
-        return {
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-          radius: rad ? parseFloat(rad) : undefined
-        };
-      }
-    } catch (e) {
-      const latMatch = trimmed.match(/lat=(-?\d+(?:\.\d+)?)/);
-      const lngMatch = trimmed.match(/lng=(-?\d+(?:\.\d+)?)/);
-      const radMatch = trimmed.match(/rad=(\d+)/);
-      if (latMatch && lngMatch) {
-        return {
-          latitude: parseFloat(latMatch[1]),
-          longitude: parseFloat(lngMatch[1]),
-          radius: radMatch ? parseFloat(radMatch[1]) : undefined
-        };
-      }
-    }
-  }
-
-  return null;
-};
-
-/**
- * Parse token from scanned text (supports plain token, formatted payload, or checkin URL)
+ * Parse token from scanned text (supports plain token, URL query param, path, or formatted payload)
  */
 export const extractTokenFromScan = (rawText) => {
   if (!rawText) return '';
@@ -249,23 +261,15 @@ export const extractTokenFromScan = (rawText) => {
     }
   }
 
-  // If payload has 'qr=' in URL
-  if (trimmed.includes('qr=')) {
-    try {
-      const url = new URL(trimmed.startsWith('http') ? trimmed : 'https://' + trimmed);
-      const qrParam = url.searchParams.get('qr');
-      if (qrParam) return qrParam;
-    } catch (e) {}
+  // If payload has 'checkin/' or 'check-in/' in URL path: https://domain/checkin/TOKEN
+  const pathMatch = trimmed.match(/\/check-?in\/([A-Za-z0-9_-]+)/i);
+  if (pathMatch && pathMatch[1]) {
+    return pathMatch[1];
   }
 
   // If formatted as NBG_ATTENDANCE_TOKEN:<token>
   if (trimmed.startsWith('NBG_ATTENDANCE_TOKEN:')) {
     return trimmed.replace('NBG_ATTENDANCE_TOKEN:', '');
-  }
-
-  // Legacy fallback if scanning bare URL or geo
-  if (trimmed.startsWith('http') || trimmed.startsWith('geo:')) {
-    return trimmed;
   }
 
   return trimmed;
@@ -298,12 +302,11 @@ export const validateScannedQR = async (scannedRaw) => {
     };
   }
 
-  // Token verification - accepts direct token, checkin URL with token, or verified geo URI
+  // Token verification - accepts direct token, checkin URL with token, or match with active token
   const isDirectTokenMatch = token === activeQR.token;
-  const isUrlMatch = scannedRaw.includes('/checkin');
-  const isGeoMatch = scannedRaw.startsWith('geo:');
+  const isUrlMatch = scannedRaw.includes(activeQR.token) || (scannedRaw.includes('/checkin') && (!token || token === activeQR.token));
 
-  if (!isDirectTokenMatch && !isUrlMatch && !isGeoMatch) {
+  if (!isDirectTokenMatch && !isUrlMatch) {
     return { 
       valid: false, 
       code: 'INVALID_QR', 
@@ -312,6 +315,67 @@ export const validateScannedQR = async (scannedRaw) => {
   }
 
   return { valid: true, activeQR };
+};
+
+/**
+ * Manual Verification workflow:
+ * ONLY verifies current device GPS against backend gym location & radius.
+ * DOES NOT create attendance, DOES NOT check in/out, DOES NOT select athlete.
+ */
+export const verifyGymLocationOnly = async (coords) => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      success: false,
+      code: 'OFFLINE',
+      message: "You're offline. Connect to the internet to verify attendance."
+    };
+  }
+
+  if (!coords || typeof coords.latitude !== 'number' || typeof coords.longitude !== 'number') {
+    return {
+      success: false,
+      code: 'LOCATION_ERROR',
+      message: 'Location permission or GPS data is required to verify gym location.'
+    };
+  }
+
+  const { latitude, longitude, accuracy } = coords;
+
+  if (accuracy && accuracy > 100) {
+    return {
+      success: false,
+      code: 'LOCATION_LOW_ACCURACY',
+      accuracy: Math.round(accuracy),
+      message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
+    };
+  }
+
+  // Retrieve current gym config from backend (Single Source of Truth)
+  const gymConfig = await getGymLocationConfig();
+  if (!gymConfig) {
+    return {
+      success: false,
+      code: 'SYSTEM_ERROR',
+      message: 'Unable to verify the current gym location. Please check your internet connection and try again.'
+    };
+  }
+
+  const distance = Math.round(getDistanceMeters(latitude, longitude, gymConfig.latitude, gymConfig.longitude));
+  const isInside = distance <= gymConfig.radius;
+
+  return {
+    success: isInside,
+    verified: isInside,
+    distance,
+    allowedRadius: gymConfig.radius,
+    gymName: gymConfig.gymName,
+    latitude,
+    longitude,
+    accuracy: Math.round(accuracy || 0),
+    message: isInside
+      ? 'You are inside the gym attendance area.'
+      : 'You are outside the gym attendance area.'
+  };
 };
 
 /**
@@ -367,10 +431,17 @@ export const processAttendance = async ({
   scannedText,
   phone,
   coords,
-  memberOverride = null,
-  gymSettings = null,
-  targetCoords = null
+  memberOverride = null
 }) => {
+  // Enforce online check
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      success: false,
+      code: 'OFFLINE',
+      message: "You're offline. Connect to the internet to verify attendance."
+    };
+  }
+
   const deviceId = getDeviceId();
   const now = new Date();
   const dateStr = todayStr();
@@ -378,7 +449,6 @@ export const processAttendance = async ({
   // 1. Validate QR Code
   const qrValidation = await validateScannedQR(scannedText);
   if (!qrValidation.valid) {
-    // Record rejected event
     await logAttendanceEvent({
       memberId: memberOverride?.id || phone || 'anonymous',
       eventType: 'scan_rejected',
@@ -400,67 +470,29 @@ export const processAttendance = async ({
 
   const { latitude, longitude, accuracy } = coords;
 
-  // Check GPS accuracy threshold (allow up to 100m for indoor gym environments)
+  // Enforce GPS accuracy check
   if (accuracy && accuracy > 100) {
     return {
       success: false,
       code: 'LOCATION_LOW_ACCURACY',
       accuracy: Math.round(accuracy),
-      message: `Your GPS accuracy (${Math.round(accuracy)}m) is too low. Please enable high-accuracy location or connect to Wi-Fi and try again.`
+      message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
     };
   }
 
-  // 3. Haversine Distance & Geofence Check
-  // Resolve target gym coordinates with cascading priority:
-  // (A) Explicit targetCoords passed in from URL / client
-  // (B) Scanned QR text payload (geo: URI or URL params)
-  // (C) gymSettings passed from SettingsContext
-  // (D) Direct Firestore fetch from settings/config doc
-  // (E) Default fallback
-  const scannedCoords = extractCoordsFromScan(scannedText);
-
-  let gymLat = null;
-  let gymLng = null;
-  let allowedRadius = null;
-
-  if (targetCoords && typeof targetCoords.latitude === 'number' && typeof targetCoords.longitude === 'number') {
-    gymLat = targetCoords.latitude;
-    gymLng = targetCoords.longitude;
-    if (targetCoords.radius) allowedRadius = parseFloat(targetCoords.radius);
-  } else if (scannedCoords && typeof scannedCoords.latitude === 'number' && typeof scannedCoords.longitude === 'number') {
-    gymLat = scannedCoords.latitude;
-    gymLng = scannedCoords.longitude;
-    if (scannedCoords.radius) allowedRadius = parseFloat(scannedCoords.radius);
-  } else if (gymSettings && gymSettings.latitude && gymSettings.longitude) {
-    gymLat = parseFloat(gymSettings.latitude);
-    gymLng = parseFloat(gymSettings.longitude);
-    if (gymSettings.radius) allowedRadius = parseFloat(gymSettings.radius);
+  // 3. Single Source of Truth Gym Location and Geofence Verification
+  const gymLocation = await getGymLocationConfig();
+  if (!gymLocation) {
+    return {
+      success: false,
+      code: 'SYSTEM_ERROR',
+      message: 'Unable to verify the current gym location. Please check your internet connection and try again.'
+    };
   }
 
-  // Fallback to direct Firestore read if still missing coordinates
-  if (!gymLat || !gymLng) {
-    try {
-      const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
-      if (cfgSnap.exists()) {
-        const c = cfgSnap.data();
-        if (c.latitude) gymLat = parseFloat(c.latitude);
-        if (c.longitude) gymLng = parseFloat(c.longitude);
-        if (c.radius) allowedRadius = parseFloat(c.radius);
-      }
-    } catch (e) {
-      console.warn("Could not fetch fallback settings from Firestore:", e);
-    }
-  }
+  const distance = Math.round(getDistanceMeters(latitude, longitude, gymLocation.latitude, gymLocation.longitude));
 
-  // Ultimate fallbacks
-  gymLat = (gymLat && !isNaN(gymLat)) ? gymLat : 11.9111586;
-  gymLng = (gymLng && !isNaN(gymLng)) ? gymLng : 79.6347447;
-  allowedRadius = (allowedRadius && !isNaN(allowedRadius) && allowedRadius > 0) ? allowedRadius : 500;
-
-  const distance = getDistanceMeters(latitude, longitude, gymLat, gymLng);
-  const detectedDistance = Math.round(distance);
-
-  if (distance > allowedRadius) {
+  if (distance > gymLocation.radius) {
     await logAttendanceEvent({
       memberId: memberOverride?.id || phone || 'unknown',
       eventType: 'scan_rejected',
@@ -468,18 +500,18 @@ export const processAttendance = async ({
       latitude,
       longitude,
       accuracy,
-      calculatedDistance: detectedDistance,
+      calculatedDistance: distance,
       deviceId
     });
 
     return {
       success: false,
       code: 'OUTSIDE_GEOFENCE',
-      detectedDistance,
-      allowedRadius,
-      gymLat,
-      gymLng,
-      message: `You're outside the gym attendance area (${detectedDistance}m away, allowed perimeter: ${allowedRadius}m).`
+      detectedDistance: distance,
+      allowedRadius: gymLocation.radius,
+      gymLat: gymLocation.latitude,
+      gymLng: gymLocation.longitude,
+      message: "You're outside the gym attendance area."
     };
   }
 
@@ -503,7 +535,7 @@ export const processAttendance = async ({
         success: false,
         code: 'NOT_REGISTERED',
         phone: cleanPhone,
-        message: "You're not registered as a member."
+        message: 'Member registration required.'
       };
     }
 
@@ -527,7 +559,7 @@ export const processAttendance = async ({
     };
   }
 
-  // 6. 30-Second Duplicate Scan Protection (Server-Side)
+  // 6. 30-Second Duplicate Scan Protection (Server-Side Enforced)
   const cooldownRef = doc(db, 'cooldowns', member.id);
   const cooldownSnap = await getDoc(cooldownRef);
   if (cooldownSnap.exists()) {
@@ -542,14 +574,14 @@ export const processAttendance = async ({
           memberName: member.name,
           secondsElapsed: Math.round(elapsedSeconds),
           secondsRemaining: remaining,
-          message: `You scanned ${Math.round(elapsedSeconds)} seconds ago. Please wait before scanning again.`
+          message: 'You scanned recently. Please wait before scanning again.'
         };
       }
     }
   }
 
-  // 7. Same-Device 30-Minute Rule
-  // If the same device finished a session within the last 30 minutes, restrict starting another new session
+  // 7. Same-Device 30-Minute Restriction
+  // If the same device finished an attendance session within 30 minutes, restrict starting a new session
   const deviceCooldownRef = doc(db, 'device_cooldowns', deviceId);
   const deviceSnap = await getDoc(deviceCooldownRef);
   if (deviceSnap.exists()) {
@@ -596,8 +628,8 @@ export const processAttendance = async ({
       checkInLatitude: latitude,
       checkInLongitude: longitude,
       checkInAccuracy: accuracy || null,
-      checkInDistance: detectedDistance,
-      gymName: gymSettings?.gymName || 'New Boss Gym',
+      checkInDistance: distance,
+      gymName: gymLocation.gymName,
       deviceId,
       edited: false,
       editedBy: null,
@@ -615,23 +647,25 @@ export const processAttendance = async ({
       latitude,
       longitude,
       accuracy,
-      calculatedDistance: detectedDistance,
+      calculatedDistance: distance,
       locationVerified: true,
       deviceId
     });
 
     try {
-      await supabase.from('attendance_sessions').insert({
-        member_id: member.id,
-        member_name: member.name,
-        session_date: dateStr,
-        status: 'open',
-        check_in_latitude: latitude,
-        check_in_longitude: longitude,
-        check_in_accuracy: accuracy,
-        check_in_distance: detectedDistance,
-        device_id: deviceId
-      });
+      if (supabase) {
+        await supabase.from('attendance_sessions').insert({
+          member_id: member.id,
+          member_name: member.name,
+          session_date: dateStr,
+          status: 'open',
+          check_in_latitude: latitude,
+          check_in_longitude: longitude,
+          check_in_accuracy: accuracy,
+          check_in_distance: distance,
+          device_id: deviceId
+        });
+      }
     } catch (e) {}
 
     return {
@@ -641,8 +675,8 @@ export const processAttendance = async ({
       session: {
         id: docRef.id,
         entryTime: now,
-        distance: detectedDistance,
-        gymName: gymSettings?.gymName || 'New Boss Gym',
+        distance,
+        gymName: gymLocation.gymName,
         status: 'ACTIVE'
       },
       workout: todaysWorkout
@@ -665,7 +699,7 @@ export const processAttendance = async ({
       checkOutLatitude: latitude,
       checkOutLongitude: longitude,
       checkOutAccuracy: accuracy || null,
-      checkOutDistance: detectedDistance,
+      checkOutDistance: distance,
       updatedAt: serverTimestamp()
     });
 
@@ -685,25 +719,27 @@ export const processAttendance = async ({
       latitude,
       longitude,
       accuracy,
-      calculatedDistance: detectedDistance,
+      calculatedDistance: distance,
       locationVerified: true,
       deviceId
     });
 
     try {
-      await supabase
-        .from('attendance_sessions')
-        .update({
-          exit_time: now.toISOString(),
-          duration_minutes: durationMinutes,
-          status: 'closed',
-          check_out_latitude: latitude,
-          check_out_longitude: longitude,
-          check_out_accuracy: accuracy,
-          check_out_distance: detectedDistance
-        })
-        .eq('member_id', member.id)
-        .eq('status', 'open');
+      if (supabase) {
+        await supabase
+          .from('attendance_sessions')
+          .update({
+            exit_time: now.toISOString(),
+            duration_minutes: durationMinutes,
+            status: 'closed',
+            check_out_latitude: latitude,
+            check_out_longitude: longitude,
+            check_out_accuracy: accuracy,
+            check_out_distance: distance
+          })
+          .eq('member_id', member.id)
+          .eq('status', 'open');
+      }
     } catch (e) {}
 
     return {
@@ -715,8 +751,8 @@ export const processAttendance = async ({
         entryTime,
         exitTime: now,
         durationMinutes,
-        distance: detectedDistance,
-        gymName: gymSettings?.gymName || 'New Boss Gym',
+        distance,
+        gymName: gymLocation.gymName,
         status: 'COMPLETED'
       },
       workout: todaysWorkout
@@ -737,19 +773,21 @@ const logAttendanceEvent = async (eventData) => {
     await addDoc(collection(db, 'attendance_events'), payload);
 
     try {
-      await supabase.from('attendance_events').insert({
-        member_id: eventData.memberId,
-        session_id: eventData.sessionId || null,
-        event_type: eventData.eventType,
-        qr_token: eventData.qrToken || null,
-        latitude: eventData.latitude || null,
-        longitude: eventData.longitude || null,
-        accuracy: eventData.accuracy || null,
-        calculated_distance: eventData.calculatedDistance || null,
-        location_verified: !!eventData.locationVerified,
-        rejection_reason: eventData.rejectionReason || null,
-        device_id: eventData.deviceId || null
-      });
+      if (supabase) {
+        await supabase.from('attendance_events').insert({
+          member_id: eventData.memberId,
+          session_id: eventData.sessionId || null,
+          event_type: eventData.eventType,
+          qr_token: eventData.qrToken || null,
+          latitude: eventData.latitude || null,
+          longitude: eventData.longitude || null,
+          accuracy: eventData.accuracy || null,
+          calculated_distance: eventData.calculatedDistance || null,
+          location_verified: !!eventData.locationVerified,
+          rejection_reason: eventData.rejectionReason || null,
+          device_id: eventData.deviceId || null
+        });
+      }
     } catch (e) {}
   } catch (err) {
     console.warn('Failed to record attendance audit event:', err);

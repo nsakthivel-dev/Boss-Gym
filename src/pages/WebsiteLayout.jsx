@@ -22,11 +22,18 @@ import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
 
 const WebsiteLayout = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userRole } = useAuth();
   const { settings: gymSettings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const adminEmails = [
+    'sakthicud07@gmail.com',
+    'manisuni94@gmail.com',
+    import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
+  ].filter(Boolean).map(e => e.toLowerCase().trim());
+  const isAdmin = userRole === 'admin' || (currentUser && adminEmails.includes(currentUser.email?.toLowerCase().trim()));
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -117,20 +124,25 @@ const WebsiteLayout = () => {
             </NavLink>
 
             {currentUser ? (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="hidden md:block text-right">
+              <div className="flex items-center gap-1.5 sm:gap-3">
+                <div className="hidden lg:block text-right">
                   <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-athletic">Trainer Desk</p>
                   <p className="text-xs font-bold text-white truncate max-w-[140px]">{currentUser?.email}</p>
                 </div>
-                <NavLink 
-                  to="/dashboard"
-                  className="hidden md:inline-flex items-center gap-1.5 h-9 sm:h-10 px-3.5 sm:px-4 rounded-lg sm:rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic"
-                >
-                  Dashboard
-                </NavLink>
+                {isAdmin && (
+                  <NavLink 
+                    to="/dashboard"
+                    className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-10 px-2.5 sm:px-4 rounded-lg sm:rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-[11px] sm:text-xs uppercase tracking-wider font-athletic shadow-gold-sm transition-all active:scale-95 shrink-0"
+                    title="Admin Dashboard"
+                  >
+                    <Shield size={14} className="shrink-0" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                    <span className="sm:hidden">Admin</span>
+                  </NavLink>
+                )}
                 <button 
                   onClick={handleLogout}
-                  className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors cursor-pointer"
+                  className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors cursor-pointer shrink-0"
                   title="Logout"
                 >
                   <LogOut size={16} />

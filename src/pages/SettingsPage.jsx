@@ -138,21 +138,44 @@ const SettingsPage = () => {
         console.warn("Sync to qr_config skipped:", qrErr);
       }
 
-      // 3. Sync to Supabase gym_locations if table exists
+      // 3. Sync to Supabase gym_locations (Single Source of Truth)
       try {
         if (supabase) {
-          await supabase.from('gym_locations').upsert({
-            name: dataToSave.gymName || 'New Boss Gym',
-            latitude: dataToSave.latitude,
-            longitude: dataToSave.longitude,
-            geofence_radius: dataToSave.radius,
-            address: dataToSave.address,
-            phone: dataToSave.phoneNumber,
-            updated_at: new Date().toISOString()
-          });
+          const { data: existingLoc } = await supabase
+            .from('gym_locations')
+            .select('id')
+            .limit(1)
+            .maybeSingle();
+
+          if (existingLoc?.id) {
+            await supabase
+              .from('gym_locations')
+              .update({
+                name: dataToSave.gymName || 'New Boss Gym',
+                latitude: dataToSave.latitude,
+                longitude: dataToSave.longitude,
+                geofence_radius: dataToSave.radius,
+                address: dataToSave.address || '',
+                phone: dataToSave.phoneNumber || '',
+                is_active: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingLoc.id);
+          } else {
+            await supabase.from('gym_locations').insert({
+              name: dataToSave.gymName || 'New Boss Gym',
+              latitude: dataToSave.latitude,
+              longitude: dataToSave.longitude,
+              geofence_radius: dataToSave.radius,
+              address: dataToSave.address || '',
+              phone: dataToSave.phoneNumber || '',
+              is_active: true,
+              updated_at: new Date().toISOString()
+            });
+          }
         }
       } catch (sbErr) {
-        // Safe to ignore if table not created
+        console.warn("Supabase gym_locations sync warning:", sbErr);
       }
 
       // 4. Update immediate local context & cache for instant zero-delay updates

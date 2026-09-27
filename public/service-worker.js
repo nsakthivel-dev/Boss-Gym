@@ -1,5 +1,5 @@
 // Service Worker for New Boss Gym PWA - Robust Update & Fresh Data Architecture
-const CACHE_VERSION = 'boss-gym-v3.0';
+const CACHE_VERSION = 'boss-gym-v4.0';
 const STATIC_CACHE = `boss-gym-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `boss-gym-runtime-${CACHE_VERSION}`;
 
@@ -21,6 +21,11 @@ const DYNAMIC_PATTERNS = [
   'firestore',
   '/api/',
   'wa.me',
+  'gym_locations',
+  'attendance',
+  'sessions',
+  'members',
+  'qr_config',
 ];
 
 // Helper to determine if a request is dynamic data
