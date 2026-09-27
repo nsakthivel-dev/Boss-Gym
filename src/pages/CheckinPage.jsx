@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
-import { processAttendance, fetchMemberTodayWorkout } from '../utils/attendanceService';
+import { processAttendance, fetchMemberTodayWorkout, extractCoordsFromScan } from '../utils/attendanceService';
 import MemberFormModal from '../components/MemberFormModal';
 import { 
   Camera, MapPin, XCircle, AlertTriangle, Ban, CheckCircle, 
@@ -23,6 +23,21 @@ const CheckinPage = () => {
   const [coords, setCoords] = useState(null);
   const [gpsAccuracy, setGpsAccuracy] = useState(null);
   
+  // Target gym coordinates explicitly parsed from QR or URL parameters
+  const [targetGymCoords, setTargetGymCoords] = useState(() => {
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    const rad = searchParams.get('rad');
+    if (lat && lng) {
+      return {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        radius: rad ? parseFloat(rad) : undefined
+      };
+    }
+    return null;
+  });
+  
   // Results & Errors
   const [errorDetails, setErrorDetails] = useState(null);
   const [resultData, setResultData] = useState(null);
@@ -38,6 +53,16 @@ const CheckinPage = () => {
     const urlToken = searchParams.get('token') || searchParams.get('qr');
     if (urlToken) {
       setScannedToken(urlToken);
+      const lat = searchParams.get('lat');
+      const lng = searchParams.get('lng');
+      const rad = searchParams.get('rad');
+      if (lat && lng) {
+        setTargetGymCoords({
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lng),
+          radius: rad ? parseFloat(rad) : undefined
+        });
+      }
       // Automatically proceed to location verification
       setStep('locating');
     }
@@ -74,13 +99,16 @@ const CheckinPage = () => {
             config,
             (decodedText) => {
               // Successfully decoded QR
-              scanner.stop().then(() => {
+              const onScanSuccess = () => {
                 setScannedToken(decodedText);
+                const coordsFromQR = extractCoordsFromScan(decodedText);
+                if (coordsFromQR) {
+                  setTargetGymCoords(coordsFromQR);
+                }
                 setStep('locating');
-              }).catch(() => {
-                setScannedToken(decodedText);
-                setStep('locating');
-              });
+              };
+
+              scanner.stop().then(onScanSuccess).catch(onScanSuccess);
             },
             () => {
               // Parse error / frame skipped
@@ -183,12 +211,23 @@ const CheckinPage = () => {
     setErrorDetails(null);
 
     try {
+      const effectiveGymCoords = targetGymCoords || (
+        gymSettings?.latitude && gymSettings?.longitude
+          ? {
+              latitude: Number(gymSettings.latitude),
+              longitude: Number(gymSettings.longitude),
+              radius: Number(gymSettings.radius || 500)
+            }
+          : null
+      );
+
       const res = await processAttendance({
-        scannedText: scannedToken || searchParams.get('token') || '',
+        scannedText: scannedToken || searchParams.get('token') || searchParams.get('qr') || '',
         phone: athletePhone,
         coords: currentCoords,
         memberOverride,
-        gymSettings
+        gymSettings,
+        targetCoords: effectiveGymCoords
       });
 
       if (!res.success) {
@@ -792,15 +831,12 @@ const CheckinPage = () => {
           <div className="mt-6 flex flex-col gap-2">
             <button
               onClick={() => {
-                if (coords) {
-                  setStep('phone_input');
-                } else {
-                  setStep('welcome');
-                }
+                setCoords(null);
+                setStep('locating');
               }}
               className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic cursor-pointer active:scale-95"
             >
-              Try Again
+              {isOutside ? "Re-detect GPS Location & Try Again" : "Try Again"}
             </button>
             <Link
               to="/"

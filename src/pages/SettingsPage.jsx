@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase/config';
+import { supabase } from '../supabase/config';
 import { doc, setDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
@@ -72,7 +73,7 @@ const ToggleGroup = ({ label, description, checked, onChange }) => (
 
 const SettingsPage = () => {
   const { currentUser } = useAuth();
-  const { settings: contextSettings, loading: contextLoading } = useSettings();
+  const { settings: contextSettings, loading: contextLoading, updateSettingsLocal } = useSettings();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,8 +113,6 @@ const SettingsPage = () => {
     setSaving(true);
     setMessage({ type: '', text: '' });
     try {
-      const docRef = doc(db, 'settings', 'config');
-      
       const dataToSave = {
         ...settings,
         latitude: Number(settings.latitude) || 0,
@@ -121,11 +120,53 @@ const SettingsPage = () => {
         radius: Number(settings.radius) || 500
       };
 
+      // 1. Primary Firestore settings config
+      const docRef = doc(db, 'settings', 'config');
       await setDoc(docRef, dataToSave, { merge: true });
-      showFeedback('success', 'Settings saved successfully');
+
+      // 2. Sync to active qr_config so QR posters & tokens match new coordinates
+      try {
+        const qrDocRef = doc(db, 'settings', 'qr_config');
+        await setDoc(qrDocRef, {
+          gymName: dataToSave.gymName || 'New Boss Gym',
+          latitude: dataToSave.latitude,
+          longitude: dataToSave.longitude,
+          radius: dataToSave.radius,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (qrErr) {
+        console.warn("Sync to qr_config skipped:", qrErr);
+      }
+
+      // 3. Sync to Supabase gym_locations if table exists
+      try {
+        if (supabase) {
+          await supabase.from('gym_locations').upsert({
+            name: dataToSave.gymName || 'New Boss Gym',
+            latitude: dataToSave.latitude,
+            longitude: dataToSave.longitude,
+            geofence_radius: dataToSave.radius,
+            address: dataToSave.address,
+            phone: dataToSave.phoneNumber,
+            updated_at: new Date().toISOString()
+          });
+        }
+      } catch (sbErr) {
+        // Safe to ignore if table not created
+      }
+
+      // 4. Update immediate local context & cache for instant zero-delay updates
+      if (typeof updateSettingsLocal === 'function') {
+        updateSettingsLocal(dataToSave);
+      }
+      try {
+        localStorage.setItem('nbg_cached_settings', JSON.stringify(dataToSave));
+      } catch (e) {}
+
+      showFeedback('success', 'Geofence coordinates and system settings saved successfully');
     } catch (err) {
       console.error("Error saving settings:", err);
-      showFeedback('error', 'Failed to save settings');
+      showFeedback('error', 'Failed to save settings: ' + (err.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -306,19 +347,22 @@ const SettingsPage = () => {
                       setSaving(true);
                       navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                          updateSetting('latitude', pos.coords.latitude.toFixed(6));
-                          updateSetting('longitude', pos.coords.longitude.toFixed(6));
+                          const lat = Number(pos.coords.latitude.toFixed(6));
+                          const lng = Number(pos.coords.longitude.toFixed(6));
+                          updateSetting('latitude', lat);
+                          updateSetting('longitude', lng);
                           setSaving(false);
-                          showFeedback('success', 'GPS coordinates updated to current position');
+                          showFeedback('success', `GPS coordinates detected (${lat}, ${lng}). Click "Save Geofence" to apply.`);
                         },
                         (err) => {
                           setSaving(false);
-                          showFeedback('error', 'Could not get device location');
-                        }
+                          showFeedback('error', 'Could not get device location. Please enable browser location permissions.');
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                       );
                     }
                   }}
-                  className="flex items-center gap-2 text-xs font-bold text-gold-700 hover:text-gold-800 bg-gold-50 border border-gold-200 px-3.5 py-2 rounded-xl transition-colors"
+                  className="flex items-center gap-2 text-xs font-bold text-gold-700 hover:text-gold-800 bg-gold-50 border border-gold-200 px-3.5 py-2 rounded-xl transition-colors cursor-pointer active:scale-95"
                 >
                   <MapPin size={14} /> Detect Current GPS Coordinates
                 </button>
@@ -326,7 +370,7 @@ const SettingsPage = () => {
 
               <InputGroup 
                 label="Allowed Geofence Radius (Meters)" 
-                description="Max distance in meters within which a check-in is allowed"
+                description="Max distance in meters within which a check-in is allowed (Default: 500m)"
                 type="number"
                 value={settings.radius}
                 onChange={(val) => updateSetting('radius', parseInt(val) || 0)}
@@ -335,7 +379,7 @@ const SettingsPage = () => {
               <InputGroup 
                 label="Self Check-in Portal URL" 
                 description="The public self-checkin endpoint used for the wall QR"
-                value="https://newbossgym.in.net/checkin"
+                value={`${window.location.origin}/checkin`}
                 disabled={true}
                 onChange={() => {}}
               />
@@ -344,7 +388,7 @@ const SettingsPage = () => {
                 <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-gold-500 hover:bg-gold-600 text-white font-bold px-6 py-2.5 rounded-xl uppercase text-xs tracking-wider shadow-gold-sm transition-all flex items-center gap-2"
+                  className="bg-gold-500 hover:bg-gold-600 text-white font-bold px-6 py-2.5 rounded-xl uppercase text-xs tracking-wider shadow-gold-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   Save Geofence

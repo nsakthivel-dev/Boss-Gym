@@ -7,7 +7,9 @@ import { getActiveGymQR } from '../utils/attendanceService';
 const WallQRModal = ({ onClose }) => {
   const { settings: gymSettings } = useSettings();
   const gymName = gymSettings?.gymName || "NEW BOSS GYM";
-  const radius = gymSettings?.radius || 50;
+  const latitude = Number(gymSettings?.latitude || 11.9111586);
+  const longitude = Number(gymSettings?.longitude || 79.6347447);
+  const radius = Number(gymSettings?.radius || 500);
 
   const [activeToken, setActiveToken] = useState('');
 
@@ -18,9 +20,8 @@ const WallQRModal = ({ onClose }) => {
   }, []);
 
   const checkinBaseUrl = window.location.origin + '/checkin';
-  const qrValue = activeToken 
-    ? `${checkinBaseUrl}?token=${activeToken}` 
-    : `${checkinBaseUrl}`;
+  const tokenParam = activeToken || 'NBG_SEC_DEFAULT';
+  const qrValue = `${checkinBaseUrl}?token=${tokenParam}&lat=${latitude}&lng=${longitude}&rad=${radius}`;
 
   const downloadQR = () => {
     const canvas = document.getElementById("wall-qr-canvas");

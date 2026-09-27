@@ -13,10 +13,11 @@ import {
 const QRPage = () => {
   const { settings: gymSettings } = useSettings();
   const gymName = gymSettings?.gymName || 'New Boss Gym';
-  const latitude = parseFloat(gymSettings?.latitude || 11.9111586);
-  const longitude = parseFloat(gymSettings?.longitude || 79.6347447);
-  const radius = gymSettings?.radius || 50;
+  const latitude = Number(gymSettings?.latitude || 11.9111586);
+  const longitude = Number(gymSettings?.longitude || 79.6347447);
+  const radius = Number(gymSettings?.radius || 500);
 
+  const [qrType, setQrType] = useState('url'); // 'url' | 'geo'
   const [qrConfig, setQrConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -43,10 +44,13 @@ const QRPage = () => {
     setTimeout(() => setStatusMessage({ type: '', text: '' }), 5000);
   };
 
-  // Secure URL payload encoding the unique token
+  // Secure URL payload encoding the unique token AND geo coordinates for instant verification
   const checkinBaseUrl = window.location.origin + '/checkin';
   const activeToken = qrConfig?.token || 'NBG_SEC_DEFAULT';
-  const qrUrlPayload = `${checkinBaseUrl}?token=${activeToken}`;
+  const urlPayload = `${checkinBaseUrl}?token=${activeToken}&lat=${latitude}&lng=${longitude}&rad=${radius}`;
+  const geoPayload = `geo:${latitude},${longitude}`;
+  
+  const activeQrValue = qrType === 'geo' ? geoPayload : urlPayload;
 
   const handleRegenerate = async () => {
     if (!window.confirm("Regenerating the Gym QR will instantly invalidate any previously printed QR posters. Are you sure you want to generate a new secure QR token?")) {
@@ -125,7 +129,7 @@ const QRPage = () => {
       ctx.font = 'bold 15px Montserrat, Arial, sans-serif';
       ctx.fillStyle = '#9f7d16';
       ctx.fillText(
-        'OFFICIAL ENTRANCE ATTENDANCE QR', 
+        qrType === 'geo' ? 'GPS FACILITY VERIFICATION CODE' : 'OFFICIAL ENTRANCE ATTENDANCE QR', 
         downloadCanvas.width / 2, 
         qrSize + quietZone + 74
       );
@@ -133,7 +137,7 @@ const QRPage = () => {
       ctx.font = 'bold 12px Montserrat, Arial, sans-serif';
       ctx.fillStyle = '#111111';
       ctx.fillText(
-        'SCAN UPON ENTERING & EXITING THE GYM', 
+        qrType === 'geo' ? 'SCAN WITH CHECK-IN APP SCANNER' : 'SCAN UPON ENTERING & EXITING THE GYM', 
         downloadCanvas.width / 2, 
         qrSize + quietZone + 102
       );
@@ -141,13 +145,13 @@ const QRPage = () => {
       ctx.font = '11px Arial, sans-serif';
       ctx.fillStyle = '#666666';
       ctx.fillText(
-        `GPS Geofence: ${radius}m · On-site Verification Required`, 
+        `GPS Geofence: ${radius}m · Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`, 
         downloadCanvas.width / 2, 
         qrSize + quietZone + 128
       );
 
       const link = document.createElement('a');
-      link.download = `${gymName.toLowerCase().replace(/\s+/g, '_')}_attendance_poster.png`;
+      link.download = `${gymName.toLowerCase().replace(/\s+/g, '_')}_${qrType}_poster.png`;
       link.href = downloadCanvas.toDataURL('image/png');
       link.click();
     });
@@ -187,6 +191,34 @@ const QRPage = () => {
         </div>
       )}
 
+      {/* QR Format Type Selector */}
+      <div className="bg-white border border-[#e7e2d5] rounded-2xl p-2 shadow-xs flex gap-2">
+        <button
+          type="button"
+          onClick={() => setQrType('url')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all font-athletic cursor-pointer ${
+            qrType === 'url'
+              ? 'bg-neutral-900 text-gold-400 shadow-sm'
+              : 'text-neutral-600 hover:text-neutral-900 hover:bg-[#faf9f6]'
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+          Check-in URL (GPS Verified)
+        </button>
+        <button
+          type="button"
+          onClick={() => setQrType('geo')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all font-athletic cursor-pointer ${
+            qrType === 'geo'
+              ? 'bg-neutral-900 text-gold-400 shadow-sm'
+              : 'text-neutral-600 hover:text-neutral-900 hover:bg-[#faf9f6]'
+          }`}
+        >
+          <MapPin className="w-4 h-4" />
+          Location (Geo URI)
+        </button>
+      </div>
+
       {/* Location & Geofence Metadata Strip */}
       <div className="bg-white border border-[#e7e2d5] rounded-2xl p-4 shadow-xs grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
         <div>
@@ -194,9 +226,9 @@ const QRPage = () => {
           <span className="font-bold text-neutral-900 truncate block">{gymName}</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase font-black tracking-wider text-neutral-400 block font-athletic">Coordinates</span>
-          <span className="font-mono text-neutral-700 text-[11px] truncate block">
-            {latitude.toFixed(4)}, {longitude.toFixed(4)}
+          <span className="text-[10px] uppercase font-black tracking-wider text-neutral-400 block font-athletic">Live Coordinates</span>
+          <span className="font-mono text-neutral-700 text-[11px] truncate block font-bold">
+            {latitude.toFixed(6)}, {longitude.toFixed(6)}
           </span>
         </div>
         <div className="col-span-2 sm:col-span-1">
@@ -231,7 +263,7 @@ const QRPage = () => {
           ) : (
             <QRCodeCanvas
               id="admin-qr-canvas"
-              value={qrUrlPayload}
+              value={activeQrValue}
               size={240}
               level="H"
               includeMargin={true}
@@ -244,10 +276,10 @@ const QRPage = () => {
         <div>
           <p className="text-neutral-900 font-black text-xl uppercase tracking-wider font-athletic">{gymName}</p>
           <p className="text-neutral-500 text-xs mt-0.5 font-medium">
-            Scan with smartphone camera or inside the athlete portal
+            {qrType === 'geo' ? 'GPS Perimeter Verification Code' : 'Scan with smartphone camera or inside the athlete portal'}
           </p>
           <p className="text-neutral-400 text-[11px] font-mono mt-1">
-            Token ID: {activeToken ? `${activeToken.slice(0, 14)}...` : 'Generating...'}
+            {qrType === 'geo' ? `Geo: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : `Token ID: ${activeToken ? `${activeToken.slice(0, 14)}...` : 'Generating...'}`}
           </p>
         </div>
 
@@ -308,9 +340,11 @@ const QRPage = () => {
 
         {/* Verification Link Info */}
         <div className="w-full bg-[#faf9f6] rounded-2xl p-3 border border-[#e7e2d5] text-center">
-          <p className="text-[10px] uppercase font-bold text-neutral-400 font-athletic">Attendance Check-in Endpoint</p>
+          <p className="text-[10px] uppercase font-bold text-neutral-400 font-athletic">
+            {qrType === 'geo' ? 'GPS Location Verification Code' : 'Attendance Check-in Endpoint'}
+          </p>
           <p className="text-neutral-600 text-[11px] font-mono break-all mt-0.5 select-all">
-            {qrUrlPayload}
+            {activeQrValue}
           </p>
         </div>
 

@@ -35,14 +35,34 @@ export const getActiveGymQR = async () => {
   try {
     const qrDocRef = doc(db, 'settings', 'qr_config');
     const snap = await getDoc(qrDocRef);
+
+    // Read latest coordinates from settings/config to guarantee active geo sync
+    let latestSettings = null;
+    try {
+      const configSnap = await getDoc(doc(db, 'settings', 'config'));
+      if (configSnap.exists()) {
+        latestSettings = configSnap.data();
+      }
+    } catch (e) {}
+
     if (snap.exists()) {
-      return snap.data();
+      const qrData = snap.data();
+      return {
+        ...qrData,
+        latitude: latestSettings?.latitude ?? qrData.latitude ?? 11.9111586,
+        longitude: latestSettings?.longitude ?? qrData.longitude ?? 79.6347447,
+        radius: latestSettings?.radius ?? qrData.radius ?? 500,
+        gymName: latestSettings?.gymName ?? qrData.gymName ?? 'New Boss Gym'
+      };
     }
 
     // Default seed if no QR generated yet
     const initialConfig = {
       gymId: 'NBG_MUTH_01',
-      gymName: 'New Boss Gym',
+      gymName: latestSettings?.gymName || 'New Boss Gym',
+      latitude: latestSettings?.latitude || 11.9111586,
+      longitude: latestSettings?.longitude || 79.6347447,
+      radius: latestSettings?.radius || 500,
       token: generateSecureToken(),
       status: 'active', // 'active' | 'revoked'
       createdAt: new Date().toISOString(),
@@ -79,9 +99,28 @@ export const regenerateGymQR = async (expirationDays = null) => {
       ? new Date(Date.now() + expirationDays * 86400000).toISOString() 
       : null;
 
+    let lat = 11.9111586;
+    let lng = 79.6347447;
+    let rad = 500;
+    let gymName = 'New Boss Gym';
+
+    try {
+      const configSnap = await getDoc(doc(db, 'settings', 'config'));
+      if (configSnap.exists()) {
+        const c = configSnap.data();
+        if (c.latitude) lat = Number(c.latitude);
+        if (c.longitude) lng = Number(c.longitude);
+        if (c.radius) rad = Number(c.radius);
+        if (c.gymName) gymName = c.gymName;
+      }
+    } catch (e) {}
+
     const qrConfig = {
       gymId: 'NBG_MUTH_01',
-      gymName: 'New Boss Gym',
+      gymName,
+      latitude: lat,
+      longitude: lng,
+      radius: rad,
       token: newToken,
       status: 'active',
       createdAt: new Date().toISOString(),
@@ -141,6 +180,54 @@ export const revokeGymQR = async () => {
     console.error('Failed to revoke QR:', err);
     throw err;
   }
+};
+
+/**
+ * Extract GPS coordinates & perimeter from scanned QR text if present
+ * Supports geo:lat,lng and URL query params ?lat=..&lng=..&rad=..
+ */
+export const extractCoordsFromScan = (rawText) => {
+  if (!rawText) return null;
+  const trimmed = rawText.trim();
+
+  // Pattern 1: geo:11.9111586,79.6347447 or geo:11.9111586,79.6347447?q=...
+  const geoMatch = trimmed.match(/^geo:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/i);
+  if (geoMatch) {
+    return {
+      latitude: parseFloat(geoMatch[1]),
+      longitude: parseFloat(geoMatch[2])
+    };
+  }
+
+  // Pattern 2: URL with lat= & lng= query params
+  if (trimmed.includes('lat=') && trimmed.includes('lng=')) {
+    try {
+      const url = new URL(trimmed.startsWith('http') ? trimmed : 'https://' + trimmed);
+      const lat = url.searchParams.get('lat');
+      const lng = url.searchParams.get('lng');
+      const rad = url.searchParams.get('rad');
+      if (lat && lng) {
+        return {
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lng),
+          radius: rad ? parseFloat(rad) : undefined
+        };
+      }
+    } catch (e) {
+      const latMatch = trimmed.match(/lat=(-?\d+(?:\.\d+)?)/);
+      const lngMatch = trimmed.match(/lng=(-?\d+(?:\.\d+)?)/);
+      const radMatch = trimmed.match(/rad=(\d+)/);
+      if (latMatch && lngMatch) {
+        return {
+          latitude: parseFloat(latMatch[1]),
+          longitude: parseFloat(lngMatch[1]),
+          radius: radMatch ? parseFloat(radMatch[1]) : undefined
+        };
+      }
+    }
+  }
+
+  return null;
 };
 
 /**
@@ -211,11 +298,12 @@ export const validateScannedQR = async (scannedRaw) => {
     };
   }
 
-  // Token verification
+  // Token verification - accepts direct token, checkin URL with token, or verified geo URI
   const isDirectTokenMatch = token === activeQR.token;
-  const isUrlMatch = scannedRaw.includes('/checkin') || scannedRaw.startsWith('geo:');
+  const isUrlMatch = scannedRaw.includes('/checkin');
+  const isGeoMatch = scannedRaw.startsWith('geo:');
 
-  if (!isDirectTokenMatch && !isUrlMatch) {
+  if (!isDirectTokenMatch && !isUrlMatch && !isGeoMatch) {
     return { 
       valid: false, 
       code: 'INVALID_QR', 
@@ -280,7 +368,8 @@ export const processAttendance = async ({
   phone,
   coords,
   memberOverride = null,
-  gymSettings = null
+  gymSettings = null,
+  targetCoords = null
 }) => {
   const deviceId = getDeviceId();
   const now = new Date();
@@ -311,20 +400,62 @@ export const processAttendance = async ({
 
   const { latitude, longitude, accuracy } = coords;
 
-  // Check GPS accuracy threshold (reject if accuracy > 80 meters)
-  if (accuracy && accuracy > 80) {
+  // Check GPS accuracy threshold (allow up to 100m for indoor gym environments)
+  if (accuracy && accuracy > 100) {
     return {
       success: false,
       code: 'LOCATION_LOW_ACCURACY',
       accuracy: Math.round(accuracy),
-      message: `Your GPS accuracy (${Math.round(accuracy)}m) is too low. Please enable high-accuracy location and try again.`
+      message: `Your GPS accuracy (${Math.round(accuracy)}m) is too low. Please enable high-accuracy location or connect to Wi-Fi and try again.`
     };
   }
 
   // 3. Haversine Distance & Geofence Check
-  const gymLat = parseFloat(gymSettings?.latitude || 11.9111586);
-  const gymLng = parseFloat(gymSettings?.longitude || 79.6347447);
-  const allowedRadius = parseFloat(gymSettings?.radius || 50); // Default 50 meters configurable
+  // Resolve target gym coordinates with cascading priority:
+  // (A) Explicit targetCoords passed in from URL / client
+  // (B) Scanned QR text payload (geo: URI or URL params)
+  // (C) gymSettings passed from SettingsContext
+  // (D) Direct Firestore fetch from settings/config doc
+  // (E) Default fallback
+  const scannedCoords = extractCoordsFromScan(scannedText);
+
+  let gymLat = null;
+  let gymLng = null;
+  let allowedRadius = null;
+
+  if (targetCoords && typeof targetCoords.latitude === 'number' && typeof targetCoords.longitude === 'number') {
+    gymLat = targetCoords.latitude;
+    gymLng = targetCoords.longitude;
+    if (targetCoords.radius) allowedRadius = parseFloat(targetCoords.radius);
+  } else if (scannedCoords && typeof scannedCoords.latitude === 'number' && typeof scannedCoords.longitude === 'number') {
+    gymLat = scannedCoords.latitude;
+    gymLng = scannedCoords.longitude;
+    if (scannedCoords.radius) allowedRadius = parseFloat(scannedCoords.radius);
+  } else if (gymSettings && gymSettings.latitude && gymSettings.longitude) {
+    gymLat = parseFloat(gymSettings.latitude);
+    gymLng = parseFloat(gymSettings.longitude);
+    if (gymSettings.radius) allowedRadius = parseFloat(gymSettings.radius);
+  }
+
+  // Fallback to direct Firestore read if still missing coordinates
+  if (!gymLat || !gymLng) {
+    try {
+      const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
+      if (cfgSnap.exists()) {
+        const c = cfgSnap.data();
+        if (c.latitude) gymLat = parseFloat(c.latitude);
+        if (c.longitude) gymLng = parseFloat(c.longitude);
+        if (c.radius) allowedRadius = parseFloat(c.radius);
+      }
+    } catch (e) {
+      console.warn("Could not fetch fallback settings from Firestore:", e);
+    }
+  }
+
+  // Ultimate fallbacks
+  gymLat = (gymLat && !isNaN(gymLat)) ? gymLat : 11.9111586;
+  gymLng = (gymLng && !isNaN(gymLng)) ? gymLng : 79.6347447;
+  allowedRadius = (allowedRadius && !isNaN(allowedRadius) && allowedRadius > 0) ? allowedRadius : 500;
 
   const distance = getDistanceMeters(latitude, longitude, gymLat, gymLng);
   const detectedDistance = Math.round(distance);
@@ -346,7 +477,9 @@ export const processAttendance = async ({
       code: 'OUTSIDE_GEOFENCE',
       detectedDistance,
       allowedRadius,
-      message: "You're outside the gym attendance area."
+      gymLat,
+      gymLng,
+      message: `You're outside the gym attendance area (${detectedDistance}m away, allowed perimeter: ${allowedRadius}m).`
     };
   }
 
