@@ -206,8 +206,9 @@ const Home = () => {
               <div className="relative z-10 w-full aspect-[4/3] rounded-3xl overflow-hidden border border-[#e7e2d5] shadow-lg">
                 <img 
                   src="/photos/gallery/1000076836.jpg" 
-                  alt="Boss Gym Equipment Floor" 
+                  alt="Boss Gym Championship Physique" 
                   className="w-full h-full object-cover"
+                  style={{ objectPosition: 'center 16%' }}
                 />
               </div>
               <div className="absolute -bottom-8 -right-4 w-2/3 aspect-[4/3] rounded-3xl overflow-hidden border-4 border-white shadow-2xl hidden sm:block z-20">
