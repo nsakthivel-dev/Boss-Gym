@@ -279,7 +279,7 @@ const Layout = () => {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#f8f7f3] pb-20 md:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[#f8f7f3] pb-24 md:pb-0">
         {/* Desktop Top Header Bar */}
         <header className="hidden md:flex items-center justify-between px-8 py-4 bg-white/90 backdrop-blur-md border-b border-[#e7e2d5] sticky top-0 z-30 shadow-xs">
           <div className="flex items-center gap-2">

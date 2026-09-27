@@ -208,7 +208,7 @@
 
 /* Mobile Touch Optimization */
 @media (max-width: 768px) {
-  button, a, [role="button"], input, select {
+  button:not([class*="h-"]), a:not([class*="h-"]), [role="button"]:not([class*="h-"]), input, select {
     min-height: 44px;
   }
   

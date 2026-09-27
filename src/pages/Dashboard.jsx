@@ -225,10 +225,10 @@ const Dashboard = () => {
   const occupancyPercentage = Math.min(Math.round((liveInside.length / maxFloorCapacity) * 100), 100);
 
   return (
-    <div className="space-y-8 animate-fade-in font-sans">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8 animate-fade-in font-sans">
       
       {/* 1. BRAND HERO COMMAND CENTER (WITH REAL GYM PHOTO BACKDROP) */}
-      <div className="relative overflow-hidden bg-[#121212] border border-[#2a2a2a] rounded-3xl text-white shadow-2xl">
+      <div className="relative overflow-hidden bg-[#121212] border border-[#2a2a2a] rounded-2xl sm:rounded-3xl text-white shadow-2xl">
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-luminosity scale-105 pointer-events-none"
           style={{ backgroundImage: `url('/photos/gallery/1000076824.jpg')` }}
@@ -236,15 +236,15 @@ const Dashboard = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-[#0d0d0d] via-[#121212]/90 to-[#0d0d0d]/80 pointer-events-none" />
         <div className="absolute top-0 right-0 w-80 h-80 bg-gold-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
+        <div className="relative z-10 p-4 sm:p-6 md:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
                 Turnstiles & GPS Geofence Active
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white font-athletic leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black uppercase tracking-tight text-white font-athletic leading-tight">
               ATHLETIC COMMAND <span className="text-gold-gradient">PORTAL</span>
             </h1>
             <p className="text-xs sm:text-sm text-neutral-300 font-medium max-w-xl">
@@ -253,28 +253,28 @@ const Dashboard = () => {
           </div>
 
           {/* Primary Quick Actions */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button 
               onClick={() => navigate('/members')}
-              className="inline-flex items-center justify-center min-h-[46px] gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all shadow-gold-sm active:scale-95 font-athletic"
+              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all shadow-gold-sm active:scale-95 font-athletic cursor-pointer"
             >
-              <Plus size={16} strokeWidth={3} />
+              <Plus size={15} strokeWidth={3} />
               <span>Enrol Athlete</span>
             </button>
             <button 
               onClick={() => navigate('/qr')}
-              className="inline-flex items-center justify-center min-h-[46px] gap-2 px-5 py-3 rounded-2xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic"
+              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic cursor-pointer"
             >
-              <QrCode size={16} className="text-gold-400" />
+              <QrCode size={15} className="text-gold-400" />
               <span>Wall QR Sign</span>
             </button>
             <a 
               href="/checkin" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center min-h-[46px] gap-2 px-5 py-3 rounded-2xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-emerald-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic"
+              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-emerald-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic"
             >
-              <Zap size={16} className="text-emerald-400" />
+              <Zap size={15} className="text-emerald-400" />
               <span>Kiosk Mode</span>
             </a>
           </div>
@@ -282,97 +282,98 @@ const Dashboard = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-2xl px-5 py-4 flex items-center gap-3 shadow-xs">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xs">
           <ShieldAlert size={18} /> {error}
         </div>
       )}
 
-      {/* 2. VISUAL STATISTICS WITH DISTINCT WEIGHTS & PROGRESS RING */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 2. COMPACT 2x2 MOBILE / 4-COL DESKTOP VISUAL METRICS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
         
         {/* Metric 1: Real-time Floor Load with Progress Ring Indicator */}
-        <div className="bg-gradient-to-br from-[#1c1c1c] to-[#121212] border border-gold-500/30 rounded-3xl p-6 text-white shadow-xl flex items-center justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-gold-400 font-athletic flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Currently Inside
+        <div className="bg-gradient-to-br from-[#1c1c1c] to-[#121212] border border-gold-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 text-white shadow-xl flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-gold-400 font-athletic flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              Live Inside
             </span>
-            <p className="text-4xl font-black text-white font-athletic tracking-tight">{liveInside.length}</p>
-            <p className="text-xs text-neutral-400 font-medium mt-1">Active on floor now</p>
+            {/* Circular Progress Gauge */}
+            <div className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 shrink-0 flex items-center justify-center">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path
+                  className="text-[#262626]"
+                  strokeWidth="3.5"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="text-gold-400 transition-all duration-700"
+                  strokeDasharray={`${occupancyPercentage}, 100`}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <span className="absolute text-[9px] sm:text-[10px] font-black text-white font-athletic">{occupancyPercentage}%</span>
+            </div>
           </div>
-          
-          {/* Circular Progress Gauge */}
-          <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-[#262626]"
-                strokeWidth="3.5"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className="text-gold-400 transition-all duration-700"
-                strokeDasharray={`${occupancyPercentage}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <span className="absolute text-[11px] font-black text-white font-athletic">{occupancyPercentage}%</span>
+          <div>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-athletic tracking-tight leading-none">{liveInside.length}</p>
+            <p className="text-[10px] sm:text-xs text-neutral-400 font-medium mt-1 truncate">Active on floor now</p>
           </div>
         </div>
 
         {/* Metric 2: Enrolled Active Athletes */}
-        <div className="bg-white border border-[#e7e2d5] hover:border-gold-400 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic">Enrolled Athletes</span>
-            <div className="w-11 h-11 rounded-2xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Users size={20} />
+        <div className="bg-white border border-[#e7e2d5] hover:border-gold-400 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs transition-all flex flex-col justify-between group">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic truncate">Athletes</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <Users size={16} className="sm:w-5 sm:h-5" />
             </div>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{members.length || stats.total}</p>
-            <p className="text-xs font-semibold text-neutral-500 mt-2 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-gold-500" />
-              {stats.activeCount || members.filter(m => m.status === 'active').length} Active Subscriptions
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{members.length || stats.total}</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-neutral-500 mt-1 flex items-center gap-1 sm:gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold-500 shrink-0" />
+              <span className="truncate">{stats.activeCount || members.filter(m => m.status === 'active').length} Active</span>
             </p>
           </div>
         </div>
 
         {/* Metric 3: Unique Athletes Today */}
-        <div className="bg-white border border-[#e7e2d5] hover:border-emerald-400 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic">Unique Athletes</span>
-            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <UserCheck size={20} />
+        <div className="bg-white border border-[#e7e2d5] hover:border-emerald-400 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs transition-all flex flex-col justify-between group">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic truncate">Trained Today</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <UserCheck size={16} className="sm:w-5 sm:h-5" />
             </div>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{stats.presentToday}</p>
-            <p className="text-xs font-semibold text-neutral-500 mt-2 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Completed Today's Workout
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{stats.presentToday}</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-neutral-500 mt-1 flex items-center gap-1 sm:gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="truncate">Unique Check-Ins</span>
             </p>
           </div>
         </div>
 
         {/* Metric 4: Total Visits Logged */}
-        <div className="bg-white border border-[#e7e2d5] hover:border-amber-400 rounded-3xl p-6 shadow-xs transition-all flex flex-col justify-between group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic">Total Visits</span>
-            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <CalendarCheck size={20} />
+        <div className="bg-white border border-[#e7e2d5] hover:border-amber-400 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs transition-all flex flex-col justify-between group">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-[11px] font-black text-neutral-500 uppercase tracking-wider font-athletic truncate">Total Visits</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <CalendarCheck size={16} className="sm:w-5 sm:h-5" />
             </div>
           </div>
           <div>
-            <p className="text-3xl sm:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{stats.totalToday}</p>
-            <p className="text-xs font-semibold text-neutral-500 mt-2 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Check-In Events Logged
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{stats.totalToday}</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-neutral-500 mt-1 flex items-center gap-1 sm:gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <span className="truncate">Floor Sessions</span>
             </p>
           </div>
         </div>

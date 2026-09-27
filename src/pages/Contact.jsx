@@ -206,13 +206,15 @@ const Contact = () => {
                     />
                   </div>
 
-                  <button 
-                    type="submit"
-                    className="w-full min-h-[50px] bg-gold-600 hover:bg-gold-500 text-neutral-950 py-4 rounded-xl font-black uppercase text-xs tracking-wider transition-all shadow-md shadow-gold-600/20 flex items-center justify-center gap-3 active:scale-95 group cursor-pointer"
-                  >
-                    <MessageCircle size={18} className="group-hover:scale-110 transition-transform" />
-                    <span>Launch WhatsApp Consultation</span>
-                  </button>
+                  <div className="pt-2 flex justify-center">
+                    <button 
+                      type="submit"
+                      className="w-full sm:w-auto sm:min-w-[320px] max-w-md h-12 sm:h-13 px-6 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-[0.98] text-neutral-950 font-black uppercase text-xs sm:text-sm tracking-wider transition-all shadow-md shadow-gold-500/25 flex items-center justify-center gap-2.5 font-athletic border border-gold-400/80 cursor-pointer group"
+                    >
+                      <MessageCircle size={18} className="shrink-0 text-neutral-950 group-hover:scale-110 transition-transform" />
+                      <span>Launch WhatsApp Consultation</span>
+                    </button>
+                  </div>
 
                   <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-400 font-semibold uppercase tracking-wider pt-2">
                     <ShieldCheck size={14} className="text-gold-600" />

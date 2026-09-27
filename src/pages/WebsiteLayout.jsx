@@ -67,19 +67,19 @@ const WebsiteLayout = () => {
   return (
     <div className="min-h-screen bg-[#f8f7f3] text-neutral-900 font-sans selection:bg-gold-500 selection:text-neutral-950 flex flex-col">
       {/* Top Athletic Navbar */}
-      <nav className="fixed top-0 w-full z-50 bg-[#151515]/95 backdrop-blur-md border-b border-[#262626] py-3.5 transition-all text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <NavLink to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform">
+      <nav className="fixed top-0 w-full z-50 bg-[#151515]/95 backdrop-blur-md border-b border-[#262626] py-2.5 sm:py-3 transition-all text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between">
+          <NavLink to="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform shrink-0">
               <div className="w-full h-full bg-[#151515] rounded-[10px] flex items-center justify-center text-gold-400">
-                <Dumbbell className="w-5 h-5" />
+                <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div>
-              <span className="font-black text-base sm:text-lg tracking-wider uppercase text-white block leading-tight font-athletic">
+            <div className="min-w-0">
+              <span className="font-black text-sm sm:text-base lg:text-lg tracking-wider uppercase text-white block leading-tight font-athletic">
                 {gymSettings.gymName || 'New Boss Gym'}
               </span>
-              <span className="text-[9px] tracking-[0.25em] uppercase font-bold text-gold-400 block mt-0.5 font-athletic">
+              <span className="text-[8px] sm:text-[9px] tracking-[0.16em] sm:tracking-[0.25em] uppercase font-bold text-gold-400 block mt-0.5 font-athletic truncate">
                 Performance Club · Muthaliyarpet
               </span>
             </div>
@@ -106,30 +106,30 @@ const WebsiteLayout = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NavLink
               to="/checkin"
-              className="hidden sm:inline-flex items-center gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-4 py-2 rounded-xl font-black uppercase text-[11px] tracking-wider transition-all font-athletic active:scale-95"
+              className="hidden sm:inline-flex items-center gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-3.5 sm:px-4 h-9 sm:h-10 rounded-lg sm:rounded-xl font-black uppercase text-[11px] tracking-wider transition-all font-athletic active:scale-95"
             >
               <UserCheck size={15} className="text-emerald-400" />
               <span>Athlete Check-In</span>
             </NavLink>
 
             {currentUser ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="hidden md:block text-right">
                   <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-athletic">Trainer Desk</p>
                   <p className="text-xs font-bold text-white truncate max-w-[140px]">{currentUser?.email}</p>
                 </div>
                 <NavLink 
                   to="/dashboard"
-                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic"
+                  className="hidden md:inline-flex items-center gap-1.5 h-9 sm:h-10 px-3.5 sm:px-4 rounded-lg sm:rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic"
                 >
                   Dashboard
                 </NavLink>
                 <button 
                   onClick={handleLogout}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors"
+                  className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors cursor-pointer"
                   title="Logout"
                 >
                   <LogOut size={16} />
@@ -138,7 +138,7 @@ const WebsiteLayout = () => {
             ) : (
               <NavLink 
                 to="/login"
-                className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 px-5 py-2 rounded-xl font-black uppercase text-xs tracking-wider transition-all shadow-gold-sm font-athletic"
+                className="inline-flex items-center justify-center h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 font-black uppercase text-xs tracking-wider transition-all shadow-gold-sm font-athletic border border-gold-400/80 cursor-pointer"
               >
                 Login
               </NavLink>
@@ -146,11 +146,11 @@ const WebsiteLayout = () => {
 
             {/* Mobile Menu Button */}
             <button 
-              className="lg:hidden text-white p-2 hover:bg-[#222222] rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95"
+              className="lg:hidden text-neutral-200 hover:text-white h-9 w-9 sm:h-10 sm:w-10 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-500/40 rounded-lg sm:rounded-xl flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open mobile menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
           </div>
         </div>

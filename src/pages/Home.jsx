@@ -89,20 +89,20 @@ const Home = () => {
                 Step into <strong className="text-white font-bold">{gymSettings.gymName || 'New Boss Gym'}</strong> near 100ft Road. Built for serious lifters, athletic conditioning, and real physical transformations. No gimmicks, just pure iron and elite discipline.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 w-full max-w-md lg:max-w-none mx-auto lg:mx-0">
                 <Link 
                   to="/contact" 
-                  className="w-full sm:w-auto min-h-[50px] bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all shadow-gold-md flex items-center justify-center gap-2 font-athletic"
+                  className="w-full sm:w-auto h-12 sm:h-13 px-6 sm:px-7 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-[0.98] text-neutral-950 font-black uppercase text-xs sm:text-sm tracking-wider transition-all shadow-gold-md flex items-center justify-center gap-2.5 font-athletic border border-gold-400/60 cursor-pointer"
                 >
                   <span>Start Your Evolution</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} className="shrink-0" />
                 </Link>
                 <Link 
                   to="/plans" 
-                  className="w-full sm:w-auto min-h-[50px] bg-[#1a1a1a] hover:bg-[#222222] border border-[#333333] hover:border-gold-400 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 font-athletic active:scale-95"
+                  className="w-full sm:w-auto h-12 sm:h-13 px-6 sm:px-7 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] active:scale-[0.98] border border-[#333333] hover:border-gold-500/50 text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all flex items-center justify-center gap-2.5 font-athletic shadow-sm cursor-pointer"
                 >
                   <span>₹800 Monthly Membership</span>
-                  <ChevronRight size={16} className="text-gold-400" />
+                  <ChevronRight size={16} className="text-gold-400 shrink-0" />
                 </Link>
               </div>
 
@@ -166,23 +166,29 @@ const Home = () => {
       </section>
 
       {/* 2. ATHLETIC METRIC COUNTERS (Dark Contrast Band with High-Impact Stats) */}
-      <section className="py-12 bg-[#121212] border-b border-[#262626] text-white">
+      <section className="py-8 sm:py-12 bg-[#121212] border-b border-[#262626] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {[
               { value: "100+", label: "Athletes Enrolled", sub: "Active community", icon: Users },
               { value: "50+", label: "Heavy Equipment", sub: "Machines & free weights", icon: Dumbbell },
               { value: "₹800", label: "Monthly Plan", sub: "Zero hidden charges", icon: Trophy },
               { value: "100%", label: "Coaching Attention", sub: "Master trainer led", icon: Star }
             ].map((stat, i) => (
-              <div key={i} className="p-5 sm:p-6 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] hover:border-gold-500/40 transition-colors flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-gold-400 shrink-0">
-                  <stat.icon size={22} />
+              <div 
+                key={i} 
+                className="p-3.5 sm:p-5 md:p-6 rounded-2xl bg-[#181818] border border-[#282828] hover:border-gold-500/40 transition-all flex flex-col justify-between h-full group"
+              >
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-gold-400 shrink-0 group-hover:scale-105 transition-transform">
+                    <stat.icon size={18} />
+                  </div>
+                  <span className="w-1.5 h-1.5 rounded-full bg-gold-500/40" />
                 </div>
                 <div>
-                  <p className="text-2xl sm:text-3xl font-black text-white font-athletic tracking-tight leading-none">{stat.value}</p>
-                  <p className="text-xs font-black uppercase tracking-wider text-gold-400 font-athletic mt-1">{stat.label}</p>
-                  <p className="text-[10px] text-neutral-400 font-medium hidden sm:block">{stat.sub}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-black text-white font-athletic tracking-tight leading-none">{stat.value}</p>
+                  <p className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-gold-400 font-athletic mt-1.5 leading-snug line-clamp-1">{stat.label}</p>
+                  <p className="text-[10px] text-neutral-400 font-medium mt-0.5 hidden sm:block truncate">{stat.sub}</p>
                 </div>
               </div>
             ))}
