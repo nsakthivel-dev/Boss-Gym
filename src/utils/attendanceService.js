@@ -33,8 +33,13 @@ export const generateSecureToken = () => {
  * Retrieves current active location, coordinates, and geofence radius.
  * First queries Supabase gym_locations.
  * Falls back to Firestore settings/config.
+ * NEVER serves stale cached coordinates when online.
  */
 export const getGymLocationConfig = async () => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return null;
+  }
+
   let config = null;
 
   // 1. Try Supabase gym_locations (Source of Truth)
@@ -67,7 +72,7 @@ export const getGymLocationConfig = async () => {
   }
 
   // 2. Query Firestore settings/config
-  if (!config) {
+  if (!config && db) {
     try {
       const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
       if (cfgSnap.exists()) {
@@ -89,7 +94,7 @@ export const getGymLocationConfig = async () => {
     }
   }
 
-  // 3. Fallback default
+  // 3. Fallback default if neither responded
   if (!config) {
     config = {
       gymId: 'NBG_MUTH_01',
@@ -317,6 +322,46 @@ export const validateScannedQR = async (scannedRaw) => {
   return { valid: true, activeQR };
 };
 
+// In-memory concurrency lock to prevent duplicate concurrent attendance requests for the same member
+const activeAttendanceLocks = new Set();
+
+export const DEFAULT_7_DAY_CYCLE = [
+  { day: 1, title: 'CHEST WORKOUT', muscles: 'Chest · Upper Chest · Lower Chest', isRest: false, exercises: [
+    { name: "Incline Barbell Bench Press", sets: "4", reps: "10-12", notes: "Heavy & Controlled" },
+    { name: "Flat Dumbbell Press", sets: "4", reps: "10-12", notes: "Deep stretch" },
+    { name: "Cable Flyes / Pec Deck", sets: "3", reps: "12-15", notes: "Peak Contraction" }
+  ]},
+  { day: 2, title: 'BACK WORKOUT', muscles: 'Lats · Traps · Lower Back', isRest: false, exercises: [
+    { name: "Lat Pulldown / Pullups", sets: "4", reps: "10-12", notes: "Full range" },
+    { name: "Barbell Bent-Over Row", sets: "4", reps: "8-10", notes: "Strict form" },
+    { name: "Seated Cable Row", sets: "3", reps: "12", notes: "Squeeze shoulder blades" }
+  ]},
+  { day: 3, title: 'SHOULDER WORKOUT', muscles: 'Deltoids · Rear Delts', isRest: false, exercises: [
+    { name: "Overhead Military Press", sets: "4", reps: "8-10", notes: "Core braced" },
+    { name: "Dumbbell Lateral Raises", sets: "4", reps: "12-15", notes: "Slow eccentric" },
+    { name: "Face Pulls", sets: "3", reps: "15", notes: "Rear delt focus" }
+  ]},
+  { day: 4, title: 'BICEPS & FOREARMS', muscles: 'Biceps Brachii · Brachialis', isRest: false, exercises: [
+    { name: "Barbell Bicep Curl", sets: "4", reps: "10-12", notes: "No swinging" },
+    { name: "Incline Dumbbell Curl", sets: "3", reps: "12", notes: "Long head stretch" },
+    { name: "Hammer Curls", sets: "3", reps: "12-15", notes: "Brachialis thickness" }
+  ]},
+  { day: 5, title: 'LEGS DAY', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false, exercises: [
+    { name: "Barbell Back Squats", sets: "4", reps: "8-10", notes: "Depth below parallel" },
+    { name: "Leg Press", sets: "4", reps: "12", notes: "Controlled tempo" },
+    { name: "Romanian Deadlift", sets: "4", reps: "10-12", notes: "Hamstring hinge" },
+    { name: "Standing Calf Raises", sets: "4", reps: "15-20", notes: "Full stretch at bottom" }
+  ]},
+  { day: 6, title: 'TRICEPS & CORE', muscles: 'Long Head · Lateral Head · Medial Head', isRest: false, exercises: [
+    { name: "Skull Crushers / EZ Bar Extension", sets: "4", reps: "10-12", notes: "Elbows tucked" },
+    { name: "Tricep Rope Pushdown", sets: "4", reps: "12-15", notes: "Lockout split" },
+    { name: "Hanging Leg Raises", sets: "3", reps: "15", notes: "Abdominal control" }
+  ]},
+  { day: 7, title: 'REST & RECOVERY', muscles: 'Active Recovery & Stretching', isRest: true, exercises: [
+    { name: "Light Foam Rolling & Stretching", sets: "1", reps: "20m", notes: "Hydrate & rest" }
+  ]}
+];
+
 /**
  * Manual Verification workflow:
  * ONLY verifies current device GPS against backend gym location & radius.
@@ -327,7 +372,7 @@ export const verifyGymLocationOnly = async (coords) => {
     return {
       success: false,
       code: 'OFFLINE',
-      message: "You're offline. Connect to the internet to verify attendance."
+      message: 'Unable to verify the current gym location. Please check your internet connection and try again.'
     };
   }
 
@@ -385,12 +430,21 @@ export const fetchMemberTodayWorkout = async (member) => {
   if (!member) return null;
 
   try {
-    const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
-    const baseSchedule = scheduleSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => a.day - b.day);
+    let baseSchedule = [];
+    if (db) {
+      try {
+        const scheduleSnap = await getDocs(collection(db, 'workout_schedule'));
+        baseSchedule = scheduleSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => a.day - b.day);
+      } catch (e) {
+        console.warn("Could not query workout_schedule, using fallback cycle:", e);
+      }
+    }
 
-    if (baseSchedule.length === 0) return null;
+    if (baseSchedule.length === 0) {
+      baseSchedule = DEFAULT_7_DAY_CYCLE;
+    }
 
     let todaysWorkout = null;
     const todayDate = new Date();
@@ -433,12 +487,12 @@ export const processAttendance = async ({
   coords,
   memberOverride = null
 }) => {
-  // Enforce online check
+  // Enforce online check (Requirement 26)
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return {
       success: false,
       code: 'OFFLINE',
-      message: "You're offline. Connect to the internet to verify attendance."
+      message: "You're offline. Connect to the internet to verify your current gym location and record attendance."
     };
   }
 
@@ -446,7 +500,7 @@ export const processAttendance = async ({
   const now = new Date();
   const dateStr = todayStr();
 
-  // 1. Validate QR Code
+  // 1. Validate QR Code (Scanned physical QR)
   const qrValidation = await validateScannedQR(scannedText);
   if (!qrValidation.valid) {
     await logAttendanceEvent({
@@ -511,7 +565,7 @@ export const processAttendance = async ({
       allowedRadius: gymLocation.radius,
       gymLat: gymLocation.latitude,
       gymLng: gymLocation.longitude,
-      message: "You're outside the gym attendance area."
+      message: 'You are outside the gym attendance area.'
     };
   }
 
@@ -543,222 +597,253 @@ export const processAttendance = async ({
     member = { id: docData.id, ...docData.data() };
   }
 
-  // 5. Membership Validity Check
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endDate = member.endDate?.toDate 
-    ? member.endDate.toDate() 
-    : (member.endDate ? new Date(member.endDate) : null);
-
-  if (member.status === 'expired' || (endDate && endDate < today)) {
+  // Concurrency lock per member to prevent multiple simultaneous transactions
+  if (activeAttendanceLocks.has(member.id)) {
     return {
       success: false,
-      code: 'MEMBERSHIP_INACTIVE',
-      memberName: member.name,
-      message: 'Your membership is not currently active.'
+      code: 'CONCURRENT_REQUEST',
+      message: 'Attendance is already being processed for this member. Please wait a moment.'
     };
   }
+  activeAttendanceLocks.add(member.id);
 
-  // 6. 30-Second Duplicate Scan Protection (Server-Side Enforced)
-  const cooldownRef = doc(db, 'cooldowns', member.id);
-  const cooldownSnap = await getDoc(cooldownRef);
-  if (cooldownSnap.exists()) {
-    const lastScan = cooldownSnap.data().lastScan?.toDate?.();
-    if (lastScan) {
-      const elapsedSeconds = (now.getTime() - lastScan.getTime()) / 1000;
-      if (elapsedSeconds < 30) {
-        const remaining = Math.ceil(30 - elapsedSeconds);
-        return {
-          success: false,
-          code: 'DUPLICATE_SCAN',
-          memberName: member.name,
-          secondsElapsed: Math.round(elapsedSeconds),
-          secondsRemaining: remaining,
-          message: 'You scanned recently. Please wait before scanning again.'
-        };
+  try {
+    // 5. Membership Validity Check
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = member.endDate?.toDate 
+      ? member.endDate.toDate() 
+      : (member.endDate ? new Date(member.endDate) : null);
+
+    if (member.status === 'expired' || (endDate && endDate < today)) {
+      return {
+        success: false,
+        code: 'MEMBERSHIP_INACTIVE',
+        memberName: member.name,
+        message: 'Your membership is not currently active.'
+      };
+    }
+
+    // 6. 30-Second Duplicate Scan Protection (Server-Side Enforced)
+    const cooldownRef = doc(db, 'cooldowns', member.id);
+    const cooldownSnap = await getDoc(cooldownRef);
+    if (cooldownSnap.exists()) {
+      const lastScan = cooldownSnap.data().lastScan?.toDate?.();
+      if (lastScan) {
+        const elapsedSeconds = (now.getTime() - lastScan.getTime()) / 1000;
+        if (elapsedSeconds < 30) {
+          const remaining = Math.ceil(30 - elapsedSeconds);
+          return {
+            success: false,
+            code: 'DUPLICATE_SCAN',
+            memberName: member.name,
+            secondsElapsed: Math.round(elapsedSeconds),
+            secondsRemaining: remaining,
+            message: 'You scanned recently. Please wait before scanning again.'
+          };
+        }
       }
     }
-  }
 
-  // 7. Same-Device 30-Minute Restriction
-  // If the same device finished an attendance session within 30 minutes, restrict starting a new session
-  const deviceCooldownRef = doc(db, 'device_cooldowns', deviceId);
-  const deviceSnap = await getDoc(deviceCooldownRef);
-  if (deviceSnap.exists()) {
-    const lastCheckout = deviceSnap.data().lastSessionCompletedAt?.toDate?.();
-    if (lastCheckout) {
-      const elapsedMinutes = (now.getTime() - lastCheckout.getTime()) / 60000;
-      if (elapsedMinutes < 30) {
-        const minutesLeft = Math.ceil(30 - elapsedMinutes);
-        return {
-          success: false,
-          code: 'DEVICE_COOLDOWN',
-          minutesRemaining: minutesLeft,
-          message: `New attendance scan is temporarily restricted on this device. Please try again after the cooldown period (${minutesLeft}m remaining).`
-        };
+    // 7. Attendance State Machine (Check-In vs Check-Out)
+    const sessionQ = query(
+      collection(db, 'sessions'),
+      where('memberId', '==', member.id),
+      where('sessionDate', '==', dateStr),
+      where('status', '==', 'open')
+    );
+    const sessionSnap = await getDocs(sessionQ);
+    const isNewCheckin = sessionSnap.empty;
+
+    // 8. Same-Device 30-Minute Restriction (Applied ONLY when starting a NEW session on the same device)
+    const deviceCooldownRef = doc(db, 'device_cooldowns', deviceId);
+    if (isNewCheckin) {
+      const deviceSnap = await getDoc(deviceCooldownRef);
+      if (deviceSnap.exists()) {
+        const lastCheckout = deviceSnap.data().lastSessionCompletedAt?.toDate?.();
+        if (lastCheckout) {
+          const elapsedMinutes = (now.getTime() - lastCheckout.getTime()) / 60000;
+          if (elapsedMinutes < 30) {
+            const minutesLeft = Math.ceil(30 - elapsedMinutes);
+            return {
+              success: false,
+              code: 'DEVICE_COOLDOWN',
+              minutesRemaining: minutesLeft,
+              message: `New attendance scan is temporarily restricted on this device. Please try again after the cooldown period (${minutesLeft}m remaining).`
+            };
+          }
+        }
       }
     }
-  }
 
-  // Update duplicate cooldown timestamp
-  await setDoc(cooldownRef, { lastScan: serverTimestamp() }, { merge: true });
+    // Update duplicate cooldown timestamp
+    await setDoc(cooldownRef, { lastScan: serverTimestamp() }, { merge: true });
 
-  // 8. Attendance State Machine (Check-In vs Check-Out)
-  const sessionQ = query(
-    collection(db, 'sessions'),
-    where('memberId', '==', member.id),
-    where('sessionDate', '==', dateStr),
-    where('status', '==', 'open')
-  );
-  const sessionSnap = await getDocs(sessionQ);
+    // Retrieve today's workout
+    const todaysWorkout = await fetchMemberTodayWorkout(member);
 
-  // Retrieve today's workout
-  const todaysWorkout = await fetchMemberTodayWorkout(member);
-
-  if (sessionSnap.empty) {
-    // === ACTION: CHECK-IN ===
-    const newSession = {
-      memberId: member.id,
-      memberName: member.name,
-      sessionDate: dateStr,
-      entryTime: serverTimestamp(),
-      exitTime: null,
-      durationMinutes: null,
-      status: 'open',
-      checkInLatitude: latitude,
-      checkInLongitude: longitude,
-      checkInAccuracy: accuracy || null,
-      checkInDistance: distance,
-      gymName: gymLocation.gymName,
-      deviceId,
-      edited: false,
-      editedBy: null,
-      createdAt: serverTimestamp()
-    };
-
-    const docRef = await addDoc(collection(db, 'sessions'), newSession);
-
-    // Audit Event & Supabase Sync
-    await logAttendanceEvent({
-      memberId: member.id,
-      sessionId: docRef.id,
-      eventType: 'check_in',
-      qrToken: qrValidation.activeQR?.token || scannedText,
-      latitude,
-      longitude,
-      accuracy,
-      calculatedDistance: distance,
-      locationVerified: true,
-      deviceId
-    });
-
-    try {
-      if (supabase) {
-        await supabase.from('attendance_sessions').insert({
-          member_id: member.id,
-          member_name: member.name,
-          session_date: dateStr,
-          status: 'open',
-          check_in_latitude: latitude,
-          check_in_longitude: longitude,
-          check_in_accuracy: accuracy,
-          check_in_distance: distance,
-          device_id: deviceId
-        });
-      }
-    } catch (e) {}
-
-    return {
-      success: true,
-      action: 'check_in',
-      member,
-      session: {
-        id: docRef.id,
-        entryTime: now,
-        distance,
+    if (isNewCheckin) {
+      // === ACTION: CHECK-IN ===
+      const newSession = {
+        memberId: member.id,
+        memberName: member.name,
+        sessionDate: dateStr,
+        entryTime: serverTimestamp(),
+        exitTime: null,
+        durationMinutes: null,
+        status: 'open',
+        checkInLatitude: latitude,
+        checkInLongitude: longitude,
+        checkInAccuracy: accuracy || null,
+        checkInDistance: distance,
         gymName: gymLocation.gymName,
-        status: 'ACTIVE'
-      },
-      workout: todaysWorkout
-    };
+        deviceId,
+        edited: false,
+        editedBy: null,
+        createdAt: serverTimestamp()
+      };
 
-  } else {
-    // === ACTION: CHECK-OUT ===
-    const openDoc = sessionSnap.docs[0];
-    const sessionData = openDoc.data();
-    const entryTime = sessionData.entryTime?.toDate 
-      ? sessionData.entryTime.toDate() 
-      : (sessionData.entryTime ? new Date(sessionData.entryTime) : now);
-    
-    const durationMinutes = Math.max(1, Math.round((now.getTime() - entryTime.getTime()) / 60000));
+      const docRef = await addDoc(collection(db, 'sessions'), newSession);
 
-    await updateDoc(doc(db, 'sessions', openDoc.id), {
-      exitTime: serverTimestamp(),
-      durationMinutes,
-      status: 'closed',
-      checkOutLatitude: latitude,
-      checkOutLongitude: longitude,
-      checkOutAccuracy: accuracy || null,
-      checkOutDistance: distance,
-      updatedAt: serverTimestamp()
-    });
+      // Audit Event & Supabase Sync
+      await logAttendanceEvent({
+        memberId: member.id,
+        sessionId: docRef.id,
+        eventType: 'check_in',
+        qrToken: qrValidation.activeQR?.token || scannedText,
+        latitude,
+        longitude,
+        accuracy,
+        calculatedDistance: distance,
+        locationVerified: true,
+        deviceId
+      });
 
-    // Update 30-Minute device cooldown
-    await setDoc(deviceCooldownRef, {
-      lastSessionCompletedAt: serverTimestamp(),
-      lastMemberId: member.id,
-      updatedAt: serverTimestamp()
-    });
+      try {
+        if (supabase) {
+          await supabase.from('attendance_sessions').insert({
+            member_id: member.id,
+            member_name: member.name,
+            session_date: dateStr,
+            status: 'open',
+            check_in_latitude: latitude,
+            check_in_longitude: longitude,
+            check_in_accuracy: accuracy,
+            check_in_distance: distance,
+            device_id: deviceId
+          });
+        }
+      } catch (e) {}
 
-    // Audit Event & Supabase Sync
-    await logAttendanceEvent({
-      memberId: member.id,
-      sessionId: openDoc.id,
-      eventType: 'check_out',
-      qrToken: qrValidation.activeQR?.token || scannedText,
-      latitude,
-      longitude,
-      accuracy,
-      calculatedDistance: distance,
-      locationVerified: true,
-      deviceId
-    });
+      return {
+        success: true,
+        action: 'check_in',
+        member,
+        session: {
+          id: docRef.id,
+          entryTime: now,
+          distance,
+          gymName: gymLocation.gymName,
+          status: 'ACTIVE'
+        },
+        workout: todaysWorkout
+      };
 
-    try {
-      if (supabase) {
-        await supabase
-          .from('attendance_sessions')
-          .update({
-            exit_time: now.toISOString(),
-            duration_minutes: durationMinutes,
-            status: 'closed',
-            check_out_latitude: latitude,
-            check_out_longitude: longitude,
-            check_out_accuracy: accuracy,
-            check_out_distance: distance
-          })
-          .eq('member_id', member.id)
-          .eq('status', 'open');
-      }
-    } catch (e) {}
+    } else {
+      // === ACTION: CHECK-OUT ===
+      // Close open session(s)
+      const openDoc = sessionSnap.docs[0];
+      const sessionData = openDoc.data();
+      const entryTime = sessionData.entryTime?.toDate 
+        ? sessionData.entryTime.toDate() 
+        : (sessionData.entryTime ? new Date(sessionData.entryTime) : now);
+      
+      const durationMinutes = Math.max(1, Math.round((now.getTime() - entryTime.getTime()) / 60000));
 
-    return {
-      success: true,
-      action: 'check_out',
-      member,
-      session: {
-        id: openDoc.id,
-        entryTime,
-        exitTime: now,
+      await updateDoc(doc(db, 'sessions', openDoc.id), {
+        exitTime: serverTimestamp(),
         durationMinutes,
-        distance,
-        gymName: gymLocation.gymName,
-        status: 'COMPLETED'
-      },
-      workout: todaysWorkout
-    };
+        status: 'closed',
+        checkOutLatitude: latitude,
+        checkOutLongitude: longitude,
+        checkOutAccuracy: accuracy || null,
+        checkOutDistance: distance,
+        updatedAt: serverTimestamp()
+      });
+
+      // If any lingering additional open sessions existed, close them to prevent duplicates
+      if (sessionSnap.docs.length > 1) {
+        for (let i = 1; i < sessionSnap.docs.length; i++) {
+          try {
+            await updateDoc(doc(db, 'sessions', sessionSnap.docs[i].id), {
+              status: 'closed',
+              exitTime: serverTimestamp()
+            });
+          } catch (e) {}
+        }
+      }
+
+      // Update 30-Minute device cooldown
+      await setDoc(deviceCooldownRef, {
+        lastSessionCompletedAt: serverTimestamp(),
+        lastMemberId: member.id,
+        updatedAt: serverTimestamp()
+      });
+
+      // Audit Event & Supabase Sync
+      await logAttendanceEvent({
+        memberId: member.id,
+        sessionId: openDoc.id,
+        eventType: 'check_out',
+        qrToken: qrValidation.activeQR?.token || scannedText,
+        latitude,
+        longitude,
+        accuracy,
+        calculatedDistance: distance,
+        locationVerified: true,
+        deviceId
+      });
+
+      try {
+        if (supabase) {
+          await supabase
+            .from('attendance_sessions')
+            .update({
+              exit_time: now.toISOString(),
+              duration_minutes: durationMinutes,
+              status: 'closed',
+              check_out_latitude: latitude,
+              check_out_longitude: longitude,
+              check_out_accuracy: accuracy,
+              check_out_distance: distance
+            })
+            .eq('member_id', member.id)
+            .eq('status', 'open');
+        }
+      } catch (e) {}
+
+      return {
+        success: true,
+        action: 'check_out',
+        member,
+        session: {
+          id: openDoc.id,
+          entryTime,
+          exitTime: now,
+          durationMinutes,
+          distance,
+          gymName: gymLocation.gymName,
+          status: 'COMPLETED'
+        },
+        workout: todaysWorkout
+      };
+    }
+  } finally {
+    activeAttendanceLocks.delete(member.id);
   }
 };
+
+
 
 /**
  * Log attendance event for security and audit trail

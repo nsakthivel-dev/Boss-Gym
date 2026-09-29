@@ -21,7 +21,7 @@ const WallQRModal = ({ onClose }) => {
 
   const checkinBaseUrl = window.location.origin + '/checkin';
   const tokenParam = activeToken || 'NBG_SEC_DEFAULT';
-  const qrValue = `${checkinBaseUrl}?token=${tokenParam}&lat=${latitude}&lng=${longitude}&rad=${radius}`;
+  const qrValue = `${checkinBaseUrl}?token=${tokenParam}`;
 
   const downloadQR = () => {
     const canvas = document.getElementById("wall-qr-canvas");

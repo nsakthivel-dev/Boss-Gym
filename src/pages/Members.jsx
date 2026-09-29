@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { supabase } from '../supabase/config';
 import {
@@ -572,6 +572,7 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
 const Members = () => {
   const { memberId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { settings: gymSettings } = useSettings();
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
@@ -642,28 +643,90 @@ const Members = () => {
     }
   };
 
-  // Synchronize route/URL parameter for direct Passport view
+  // Synchronize route/URL parameter for direct Passport view (Requirement 29, TEST 26)
   useEffect(() => {
     const targetId = memberId || searchParams.get('view');
-    if (!targetId) return;
+    if (!targetId) {
+      setViewMember(null);
+      setMemberNotFound(false);
+      return;
+    }
 
-    if (members.length > 0) {
-      const match = members.find(m => m.id === targetId);
-      if (match) {
-        setViewMember(match);
-        setMemberNotFound(false);
-      } else if (!loading) {
-        // Fallback: try fetching member directly
-        getDoc(doc(db, 'members', targetId)).then(snap => {
-          if (snap.exists()) {
+    // 1. Check if member exists in loaded list
+    const match = members.find(m => m.id === targetId || m.phone === targetId);
+    if (match) {
+      setViewMember(match);
+      setMemberNotFound(false);
+      return;
+    }
+
+    // 2. If still loading initial members, wait for data to load
+    if (loading) return;
+
+    // 3. Fallback: Query Firestore and Supabase directly by ID or phone
+    let active = true;
+    const fetchTargetMember = async () => {
+      try {
+        if (db) {
+          const snap = await getDoc(doc(db, 'members', targetId));
+          if (snap.exists() && active) {
             setViewMember({ id: snap.id, ...snap.data() });
             setMemberNotFound(false);
-          } else {
-            setMemberNotFound(true);
+            return;
           }
-        }).catch(() => setMemberNotFound(true));
+
+          // Check by phone number
+          const pQ = query(collection(db, 'members'), where('phone', '==', targetId));
+          const pSnap = await getDocs(pQ);
+          if (!pSnap.empty && active) {
+            const d = pSnap.docs[0];
+            setViewMember({ id: d.id, ...d.data() });
+            setMemberNotFound(false);
+            return;
+          }
+        }
+
+        if (supabase) {
+          try {
+            const { data } = await supabase
+              .from('members')
+              .select('*')
+              .or(`id.eq.${targetId},phone.eq.${targetId}`)
+              .maybeSingle();
+
+            if (data && active) {
+              setViewMember({
+                id: data.id,
+                name: data.name,
+                phone: data.phone,
+                email: data.email,
+                price: data.price,
+                durationDays: data.duration_days,
+                status: data.status || 'active',
+                profilePictureUrl: data.profile_picture_url || null
+              });
+              setMemberNotFound(false);
+              return;
+            }
+          } catch (sbErr) {}
+        }
+
+        if (active) {
+          setMemberNotFound(true);
+        }
+      } catch (err) {
+        console.warn("Athlete passport lookup error:", err);
+        if (active) {
+          setMemberNotFound(true);
+        }
       }
-    }
+    };
+
+    fetchTargetMember();
+
+    return () => {
+      active = false;
+    };
   }, [memberId, searchParams, members, loading]);
 
   useEffect(() => { 
@@ -697,11 +760,15 @@ const Members = () => {
   const handleClosePassport = () => {
     setViewMember(null);
     setMemberNotFound(false);
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('view');
-      return next;
-    }, { replace: true });
+    if (memberId) {
+      navigate('/members', { replace: true });
+    } else {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('view');
+        return next;
+      }, { replace: true });
+    }
   };
 
   const today = new Date();

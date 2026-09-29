@@ -41,14 +41,35 @@ const CheckinPage = () => {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
-  // Scanner ref
+  // Scanner and submission locks to prevent duplicate events (Requirement 12)
   const html5QrCodeRef = useRef(null);
+  const scanLockedRef = useRef(false);
+  const isSubmittingRef = useRef(false);
   const scannerContainerId = "html5-qr-reader";
+
+  // Revalidate gym location and dynamic data when PWA is reopened / focused / reconnected (Requirement 18, 19, 24)
+  useEffect(() => {
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        getGymLocationConfig().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleRevalidate);
+    window.addEventListener('focus', handleRevalidate);
+    window.addEventListener('online', handleRevalidate);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleRevalidate);
+      window.removeEventListener('focus', handleRevalidate);
+      window.removeEventListener('online', handleRevalidate);
+    };
+  }, []);
 
   // If token was passed via URL parameter (e.g. member scanned wall QR with smartphone camera)
   useEffect(() => {
     const urlToken = searchParams.get('token') || '';
     if (urlToken) {
+      scanLockedRef.current = true;
       setScannedToken(urlToken);
       setStep('locating');
     }
@@ -64,6 +85,7 @@ const CheckinPage = () => {
   // Camera scanner lifecycle
   useEffect(() => {
     if (step === 'scanning') {
+      scanLockedRef.current = false;
       const startScanner = async () => {
         try {
           await new Promise(r => setTimeout(r, 150));
@@ -83,9 +105,14 @@ const CheckinPage = () => {
             { facingMode: "environment" },
             config,
             (decodedText) => {
+              // Lock immediately to prevent duplicate scanner callbacks (Requirement 12)
+              if (scanLockedRef.current) return;
+              scanLockedRef.current = true;
+
+              const token = extractTokenFromScan(decodedText);
+              setScannedToken(token || decodedText);
+
               const onScanSuccess = () => {
-                const token = extractTokenFromScan(decodedText);
-                setScannedToken(token || decodedText);
                 setStep('locating');
               };
 
@@ -138,7 +165,7 @@ const CheckinPage = () => {
     if (!navigator.onLine) {
       setErrorDetails({
         code: 'OFFLINE',
-        message: "You're offline. Connect to the internet to verify attendance."
+        message: "You're offline. Connect to the internet to verify your current gym location and record attendance."
       });
       setStep('error');
       return;
@@ -263,9 +290,18 @@ const CheckinPage = () => {
     }
   };
 
-  // Dedicated Manual Location Verification (Zero attendance recorded)
+  // Dedicated Manual Location Verification (Zero attendance recorded - Requirement 1, 3)
   const handleStartManualVerification = () => {
     setStep('manual_locating');
+    if (!navigator.onLine) {
+      setManualResult({
+        verified: false,
+        message: 'Unable to verify the current gym location. Please check your internet connection and try again.'
+      });
+      setStep('manual_result');
+      return;
+    }
+
     if (!navigator.geolocation) {
       setManualResult({
         verified: false,
@@ -298,6 +334,7 @@ const CheckinPage = () => {
 
   // ==========================================
   // 1. WELCOME SCREEN (INITIAL STATE)
+  // Two Separate Actions: [ SCAN GYM QR ] and [ MANUAL VERIFICATION ]
   // ==========================================
   if (step === 'welcome' && !scannedToken) {
     return (
@@ -320,58 +357,55 @@ const CheckinPage = () => {
             </p>
           </div>
 
-          <div className="space-y-3.5 my-6">
-            <div className="p-4 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center shrink-0 font-bold text-xs">
+          <div className="space-y-3 my-6">
+            <div className="p-3.5 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left flex items-start gap-3">
+              <div className="w-7 h-7 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center shrink-0 font-bold text-xs">
                 1
               </div>
               <div>
-                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Scan Entrance QR</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Point your camera at the official New Boss Gym entrance sign.</p>
+                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Scan Gym QR</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Scan the official entrance QR on the gym wall to log attendance.</p>
               </div>
             </div>
 
-            <div className="p-4 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center shrink-0 font-bold text-xs">
+            <div className="p-3.5 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left flex items-start gap-3">
+              <div className="w-7 h-7 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center shrink-0 font-bold text-xs">
                 2
               </div>
               <div>
-                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">GPS Location Verification</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Confirm physical presence inside the configured gym geofence area.</p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gold-50 border border-gold-200 text-gold-700 flex items-center justify-center shrink-0 font-bold text-xs">
-                3
-              </div>
-              <div>
-                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Today's Assigned Workout</p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Instantly load today's split, target exercises, sets, and reps.</p>
+                <p className="text-xs font-bold text-neutral-900 uppercase font-athletic">Manual Verification</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Test device GPS location against gym geofence without recording attendance.</p>
               </div>
             </div>
           </div>
 
-          <button
-            onClick={() => setStep('scanning')}
-            className="w-full min-h-[48px] py-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-gold-sm transition-all flex items-center justify-center gap-2 active:scale-95 font-athletic cursor-pointer"
-          >
-            <Camera size={16} />
-            <span>Open Camera & Scan QR</span>
-          </button>
+          {/* TWO SEPARATE ACTIONS (Requirement 3) */}
+          <div className="space-y-2.5">
+            <button
+              onClick={() => {
+                scanLockedRef.current = false;
+                setStep('scanning');
+              }}
+              className="w-full min-h-[48px] py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-gold-sm transition-all flex items-center justify-center gap-2 active:scale-95 font-athletic cursor-pointer"
+            >
+              <Camera size={16} />
+              <span>SCAN GYM QR</span>
+            </button>
 
-          <div className="mt-4 pt-4 border-t border-[#e7e2d5] flex items-center justify-between text-xs">
+            <button
+              onClick={handleStartManualVerification}
+              className="w-full min-h-[46px] py-3 bg-white hover:bg-neutral-50 border-2 border-gold-300 text-gold-800 hover:text-gold-900 font-black rounded-2xl text-xs uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-2 active:scale-95 font-athletic cursor-pointer"
+            >
+              <Compass size={16} className="text-gold-600" />
+              <span>MANUAL VERIFICATION</span>
+            </button>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-[#e7e2d5] flex items-center justify-center text-xs">
             <Link to="/" className="text-neutral-500 hover:text-neutral-900 font-bold flex items-center gap-1 font-athletic">
               <ArrowLeft size={13} />
               <span>Back to Home</span>
             </Link>
-            <button
-              onClick={handleStartManualVerification}
-              className="text-gold-700 hover:text-gold-800 font-bold text-[11px] font-athletic cursor-pointer flex items-center gap-1"
-            >
-              <Compass size={13} />
-              <span>Manual Verification</span>
-            </button>
           </div>
 
         </div>
@@ -410,12 +444,12 @@ const CheckinPage = () => {
             <div className="absolute inset-0 pointer-events-none border-4 border-gold-400/40 rounded-3xl animate-pulse" />
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col gap-2">
             <button
-              onClick={handleStartManualVerification}
+              onClick={() => setStep('welcome')}
               className="w-full py-3 px-4 rounded-xl bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-700 font-bold text-xs uppercase tracking-wider font-athletic cursor-pointer"
             >
-              Check Location First (Manual Verification)
+              Cancel & Return to Check-In Page
             </button>
           </div>
 
@@ -467,13 +501,22 @@ const CheckinPage = () => {
           <p className="text-neutral-500 text-xs mt-3 max-w-xs mx-auto font-medium">
             Requesting device GPS and fetching current gym geofence configuration from backend...
           </p>
+          <div className="mt-4 pt-3 border-t border-[#e7e2d5]">
+            <button
+              onClick={() => setStep('welcome')}
+              className="text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // 5. MANUAL VERIFICATION - RESULT (NO ATTENDANCE LOGGED)
+  // 5. MANUAL VERIFICATION - RESULT (GPS ONLY, NO QR, NO ATTENDANCE)
+  // Flow: CHECK-IN PAGE -> MANUAL VERIFICATION -> GPS -> Current Gym Location -> Result -> BACK -> CHECK-IN PAGE
   // ==========================================
   if (step === 'manual_result' && manualResult) {
     const isVerified = manualResult.verified;
@@ -481,6 +524,21 @@ const CheckinPage = () => {
     return (
       <div className={containerClass}>
         <div className={`${cardClass} ${isVerified ? 'border-emerald-300' : 'border-red-300'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <button 
+              onClick={() => setStep('welcome')}
+              className="p-1.5 text-neutral-400 hover:text-neutral-900 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer flex items-center gap-1 text-xs font-athletic"
+              title="Return to Check-In Page"
+            >
+              <ArrowLeft size={16} />
+              <span>Back</span>
+            </button>
+            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-400 font-athletic">
+              Location Verification Only
+            </span>
+            <div className="w-8" />
+          </div>
+
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
             isVerified ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
           }`}>
@@ -493,8 +551,8 @@ const CheckinPage = () => {
 
           <p className={`text-xs mt-1.5 font-bold ${isVerified ? 'text-emerald-700' : 'text-red-700'}`}>
             {isVerified 
-              ? "✓ You are inside the gym attendance area." 
-              : "✕ You are outside the gym attendance area."}
+              ? "You are inside the gym attendance area." 
+              : "You are outside the gym attendance area."}
           </p>
 
           {/* Distance Info Grid */}
@@ -518,12 +576,13 @@ const CheckinPage = () => {
           </p>
 
           <div className="space-y-2">
+            {/* BACK Button returns to Check-In Page (Requirement 1, TEST 3) */}
             <button
-              onClick={() => setStep('scanning')}
+              onClick={() => setStep('welcome')}
               className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-gold-sm transition-all font-athletic active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <Camera size={15} />
-              <span>Scan QR For Attendance</span>
+              <ArrowLeft size={15} />
+              <span>Back to Check-In Page</span>
             </button>
             <button
               onClick={handleStartManualVerification}

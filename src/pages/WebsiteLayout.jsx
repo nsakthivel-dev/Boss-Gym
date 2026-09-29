@@ -76,17 +76,17 @@ const WebsiteLayout = () => {
       {/* Top Athletic Navbar */}
       <nav className="fixed top-0 w-full z-50 bg-[#151515]/95 backdrop-blur-md border-b border-[#262626] py-2.5 sm:py-3 transition-all text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between">
-          <NavLink to="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform shrink-0">
+          <NavLink to="/" className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-none group">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 p-0.5 shadow-gold-sm group-hover:scale-105 transition-transform shrink-0">
               <div className="w-full h-full bg-[#151515] rounded-[10px] flex items-center justify-center text-gold-400">
                 <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
             <div className="min-w-0">
-              <span className="font-black text-sm sm:text-base lg:text-lg tracking-wider uppercase text-white block leading-tight font-athletic">
+              <span className="font-black text-xs sm:text-base lg:text-lg tracking-wider uppercase text-white block leading-tight font-athletic truncate">
                 {gymSettings.gymName || 'New Boss Gym'}
               </span>
-              <span className="text-[8px] sm:text-[9px] tracking-[0.16em] sm:tracking-[0.25em] uppercase font-bold text-gold-400 block mt-0.5 font-athletic truncate">
+              <span className="hidden sm:block text-[8px] sm:text-[9px] tracking-[0.16em] sm:tracking-[0.25em] uppercase font-bold text-gold-400 mt-0.5 font-athletic truncate">
                 Performance Club · Muthaliyarpet
               </span>
             </div>
@@ -113,14 +113,14 @@ const WebsiteLayout = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <NavLink
               to="/checkin"
-              className="inline-flex items-center gap-1.5 sm:gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-2.5 sm:px-4 h-9 sm:h-10 rounded-lg sm:rounded-xl font-black uppercase text-[10px] sm:text-[11px] tracking-wider transition-all font-athletic active:scale-95"
+              className="inline-flex items-center gap-1 sm:gap-2 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-gold-400 px-2 sm:px-3.5 h-8 sm:h-10 rounded-lg sm:rounded-xl font-black uppercase text-[10px] sm:text-[11px] tracking-wider transition-all font-athletic active:scale-95 shrink-0"
               title="Athlete Check-In Kiosk"
             >
-              <UserCheck size={14} className="text-emerald-400 shrink-0" />
-              <span>Check In</span>
+              <UserCheck size={13} className="text-emerald-400 shrink-0" />
+              <span className="hidden xs:inline">Check In</span>
             </NavLink>
 
             {currentUser ? (
@@ -132,26 +132,26 @@ const WebsiteLayout = () => {
                 {isAdmin && (
                   <NavLink 
                     to="/dashboard"
-                    className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-10 px-2.5 sm:px-4 rounded-lg sm:rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-[11px] sm:text-xs uppercase tracking-wider font-athletic shadow-gold-sm transition-all active:scale-95 shrink-0"
+                    className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-2 sm:px-3.5 rounded-lg sm:rounded-xl bg-gold-500 hover:bg-gold-400 text-neutral-950 font-black text-[10px] sm:text-xs uppercase tracking-wider font-athletic shadow-gold-sm transition-all active:scale-95 shrink-0 z-10"
                     title="Admin Dashboard"
                   >
-                    <Shield size={14} className="shrink-0" />
+                    <Shield size={13} className="shrink-0" />
                     <span className="hidden sm:inline">Dashboard</span>
-                    <span className="sm:hidden">Admin</span>
+                    <span className="sm:hidden font-black">Admin</span>
                   </NavLink>
                 )}
                 <button 
                   onClick={handleLogout}
-                  className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors cursor-pointer shrink-0"
+                  className="h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-[#222222] hover:bg-red-500/10 text-neutral-400 hover:text-red-400 border border-[#333333] transition-colors cursor-pointer shrink-0"
                   title="Logout"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={14} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             ) : (
               <NavLink 
                 to="/login"
-                className="inline-flex items-center justify-center h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 font-black uppercase text-xs tracking-wider transition-all shadow-gold-sm font-athletic border border-gold-400/80 cursor-pointer"
+                className="inline-flex items-center justify-center h-8 sm:h-10 px-3 sm:px-5 rounded-lg sm:rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-95 text-neutral-950 font-black uppercase text-[10px] sm:text-xs tracking-wider transition-all shadow-gold-sm font-athletic border border-gold-400/80 cursor-pointer"
               >
                 Login
               </NavLink>
@@ -159,11 +159,11 @@ const WebsiteLayout = () => {
 
             {/* Mobile Menu Button */}
             <button 
-              className="lg:hidden text-neutral-200 hover:text-white h-9 w-9 sm:h-10 sm:w-10 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-500/40 rounded-lg sm:rounded-xl flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+              className="lg:hidden text-neutral-200 hover:text-white h-8 w-8 sm:h-10 sm:w-10 bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-500/40 rounded-lg sm:rounded-xl flex items-center justify-center transition-colors active:scale-95 cursor-pointer shrink-0"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open mobile menu"
             >
-              <Menu size={20} />
+              <Menu size={18} className="sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -218,13 +218,16 @@ const WebsiteLayout = () => {
           <div className="pt-6 border-t border-[#262626] space-y-3">
             {currentUser ? (
               <div className="space-y-2">
-                <NavLink
-                  to="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full inline-flex items-center justify-center bg-gold-500 text-neutral-950 py-3 rounded-xl font-black uppercase text-xs tracking-wider text-center font-athletic"
-                >
-                  Admin Command Center
-                </NavLink>
+                {isAdmin && (
+                  <NavLink
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-gold-500 to-gold-600 text-neutral-950 py-3 rounded-xl font-black uppercase text-xs tracking-wider text-center font-athletic shadow-gold-sm active:scale-[0.98] transition-all"
+                  >
+                    <Shield size={16} />
+                    <span>Admin Command Center</span>
+                  </NavLink>
+                )}
                 <button 
                   onClick={() => {
                     handleLogout();
