@@ -91,17 +91,17 @@ const Home = () => {
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 w-full max-w-md lg:max-w-none mx-auto lg:mx-0">
                 <Link 
-                  to="/checkin" 
+                  to="/contact" 
                   className="w-full sm:w-auto h-12 sm:h-13 px-6 sm:px-7 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 active:scale-[0.98] text-neutral-950 font-black uppercase text-xs sm:text-sm tracking-wider transition-all shadow-gold-md flex items-center justify-center gap-2.5 font-athletic border border-gold-400/60 cursor-pointer"
                 >
-                  <QrCode size={18} className="shrink-0" />
-                  <span>Check In / Scan QR</span>
+                  <span>Start Your Evolution</span>
+                  <ArrowRight size={16} className="shrink-0" />
                 </Link>
                 <Link 
                   to="/plans" 
                   className="w-full sm:w-auto h-12 sm:h-13 px-6 sm:px-7 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] active:scale-[0.98] border border-[#333333] hover:border-gold-500/50 text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all flex items-center justify-center gap-2.5 font-athletic shadow-sm cursor-pointer"
                 >
-                  <span>₹800 Monthly Plan</span>
+                  <span>₹800 Monthly Membership</span>
                   <ChevronRight size={16} className="text-gold-400 shrink-0" />
                 </Link>
               </div>
