@@ -272,9 +272,20 @@ const CheckinPage = () => {
       }
     } catch (err) {
       console.error("Attendance execution error:", err);
+      const isPermission = err?.code === 'permission-denied' || (err?.message && err.message.toLowerCase().includes('permission'));
+      const isNetwork = err?.code === 'unavailable' || !navigator.onLine;
+
+      let msg = 'Unable to connect to the attendance service. Please check your internet connection and try again.';
+      if (isPermission) {
+        msg = 'Database permission issue. Please ensure the updated Firestore security rules are deployed in Firebase Console.';
+      } else if (err?.message && !err.message.includes('INTERNAL ASSERTION')) {
+        msg = err.message;
+      }
+
       setErrorDetails({
-        code: 'NETWORK_ERROR',
-        message: 'Unable to connect to the attendance service. Please check your internet connection and try again.'
+        code: isPermission ? 'PERMISSION_DENIED' : (isNetwork ? 'OFFLINE' : 'EXECUTION_ERROR'),
+        message: msg,
+        technicalDetails: err?.message || String(err)
       });
       setStep('error');
     }
@@ -994,6 +1005,12 @@ const CheckinPage = () => {
           <p className="text-neutral-600 text-xs mt-2 leading-relaxed">
             {errorDetails.message || "An error occurred during verification."}
           </p>
+
+          {errorDetails.technicalDetails && errorDetails.technicalDetails !== errorDetails.message && (
+            <p className="mt-2 text-[10px] text-neutral-400 font-mono bg-[#faf9f6] border border-[#e7e2d5] p-2 rounded-xl break-all">
+              {errorDetails.technicalDetails}
+            </p>
+          )}
 
           {isOutside && errorDetails.detectedDistance != null && (
             <div className="mt-4 p-3.5 bg-[#faf9f6] rounded-2xl border border-[#e7e2d5] text-left w-full text-xs font-mono space-y-1">

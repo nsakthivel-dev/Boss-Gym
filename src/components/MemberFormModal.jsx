@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase/config';
+import { supabase } from '../supabase/config';
 import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useSettings } from '../context/SettingsContext';
 import { sendWelcomeMessage } from '../utils/whatsapp';
@@ -44,9 +45,11 @@ const MemberFormModal = ({ editingMember, initialPhone = '', onClose, onSaved })
         workoutStartDate.setDate(workoutStartDate.getDate() + 1);
       }
 
+      const cleanPhone = form.phone.trim().replace(/\D/g, '').slice(-10);
+
       const memberData = {
         name: form.name.trim(),
-        phone: form.phone.trim().replace(/\D/g, ''),
+        phone: cleanPhone,
         email: form.email.trim(),
         price: Number(form.price),
         durationDays: Number(form.durationDays),
@@ -67,6 +70,22 @@ const MemberFormModal = ({ editingMember, initialPhone = '', onClose, onSaved })
         const docRef = await addDoc(collection(db, 'members'), memberData);
         savedMember = { id: docRef.id, ...memberData };
 
+        // Also sync to Supabase members table if available
+        try {
+          if (supabase) {
+            await supabase.from('members').insert({
+              id: docRef.id,
+              name: memberData.name,
+              phone: memberData.phone,
+              email: memberData.email,
+              price: memberData.price,
+              duration_days: memberData.durationDays,
+              status: memberData.status,
+              created_at: new Date().toISOString()
+            });
+          }
+        } catch (sbE) {}
+
         // Welcome WhatsApp
         try {
           sendWelcomeMessage(savedMember, gymSettings?.gymName);
@@ -83,7 +102,12 @@ const MemberFormModal = ({ editingMember, initialPhone = '', onClose, onSaved })
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to save athlete record: ' + (err.message || 'Unknown error'));
+      const isPermission = err?.code === 'permission-denied' || (err?.message && err.message.toLowerCase().includes('permission'));
+      if (isPermission) {
+        setError('Database permission denied: Registration requires updated Firestore rules. Please deploy the updated firestore.rules in Firebase Console.');
+      } else {
+        setError('Failed to save athlete record: ' + (err.message || 'Unknown error'));
+      }
     } finally {
       setLoading(false);
     }
