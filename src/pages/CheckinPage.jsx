@@ -579,7 +579,7 @@ const CheckinPage = () => {
             <div>
               <span className="text-[10px] uppercase font-black text-neutral-400 font-athletic block">Allowed Radius</span>
               <span className="font-mono font-bold text-neutral-900 text-sm block mt-0.5">
-                {manualResult.allowedRadius != null ? `${manualResult.allowedRadius}m` : '50m'}
+                {manualResult.allowedRadius != null ? `${manualResult.allowedRadius}m` : `${gymSettings?.radius || 500}m`}
               </span>
             </div>
           </div>
@@ -880,20 +880,13 @@ const CheckinPage = () => {
             )}
           </div>
 
-          {/* Action Buttons for Current Member Only */}
+          {/* Action Buttons for Current Member */}
           <div className="space-y-2 pt-2 border-t border-[#e7e2d5]">
             <Link
-              to={`/members/${member.id}`}
+              to="/schedule"
               className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all font-athletic flex items-center justify-center gap-2 shadow-gold-sm active:scale-95"
             >
-              <Award size={15} />
-              <span>VIEW MY ATTENDANCE</span>
-            </Link>
-            <Link
-              to="/schedule"
-              className="w-full py-3 bg-[#faf9f6] hover:bg-neutral-100 border border-[#e7e2d5] text-neutral-800 font-black rounded-xl text-xs uppercase tracking-wider transition-colors font-athletic flex items-center justify-center gap-2 active:scale-95"
-            >
-              <Flame size={15} className="text-gold-600" />
+              <Flame size={15} className="text-neutral-950" />
               <span>VIEW MY WORKOUT</span>
             </Link>
             <Link
@@ -968,15 +961,8 @@ const CheckinPage = () => {
 
           <div className="space-y-2 pt-2 border-t border-[#e7e2d5]">
             <Link
-              to={`/members/${member.id}`}
-              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all font-athletic flex items-center justify-center gap-2 shadow-gold-sm active:scale-95"
-            >
-              <Award size={15} />
-              <span>VIEW MY ATTENDANCE</span>
-            </Link>
-            <Link
               to="/"
-              className="block py-2 text-xs font-bold text-neutral-500 hover:text-neutral-900 font-athletic"
+              className="w-full py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all font-athletic flex items-center justify-center gap-2 shadow-gold-sm active:scale-95"
             >
               Back to Home
             </Link>
@@ -1022,7 +1008,7 @@ const CheckinPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-neutral-500 font-sans font-medium">Allowed Radius:</span>
-                <span className="font-bold text-neutral-700">{errorDetails.allowedRadius || 50}m</span>
+                <span className="font-bold text-neutral-700">{errorDetails.allowedRadius || gymSettings?.radius || 500}m</span>
               </div>
             </div>
           )}

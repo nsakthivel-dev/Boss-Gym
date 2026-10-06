@@ -8,7 +8,7 @@ import {
 import { runMidnightCleanup } from '../utils/cleanup';
 import {
   Users, UserCheck, Clock, CalendarCheck, AlertTriangle, 
-  MessageCircle, ShieldAlert, Sparkles, Dumbbell, Zap,
+  MessageCircle, ShieldAlert, Sparkles, Dumbbell,
   Activity, ArrowUpRight, ChevronRight, QrCode, Plus,
   Flame, Award, ShieldCheck, TrendingUp, Calendar, ArrowRight,
   Search, Phone, Filter, CheckCircle2, Image as ImageIcon, Eye
@@ -274,15 +274,6 @@ const Dashboard = () => {
               <QrCode size={15} className="text-gold-400" />
               <span>Wall QR Sign</span>
             </button>
-            <a 
-              href="/checkin" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-emerald-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic"
-            >
-              <Zap size={15} className="text-emerald-400" />
-              <span>Kiosk Mode</span>
-            </a>
           </div>
         </div>
       </div>

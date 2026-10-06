@@ -117,7 +117,9 @@ const SettingsPage = () => {
         ...settings,
         latitude: Number(settings.latitude) || 0,
         longitude: Number(settings.longitude) || 0,
-        radius: Number(settings.radius) || 500
+        radius: Number(settings.radius) || 500,
+        geofence_radius: Number(settings.radius) || 500,
+        updatedAt: new Date().toISOString()
       };
 
       // 1. Primary Firestore settings config

@@ -23,7 +23,6 @@ import {
   ExternalLink,
   ChevronRight,
   Shield,
-  Zap,
   Activity
 } from 'lucide-react';
 
@@ -367,19 +366,6 @@ const Layout = () => {
                 </div>
               )}
             </div>
-
-            <div className="h-5 w-px bg-[#e7e2d5]"></div>
-
-            {/* Quick Check-in Launcher */}
-            <a 
-              href="/checkin" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
-            >
-              <Zap size={14} className="text-gold-400" />
-              <span>Kiosk Mode</span>
-            </a>
 
             {/* Admin Badge */}
             <div className="flex items-center gap-3">

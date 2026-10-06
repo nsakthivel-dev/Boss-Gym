@@ -46,7 +46,7 @@ const QRPage = () => {
   const gymName = locationConfig?.gymName || gymSettings?.gymName || 'New Boss Gym';
   const latitude = locationConfig?.latitude ?? Number(gymSettings?.latitude || 11.9111586);
   const longitude = locationConfig?.longitude ?? Number(gymSettings?.longitude || 79.6347447);
-  const radius = locationConfig?.radius ?? Number(gymSettings?.radius || 50);
+  const radius = locationConfig?.radius ?? Number(gymSettings?.radius || 500);
 
   // Official Attendance Check-in URL using Secure Gym Token ONLY.
   // Critical: No static latitude, longitude, or radius in the QR string.

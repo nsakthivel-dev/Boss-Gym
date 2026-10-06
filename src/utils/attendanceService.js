@@ -146,7 +146,32 @@ export const getGymLocationConfig = async () => {
 
   let config = null;
 
-  // 1. Try Supabase gym_locations (Source of Truth)
+  // 1. Fetch from Firestore settings/config (directly updated by Admin Panel)
+  let fsConfig = null;
+  if (db) {
+    try {
+      const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
+      if (cfgSnap.exists()) {
+        const d = cfgSnap.data();
+        fsConfig = {
+          gymId: 'NBG_MUTH_01',
+          gymName: d.gymName || 'New Boss Gym',
+          latitude: Number(d.latitude ?? 11.9111586),
+          longitude: Number(d.longitude ?? 79.6347447),
+          radius: Number(d.radius ?? d.geofence_radius ?? 500),
+          address: d.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
+          phone: d.phoneNumber || '+91 98765 43210',
+          status: 'active',
+          updatedAt: d.updatedAt || null
+        };
+      }
+    } catch (fsErr) {
+      console.warn("Could not read gym location from Firestore:", fsErr);
+    }
+  }
+
+  // 2. Fetch from Supabase gym_locations
+  let sbConfig = null;
   try {
     if (supabase) {
       const { data, error } = await supabase
@@ -157,48 +182,55 @@ export const getGymLocationConfig = async () => {
         .limit(1)
         .maybeSingle();
 
-      if (!error && data && data.latitude && data.longitude) {
-        config = {
+      if (!error && data && data.latitude != null && data.longitude != null) {
+        sbConfig = {
           gymId: data.id || 'NBG_MUTH_01',
           gymName: data.name || 'New Boss Gym',
           latitude: Number(data.latitude),
           longitude: Number(data.longitude),
-          radius: Number(data.geofence_radius || 50),
+          radius: Number(data.geofence_radius ?? data.radius ?? 500),
           address: data.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
           phone: data.phone || '+91 98765 43210',
           status: data.is_active ? 'active' : 'inactive',
-          updatedAt: data.updated_at
+          updatedAt: data.updated_at || null
         };
       }
     }
   } catch (sbErr) {
-    // Continue safely to Firestore fallback
+    // Continue safely
   }
 
-  // 2. Query Firestore settings/config
-  if (!config && db) {
+  // 3. Reconcile: If both exist, prioritize the one with the latest update timestamp, or Firestore
+  if (fsConfig && sbConfig) {
+    const fsTime = fsConfig.updatedAt ? new Date(fsConfig.updatedAt).getTime() : 0;
+    const sbTime = sbConfig.updatedAt ? new Date(sbConfig.updatedAt).getTime() : 0;
+    config = (sbTime > fsTime) ? sbConfig : fsConfig;
+  } else {
+    config = fsConfig || sbConfig;
+  }
+
+  // 4. Fallback to localStorage cached settings if both remote queries failed or returned empty
+  if (!config) {
     try {
-      const cfgSnap = await getDoc(doc(db, 'settings', 'config'));
-      if (cfgSnap.exists()) {
-        const d = cfgSnap.data();
+      const cached = localStorage.getItem('nbg_cached_settings');
+      if (cached) {
+        const d = JSON.parse(cached);
         config = {
           gymId: 'NBG_MUTH_01',
           gymName: d.gymName || 'New Boss Gym',
-          latitude: Number(d.latitude || 11.9111586),
-          longitude: Number(d.longitude || 79.6347447),
-          radius: Number(d.radius || 500),
+          latitude: Number(d.latitude ?? 11.9111586),
+          longitude: Number(d.longitude ?? 79.6347447),
+          radius: Number(d.radius ?? d.geofence_radius ?? 500),
           address: d.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
           phone: d.phoneNumber || '+91 98765 43210',
           status: 'active',
-          updatedAt: d.updatedAt || new Date().toISOString()
+          updatedAt: d.updatedAt || null
         };
       }
-    } catch (fsErr) {
-      console.warn("Could not read gym location from Firestore:", fsErr);
-    }
+    } catch (e) {}
   }
 
-  // 3. Fallback default if neither responded
+  // 5. Hard fallback default
   if (!config) {
     config = {
       gymId: 'NBG_MUTH_01',
@@ -236,7 +268,7 @@ export const getActiveGymQR = async () => {
       gymName: 'New Boss Gym',
       latitude: 11.9111586,
       longitude: 79.6347447,
-      radius: 50
+      radius: 500
     };
 
     if (snap && snap.exists()) {
