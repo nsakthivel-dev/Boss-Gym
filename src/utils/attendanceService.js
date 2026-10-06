@@ -29,6 +29,110 @@ export const generateSecureToken = () => {
 };
 
 /**
+ * Progressively acquires high-accuracy GPS coordinates for mobile devices.
+ * Low-tech mobile devices and indoor gym environments often return coarse initial fixes (150m-600m)
+ * via cell-tower or Wi-Fi triangulation before GNSS satellite lock is achieved.
+ * 
+ * This sampler streams watchPosition updates over a short window, tracks the best fix obtained,
+ * resolves immediately if an accurate fix (<= 40m) arrives, and falls back to the best available fix.
+ *
+ * @param {Object} options
+ * @param {number} options.timeoutMs - Acquisition window duration (default: 8000ms)
+ * @param {number} options.targetAccuracy - Immediate resolve threshold in meters (default: 40m)
+ * @param {Function} options.onProgress - Periodic callback with current best coordinates
+ * @returns {Promise<{ latitude: number, longitude: number, accuracy: number }>}
+ */
+export const acquireBestLocation = (options = {}) => {
+  const {
+    timeoutMs = 8000,
+    targetAccuracy = 40,
+    onProgress = null
+  } = options;
+
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      const err = new Error('Geolocation is not supported by your browser or device.');
+      err.code = 'LOCATION_UNSUPPORTED';
+      return reject(err);
+    }
+
+    let bestCoords = null;
+    let watchId = null;
+    let isSettled = false;
+
+    const cleanup = () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+    };
+
+    const finish = () => {
+      if (isSettled) return;
+      isSettled = true;
+      cleanup();
+
+      if (bestCoords) {
+        resolve(bestCoords);
+      } else {
+        // Fallback: one-shot attempt with relaxed caching in case watch was slow
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            resolve({ 
+              latitude, 
+              longitude, 
+              accuracy: Math.round(accuracy || 0) 
+            });
+          },
+          (geoErr) => {
+            reject(geoErr);
+          },
+          { enableHighAccuracy: false, timeout: 4000, maximumAge: 30000 }
+        );
+      }
+    };
+
+    const timer = setTimeout(finish, timeoutMs);
+
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const currentAcc = Math.round(accuracy || 999);
+
+          if (!bestCoords || currentAcc < bestCoords.accuracy) {
+            bestCoords = { latitude, longitude, accuracy: currentAcc };
+            if (typeof onProgress === 'function') {
+              onProgress(bestCoords);
+            }
+          }
+
+          // If high-precision satellite fix is locked, resolve immediately without waiting out the timer
+          if (currentAcc <= targetAccuracy) {
+            clearTimeout(timer);
+            if (!isSettled) {
+              isSettled = true;
+              cleanup();
+              resolve(bestCoords);
+            }
+          }
+        },
+        (err) => {
+          console.warn("Progressive GPS sample warning:", err);
+        },
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 }
+      );
+    } catch (err) {
+      clearTimeout(timer);
+      cleanup();
+      reject(err);
+    }
+  });
+};
+
+
+/**
  * Single Source of Truth for Gym Location Configuration.
  * Retrieves current active location, coordinates, and geofence radius.
  * First queries Supabase gym_locations.
@@ -82,7 +186,7 @@ export const getGymLocationConfig = async () => {
           gymName: d.gymName || 'New Boss Gym',
           latitude: Number(d.latitude || 11.9111586),
           longitude: Number(d.longitude || 79.6347447),
-          radius: Number(d.radius || 50),
+          radius: Number(d.radius || 500),
           address: d.address || 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
           phone: d.phoneNumber || '+91 98765 43210',
           status: 'active',
@@ -101,7 +205,7 @@ export const getGymLocationConfig = async () => {
       gymName: 'New Boss Gym',
       latitude: 11.9111586,
       longitude: 79.6347447,
-      radius: 50,
+      radius: 500,
       address: 'No:22, Gayathiri Nagar, 100ft Road, Muthaliyarpet, Pondicherry – 605004',
       phone: '+91 98765 43210',
       status: 'active',
@@ -402,12 +506,14 @@ export const verifyGymLocationOnly = async (coords) => {
 
   const { latitude, longitude, accuracy } = coords;
 
-  if (accuracy && accuracy > 100) {
+  // Maximum allowed accuracy uncertainty for indoor/budget mobile devices
+  const MAX_ACCEPTABLE_ACCURACY = 250;
+  if (accuracy && accuracy > MAX_ACCEPTABLE_ACCURACY) {
     return {
       success: false,
       code: 'LOCATION_LOW_ACCURACY',
       accuracy: Math.round(accuracy),
-      message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
+      message: `Your GPS accuracy is ±${Math.round(accuracy)}m (needs to be within ±${MAX_ACCEPTABLE_ACCURACY}m). Please enable Wi-Fi or move closer to an entrance/window and try again.`
     };
   }
 
@@ -422,12 +528,19 @@ export const verifyGymLocationOnly = async (coords) => {
   }
 
   const distance = Math.round(getDistanceMeters(latitude, longitude, gymConfig.latitude, gymConfig.longitude));
-  const isInside = distance <= gymConfig.radius;
+
+  // Geofence tolerance with device uncertainty circle:
+  // Mobile devices indoors have an accuracy radius. If that circle overlaps the gym radius, user is on premises.
+  const accuracyMargin = Math.min(accuracy || 0, 100);
+  const effectiveDistance = Math.max(0, distance - accuracyMargin);
+  const isInside = effectiveDistance <= gymConfig.radius;
 
   return {
     success: isInside,
     verified: isInside,
     distance,
+    effectiveDistance,
+    accuracyMargin,
     allowedRadius: gymConfig.radius,
     gymName: gymConfig.gymName,
     latitude,
@@ -540,13 +653,14 @@ export const processAttendance = async ({
 
   const { latitude, longitude, accuracy } = coords;
 
-  // Enforce GPS accuracy check
-  if (accuracy && accuracy > 100) {
+  // Enforce GPS accuracy check (adapted for indoor / budget mobile devices)
+  const MAX_ACCEPTABLE_ACCURACY = 250;
+  if (accuracy && accuracy > MAX_ACCEPTABLE_ACCURACY) {
     return {
       success: false,
       code: 'LOCATION_LOW_ACCURACY',
       accuracy: Math.round(accuracy),
-      message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
+      message: `Your GPS accuracy is ±${Math.round(accuracy)}m (needs to be within ±${MAX_ACCEPTABLE_ACCURACY}m). Please enable Wi-Fi or move closer to an entrance/window and try again.`
     };
   }
 
@@ -562,7 +676,12 @@ export const processAttendance = async ({
 
   const distance = Math.round(getDistanceMeters(latitude, longitude, gymLocation.latitude, gymLocation.longitude));
 
-  if (distance > gymLocation.radius) {
+  // Geofence tolerance with device uncertainty circle:
+  // Mobile devices indoors have an accuracy radius. If that circle overlaps the gym radius, user is on premises.
+  const accuracyMargin = Math.min(accuracy || 0, 100);
+  const effectiveDistance = Math.max(0, distance - accuracyMargin);
+
+  if (effectiveDistance > gymLocation.radius) {
     await logAttendanceEvent({
       memberId: memberOverride?.id || phone || 'unknown',
       eventType: 'scan_rejected',
@@ -578,6 +697,7 @@ export const processAttendance = async ({
       success: false,
       code: 'OUTSIDE_GEOFENCE',
       detectedDistance: distance,
+      effectiveDistance,
       allowedRadius: gymLocation.radius,
       gymLat: gymLocation.latitude,
       gymLng: gymLocation.longitude,

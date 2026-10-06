@@ -8,14 +8,16 @@ import {
   fetchMemberTodayWorkout, 
   extractTokenFromScan,
   getGymLocationConfig,
-  verifyGymLocationOnly
+  verifyGymLocationOnly,
+  acquireBestLocation
 } from '../utils/attendanceService';
 import MemberFormModal from '../components/MemberFormModal';
 import { 
   Camera, MapPin, XCircle, AlertTriangle, Ban, CheckCircle, 
   LogOut, Hourglass, Loader2, Dumbbell, ArrowRight, RefreshCw, 
   Smartphone, Flame, ShieldCheck, Zap, QrCode, ArrowLeft,
-  ChevronRight, Clock, UserPlus, Check, Award, Compass, WifiOff
+  ChevronRight, Clock, UserPlus, Check, Award, Compass, WifiOff,
+  Wifi
 } from 'lucide-react';
 
 const CheckinPage = () => {
@@ -161,7 +163,7 @@ const CheckinPage = () => {
     return () => clearInterval(timer);
   }, [step, secondsRemaining]);
 
-  const acquireLocation = () => {
+  const acquireLocation = async () => {
     if (!navigator.onLine) {
       setErrorDetails({
         code: 'OFFLINE',
@@ -180,47 +182,40 @@ const CheckinPage = () => {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setCoords({ latitude, longitude, accuracy });
-        setGpsAccuracy(Math.round(accuracy));
+    try {
+      const position = await acquireBestLocation({
+        timeoutMs: 8000,
+        targetAccuracy: 40,
+        onProgress: (progressCoords) => {
+          setGpsAccuracy(progressCoords.accuracy);
+        }
+      });
 
-        // If GPS accuracy is too low
-        if (accuracy && accuracy > 100) {
-          setErrorDetails({
-            code: 'LOCATION_LOW_ACCURACY',
-            accuracy: Math.round(accuracy),
-            message: 'Your location accuracy is too low. Please enable high-accuracy location and try again.'
-          });
-          setStep('error');
-          return;
-        }
+      const { latitude, longitude, accuracy } = position;
+      setCoords({ latitude, longitude, accuracy });
+      setGpsAccuracy(accuracy);
 
-        // If phone already available, proceed directly to verify
-        if (phone && phone.trim().length === 10) {
-          handleExecuteAttendance(phone.trim(), { latitude, longitude, accuracy });
-        } else {
-          setStep('phone_input');
-        }
-      },
-      (geoErr) => {
-        console.error("Geolocation error:", geoErr);
-        if (geoErr.code === 1) {
-          setErrorDetails({
-            code: 'LOCATION_DENIED',
-            message: 'Location permission is required to verify gym attendance. Please allow location in your browser settings and try again.'
-          });
-        } else {
-          setErrorDetails({
-            code: 'LOCATION_ERROR',
-            message: 'Unable to retrieve your device coordinates. Please ensure GPS is enabled with high accuracy and try again.'
-          });
-        }
-        setStep('error');
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
+      // If phone already available, proceed directly to verify
+      if (phone && phone.trim().length === 10) {
+        handleExecuteAttendance(phone.trim(), { latitude, longitude, accuracy });
+      } else {
+        setStep('phone_input');
+      }
+    } catch (geoErr) {
+      console.error("Geolocation error:", geoErr);
+      if (geoErr.code === 1) {
+        setErrorDetails({
+          code: 'LOCATION_DENIED',
+          message: 'Location permission is required to verify gym attendance. Please allow location in your browser settings and try again.'
+        });
+      } else {
+        setErrorDetails({
+          code: 'LOCATION_ERROR',
+          message: 'Unable to retrieve your device coordinates. Please ensure GPS is enabled and turn on Wi-Fi to boost indoor accuracy.'
+        });
+      }
+      setStep('error');
+    }
   };
 
   const handlePhoneSubmit = (e) => {
@@ -302,7 +297,7 @@ const CheckinPage = () => {
   };
 
   // Dedicated Manual Location Verification (Zero attendance recorded - Requirement 1, 3)
-  const handleStartManualVerification = () => {
+  const handleStartManualVerification = async () => {
     setStep('manual_locating');
     if (!navigator.onLine) {
       setManualResult({
@@ -322,22 +317,25 @@ const CheckinPage = () => {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        const result = await verifyGymLocationOnly({ latitude, longitude, accuracy });
-        setManualResult(result);
-        setStep('manual_result');
-      },
-      (err) => {
-        setManualResult({
-          verified: false,
-          message: 'Unable to retrieve device GPS. Please turn on location permissions.'
-        });
-        setStep('manual_result');
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
+    try {
+      const pos = await acquireBestLocation({
+        timeoutMs: 8000,
+        targetAccuracy: 40,
+        onProgress: (progressCoords) => {
+          setGpsAccuracy(progressCoords.accuracy);
+        }
+      });
+      const { latitude, longitude, accuracy } = pos;
+      const result = await verifyGymLocationOnly({ latitude, longitude, accuracy });
+      setManualResult(result);
+      setStep('manual_result');
+    } catch (err) {
+      setManualResult({
+        verified: false,
+        message: 'Unable to retrieve device GPS. Please turn on location permissions or turn on Wi-Fi for indoor positioning.'
+      });
+      setStep('manual_result');
+    }
   };
 
   const containerClass = "min-h-screen bg-[#f8f7f3] flex items-center justify-center p-4 font-sans relative overflow-hidden";
@@ -486,7 +484,9 @@ const CheckinPage = () => {
             <Loader2 className="w-6 h-6 text-gold-600 animate-spin" />
           </div>
           <p className="text-neutral-500 text-xs mt-3 max-w-xs mx-auto font-medium">
-            Confirming physical presence at New Boss Gym premises within the allowed perimeter.
+            {gpsAccuracy 
+              ? `Calibrating device GPS (current accuracy ±${gpsAccuracy}m)...`
+              : 'Acquiring satellite and Wi-Fi positioning for New Boss Gym perimeter...'}
           </p>
         </div>
       </div>
@@ -510,7 +510,9 @@ const CheckinPage = () => {
             <Loader2 className="w-6 h-6 text-gold-600 animate-spin" />
           </div>
           <p className="text-neutral-500 text-xs mt-3 max-w-xs mx-auto font-medium">
-            Requesting device GPS and fetching current gym geofence configuration from backend...
+            {gpsAccuracy 
+              ? `Calibrating device GPS (current accuracy ±${gpsAccuracy}m)...`
+              : 'Requesting device GPS and fetching current gym geofence configuration from backend...'}
           </p>
           <div className="mt-4 pt-3 border-t border-[#e7e2d5]">
             <button
@@ -1022,6 +1024,29 @@ const CheckinPage = () => {
                 <span className="text-neutral-500 font-sans font-medium">Allowed Radius:</span>
                 <span className="font-bold text-neutral-700">{errorDetails.allowedRadius || 50}m</span>
               </div>
+            </div>
+          )}
+
+          {errorDetails.code === 'LOCATION_LOW_ACCURACY' && (
+            <div className="mt-4 p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-left w-full space-y-2">
+              <span className="text-[11px] font-black uppercase text-amber-900 font-athletic flex items-center gap-1.5">
+                <Wifi className="w-3.5 h-3.5 text-amber-600" />
+                <span>Indoor Accuracy Boost Tips</span>
+              </span>
+              <ul className="text-xs text-amber-800 space-y-1.5 leading-relaxed">
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-amber-600 shrink-0">•</span>
+                  <span><strong>Turn on Wi-Fi:</strong> Mobile phones use Wi-Fi signals to dramatically improve indoor positioning accuracy (no login required).</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-amber-600 shrink-0">•</span>
+                  <span><strong>Google / Apple Precise Location:</strong> Ensure high accuracy location is turned on in your device settings.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="font-bold text-amber-600 shrink-0">•</span>
+                  <span><strong>Step near the entrance:</strong> Thick gym walls and metal roofs shield satellite reception. Moving near a doorway or window enables an instant lock.</span>
+                </li>
+              </ul>
             </div>
           )}
 
