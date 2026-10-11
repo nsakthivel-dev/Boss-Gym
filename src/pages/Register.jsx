@@ -35,13 +35,8 @@ const Register = () => {
 
       await sendEmailVerification(user);
 
-      const adminEmails = [
-        'sakthicud07@gmail.com',
-        'manisuni94@gmail.com',
-        import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
-      ].filter(Boolean).map(e => e.toLowerCase().trim());
-
-      const isSystemAdmin = adminEmails.includes(email.toLowerCase().trim());
+      const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+      const isSystemAdmin = email.toLowerCase().trim() === designatedAdminEmail;
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         role: isSystemAdmin ? 'admin' : 'user',

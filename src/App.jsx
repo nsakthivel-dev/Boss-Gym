@@ -32,7 +32,8 @@ import Contact from './pages/Contact';
 import { Loader2 } from 'lucide-react';
 
 const RootRedirect = () => {
-  const { userRole, loading } = useAuth();
+  const { currentUser, userRole, loading } = useAuth();
+  const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
 
   if (loading) {
     return (
@@ -42,7 +43,7 @@ const RootRedirect = () => {
     );
   }
 
-  if (userRole === 'admin') {
+  if (userRole === 'admin' && currentUser?.email?.toLowerCase().trim() === designatedAdminEmail) {
     return <Layout />;
   }
 

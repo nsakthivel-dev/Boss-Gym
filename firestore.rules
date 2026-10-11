@@ -1,23 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow admin to read/write everything
+    function isDesignatedAdmin() {
+      return request.auth != null && 
+             request.auth.token.email.lower() == 'manisuni94@gmail.com';
+    }
+
+    // Allow designated administrator full access to all documents
     match /{document=**} {
-      allow read, write: if request.auth != null && (
-        request.auth.token.email == 'sakthicud07@gmail.com' ||
-        request.auth.token.email == 'manisuni94@gmail.com'
+      allow read, write: if isDesignatedAdmin();
+    }
+
+    // User profiles: users can access their own profile, but cannot self-assign the admin role
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isDesignatedAdmin());
+      allow write: if request.auth != null && (
+        isDesignatedAdmin() || 
+        (request.auth.uid == uid && 
+         (!('role' in request.resource.data) || request.resource.data.role != 'admin'))
       );
     }
 
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null && request.auth.uid == uid;
-    }
-
+    // Members collection: creation allowed, management restricted to administrator
     match /members/{memberId} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if request.auth != null;
+      allow update, delete: if isDesignatedAdmin();
     }
 
     match /sessions/{sessionId} {
@@ -36,23 +44,28 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Plans: modifications restricted to administrator
     match /plans/{planId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isDesignatedAdmin();
     }
     
+    // Gym Settings: modifications restricted to administrator
     match /settings/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isDesignatedAdmin();
     }
     
+    // Workout Schedule: modifications restricted to administrator
     match /workout_schedule/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isDesignatedAdmin();
     }
 
+    // Meta metadata: modifications restricted to administrator
     match /meta/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      allow write: if isDesignatedAdmin();
     }
   }
 }

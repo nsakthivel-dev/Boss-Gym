@@ -28,12 +28,8 @@ const WebsiteLayout = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const adminEmails = [
-    'sakthicud07@gmail.com',
-    'manisuni94@gmail.com',
-    import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
-  ].filter(Boolean).map(e => e.toLowerCase().trim());
-  const isAdmin = userRole === 'admin' || (currentUser && adminEmails.includes(currentUser.email?.toLowerCase().trim()));
+  const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+  const isAdmin = userRole === 'admin' && currentUser?.email?.toLowerCase().trim() === designatedAdminEmail;
 
   // Close mobile menu on route change
   useEffect(() => {

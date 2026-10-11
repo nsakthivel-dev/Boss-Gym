@@ -40,7 +40,7 @@ A comprehensive management suite (restricted to authorized administrators):
 ## 🔐 Security & Access Control
 
 The platform implements **Role-Based Access Control (RBAC)**:
-- **Super Admin**: Only the authorized email (`nsakthiveldev@gmail.com`) is granted full dashboard access.
+- **Super Admin**: Only the authorized email (`manisuni94@gmail.com`) is granted full dashboard access.
 - **Authorized Redirection**: Users are automatically routed based on their role—Admins to the Dashboard, regular users to the Website.
 - **Route Protection**: All administrative pages are guarded by a specialized `ProtectedRoute` component to prevent unauthorized access.
 

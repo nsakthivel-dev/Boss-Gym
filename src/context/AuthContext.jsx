@@ -24,22 +24,21 @@ export const AuthProvider = ({ children }) => {
         if (user) {
           setCurrentUser(user);
           
-          const adminEmails = [
-            'sakthicud07@gmail.com',
-            'manisuni94@gmail.com',
-            import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
-          ].filter(Boolean).map(e => e.toLowerCase().trim());
+          const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com')
+            .replace(/^["'](.+)["']$/, '$1')
+            .toLowerCase()
+            .trim();
 
           const userEmail = user.email?.toLowerCase().trim();
-          const isSystemAdmin = adminEmails.includes(userEmail);
+          const isSystemAdmin = userEmail === designatedAdminEmail;
           
-          // If system admin, grant admin role and sync Firestore doc
+          const userDocRef = doc(db, 'users', user.uid);
+          // If sole authorized system admin, grant admin role and sync Firestore doc
           if (isSystemAdmin) {
             setUserRole('admin');
             try {
-              const userDocRef = doc(db, 'users', user.uid);
               const userDoc = await getDoc(userDocRef);
-              if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+              if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
                 await setDoc(userDocRef, {
                   email: user.email,
                   role: 'admin',
@@ -50,15 +49,23 @@ export const AuthProvider = ({ children }) => {
               console.warn("Could not sync admin document to firestore:", syncErr);
             }
           } else {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists()) {
-              setUserRole(userDoc.data().role || 'user');
-            } else {
-              setUserRole('user');
+            // Any other account is strictly a normal user
+            setUserRole('user');
+            try {
+              const userDoc = await getDoc(userDocRef);
+              // Revoke any stale or unauthorized admin privilege from non-designated account
+              if (userDoc.exists() && userDoc.data()?.role === 'admin') {
+                await setDoc(userDocRef, {
+                  role: 'user',
+                  updatedAt: new Date().toISOString()
+                }, { merge: true });
+              }
+            } catch (syncErr) {
+              console.warn("Could not sanitize user document in firestore:", syncErr);
             }
           }
 
-          // Trigger seed only for the system admin
+          // Trigger seed only for the authorized system admin
           if (isSystemAdmin) {
             seedDatabase();
           }

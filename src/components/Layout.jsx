@@ -253,7 +253,7 @@ const Layout = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white uppercase truncate">Master Trainer</p>
-                <p className="text-[10px] text-neutral-400 truncate">{currentUser?.email || 'admin@bossgym.com'}</p>
+                <p className="text-[10px] text-neutral-400 truncate">{currentUser?.email || 'manisuni94@gmail.com'}</p>
               </div>
             </div>
             <button 

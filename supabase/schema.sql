@@ -142,15 +142,15 @@ CREATE POLICY "Allow anon insert attendance_events" ON public.attendance_events
 CREATE POLICY "Allow select attendance_events" ON public.attendance_events
     FOR SELECT USING (true);
 
--- Admin full access if authenticated
+-- Admin full access if authenticated as designated administrator
 CREATE POLICY "Admin full access gym_locations" ON public.gym_locations
-    FOR ALL TO authenticated USING (true);
+    FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'manisuni94@gmail.com');
 
 CREATE POLICY "Admin full access attendance_qr" ON public.attendance_qr
-    FOR ALL TO authenticated USING (true);
+    FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'manisuni94@gmail.com');
 
 CREATE POLICY "Admin full access attendance_sessions" ON public.attendance_sessions
-    FOR ALL TO authenticated USING (true);
+    FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'manisuni94@gmail.com');
 
 CREATE POLICY "Admin full access attendance_events" ON public.attendance_events
-    FOR ALL TO authenticated USING (true);
+    FOR ALL TO authenticated USING (auth.jwt() ->> 'email' = 'manisuni94@gmail.com');

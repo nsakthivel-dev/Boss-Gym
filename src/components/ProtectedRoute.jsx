@@ -18,7 +18,10 @@ const ProtectedRoute = ({ adminOnly = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && userRole !== 'admin') {
+  const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+  const isAuthorizedAdmin = userRole === 'admin' && currentUser.email?.toLowerCase().trim() === designatedAdminEmail;
+
+  if (adminOnly && !isAuthorizedAdmin) {
     return <Navigate to="/" replace />;
   }
 

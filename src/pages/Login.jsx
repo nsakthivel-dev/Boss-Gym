@@ -20,7 +20,9 @@ const Login = () => {
   // Redirect if already logged in
   React.useEffect(() => {
     if (currentUser && userRole) {
-      if (userRole === 'admin') {
+      const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+      const isAuthorizedAdmin = userRole === 'admin' && currentUser.email?.toLowerCase().trim() === designatedAdminEmail;
+      if (isAuthorizedAdmin) {
         navigate('/dashboard', { replace: true });
       } else {
         navigate('/', { replace: true });
@@ -37,13 +39,8 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const adminEmails = [
-        'sakthicud07@gmail.com',
-        'manisuni94@gmail.com',
-        import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim()
-      ].filter(Boolean).map(e => e.toLowerCase().trim());
-
-      const isSystemAdmin = adminEmails.includes(user.email?.toLowerCase().trim());
+      const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+      const isSystemAdmin = user.email?.toLowerCase().trim() === designatedAdminEmail;
       if (!user.emailVerified && !isSystemAdmin) {
         setError('Please verify your email before logging in.');
         await auth.signOut();
@@ -83,7 +80,8 @@ const Login = () => {
   const handleForgotPassword = async () => {
     setError('');
     setSuccessMsg('');
-    const targetEmail = email.trim() || import.meta.env.VITE_ADMIN_EMAIL?.replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+    const designatedAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'manisuni94@gmail.com').replace(/^["'](.+)["']$/, '$1').toLowerCase().trim();
+    const targetEmail = email.trim() || designatedAdminEmail;
     if (!targetEmail) {
       setError('Please enter your email address to receive the password reset link.');
       return;
@@ -199,7 +197,7 @@ const Login = () => {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    placeholder="admin@bossgym.com"
+                    placeholder="manisuni94@gmail.com"
                     className="w-full bg-[#faf9f6] border border-[#e8e4d8] text-neutral-900 rounded-xl pl-10 pr-4 py-3.5 text-xs font-semibold focus:outline-none focus:border-gold-500 focus:bg-white focus:ring-1 focus:ring-gold-500 transition-all placeholder:text-neutral-400"
                   />
                 </div>
