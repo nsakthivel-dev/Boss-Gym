@@ -142,6 +142,21 @@ const Reports = () => {
 
   useEffect(() => { loadMonthlyReport(monthlyMonth); }, [monthlyMonth]);
 
+  useEffect(() => {
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        loadDailyReport(dailyDate);
+        loadMonthlyReport(monthlyMonth);
+      }
+    };
+    window.addEventListener('online', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+    return () => {
+      window.removeEventListener('online', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
+  }, [dailyDate, monthlyMonth]);
+
   // Responsive chart parameters
   const xAxisInterval = windowWidth < 380 ? 4 : windowWidth < 640 ? 2 : windowWidth < 960 ? 1 : 0;
   const chartMargin = windowWidth < 640 

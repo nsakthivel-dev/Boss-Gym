@@ -584,6 +584,8 @@ const Members = () => {
   const [memberNotFound, setMemberNotFound] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [todaySessions, setTodaySessions] = useState({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(typeof navigator !== 'undefined' && navigator.onLine ? 'synced' : 'offline');
 
   const loadData = async () => {
     try {
@@ -601,11 +603,27 @@ const Members = () => {
         };
       });
       setMembers(list);
+      setSyncStatus('synced');
     } catch (err) {
       console.error('Error loading athletes:', err);
       setError('Failed to load athlete directory.');
+      if (!navigator.onLine) setSyncStatus('offline');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setSyncStatus('syncing');
+    try {
+      await loadData();
+      setSyncStatus('synced');
+    } catch (e) {
+      setSyncStatus(navigator.onLine ? 'synced' : 'offline');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -730,12 +748,44 @@ const Members = () => {
   }, [memberId, searchParams, members, loading]);
 
   useEffect(() => { 
-    loadData();
+    let unsubMembers = () => {};
+    let unsubSessions = () => {};
+    let isMounted = true;
+
+    const setupLiveRoster = async () => {
+      try {
+        const photoMap = await getMemberPhotoMap();
+        unsubMembers = onSnapshot(collection(db, 'members'), (snap) => {
+          if (!isMounted) return;
+          const list = snap.docs.map(d => {
+            const data = d.data();
+            return {
+              id: d.id,
+              ...data,
+              profilePictureUrl: data.profilePictureUrl || photoMap[d.id] || null
+            };
+          });
+          setMembers(list);
+          setLoading(false);
+          setSyncStatus('synced');
+        }, async (err) => {
+          console.warn("Live members snapshot warning, falling back to getDocs:", err);
+          if (!navigator.onLine) setSyncStatus('offline');
+          await loadData();
+        });
+      } catch (err) {
+        console.warn("Roster initialization warning:", err);
+        await loadData();
+      }
+    };
+
+    setupLiveRoster();
 
     // Subscribe to today's attendance sessions in real time
     const today = todayStr();
     const q = query(collection(db, 'sessions'), where('sessionDate', '==', today));
-    const unsub = onSnapshot(q, (snap) => {
+    unsubSessions = onSnapshot(q, (snap) => {
+      if (!isMounted) return;
       const map = {};
       snap.docs.forEach(d => {
         const data = d.data();
@@ -744,7 +794,28 @@ const Members = () => {
       setTodaySessions(map);
     }, (err) => console.warn("Live sessions snapshot warning in Members:", err));
 
-    return () => unsub();
+    // Foreground and network re-validation
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        setSyncStatus('synced');
+        loadData();
+      } else if (!navigator.onLine) {
+        setSyncStatus('offline');
+      }
+    };
+
+    window.addEventListener('online', handleRevalidate);
+    window.addEventListener('offline', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+
+    return () => {
+      isMounted = false;
+      unsubMembers();
+      unsubSessions();
+      window.removeEventListener('online', handleRevalidate);
+      window.removeEventListener('offline', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
   }, []);
 
   const handleOpenPassport = (m) => {
@@ -823,9 +894,23 @@ const Members = () => {
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
           <div className="space-y-1 sm:space-y-1.5">
-            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
-              Member Passport & Database
-            </span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${syncStatus === 'offline' ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
+                  Member Passport & Database · {syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'offline' ? 'Offline' : 'Live Synced'}
+                </span>
+              </div>
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-neutral-300 hover:text-gold-400 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase font-athletic cursor-pointer disabled:opacity-50"
+                title="Refresh athlete directory from server"
+              >
+                <RefreshCw size={10} className={isRefreshing ? "animate-spin text-gold-400" : "text-neutral-400"} />
+                <span>{isRefreshing ? 'Refreshing' : 'Sync'}</span>
+              </button>
+            </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-white font-athletic leading-tight">
               ATHLETE ROSTER
             </h1>

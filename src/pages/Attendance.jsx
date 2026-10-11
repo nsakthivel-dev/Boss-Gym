@@ -143,7 +143,32 @@ const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingSession, setEditingSession] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(typeof navigator !== 'undefined' && navigator.onLine ? 'synced' : 'offline');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadAttendance = async (targetDate = selectedDate) => {
+    setLoading(true);
+    try {
+      const q = query(
+        collection(db, 'sessions'),
+        where('sessionDate', '==', targetDate)
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      docs.sort((a, b) => {
+        const at = a.entryTime?.toDate?.() ?? new Date(a.entryTime);
+        const bt = b.entryTime?.toDate?.() ?? new Date(b.entryTime);
+        return bt - at;
+      });
+      setSessions(docs);
+      setSyncStatus('synced');
+    } catch (err) {
+      console.warn("Manual attendance load error:", err);
+      if (!navigator.onLine) setSyncStatus('offline');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -161,13 +186,47 @@ const Attendance = () => {
       });
       setSessions(docs);
       setLoading(false);
+      setSyncStatus('synced');
     }, (err) => {
       console.error("Attendance snapshot error:", err);
       setLoading(false);
+      if (!navigator.onLine) setSyncStatus('offline');
     });
 
-    return () => unsub();
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        setSyncStatus('synced');
+        loadAttendance(selectedDate);
+      } else if (!navigator.onLine) {
+        setSyncStatus('offline');
+      }
+    };
+
+    window.addEventListener('online', handleRevalidate);
+    window.addEventListener('offline', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('online', handleRevalidate);
+      window.removeEventListener('offline', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
   }, [selectedDate]);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setSyncStatus('syncing');
+    try {
+      await loadAttendance(selectedDate);
+      setSyncStatus('synced');
+    } catch (e) {
+      setSyncStatus(navigator.onLine ? 'synced' : 'offline');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const insideCount = sessions.filter(s => s.status === 'open').length;
   const completedCount = sessions.filter(s => s.status === 'closed').length;
@@ -177,13 +236,18 @@ const Attendance = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#e7e2d5]">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 font-athletic">Workout Tracking</span>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${syncStatus === 'offline' ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-gold-700 font-athletic">
+              Workout Tracking · {syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'offline' ? 'Offline' : 'Live Synced'}
+            </span>
+          </div>
           <h1 className="text-2xl md:text-3xl font-black text-neutral-900 tracking-tight uppercase font-athletic">Attendance Register</h1>
           <p className="text-xs text-neutral-500 mt-0.5">Real-time gym attendance logs and workout durations</p>
         </div>
 
-        {/* Date Filter */}
-        <div className="flex items-center gap-2">
+        {/* Date Filter & Sync Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2.5 bg-white border border-[#e7e2d5] rounded-2xl px-4 py-2 shadow-xs">
             <Calendar size={16} className="text-gold-600" />
             <input
@@ -196,11 +260,19 @@ const Attendance = () => {
           {selectedDate !== todayStr() && (
             <button
               onClick={() => setSelectedDate(todayStr())}
-              className="px-4 py-2.5 bg-neutral-900 text-gold-400 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors active:scale-95 font-athletic"
+              className="px-4 py-2.5 bg-neutral-900 text-gold-400 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors active:scale-95 font-athletic cursor-pointer"
             >
               Today
             </button>
           )}
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="p-2.5 bg-white border border-[#e7e2d5] hover:border-gold-400 text-neutral-700 hover:text-gold-600 rounded-2xl transition-colors active:scale-95 cursor-pointer disabled:opacity-50"
+            title="Refresh attendance records"
+          >
+            <RefreshCw size={15} className={isRefreshing ? "animate-spin text-gold-600" : ""} />
+          </button>
         </div>
       </div>
 

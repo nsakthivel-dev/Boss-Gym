@@ -11,7 +11,7 @@ import {
   MessageCircle, ShieldAlert, Sparkles, Dumbbell,
   Activity, ArrowUpRight, ChevronRight, QrCode, Plus,
   Flame, Award, ShieldCheck, TrendingUp, Calendar, ArrowRight,
-  Search, Phone, Filter, CheckCircle2, Image as ImageIcon, Eye
+  Search, Phone, Filter, CheckCircle2, Image as ImageIcon, Eye, RefreshCw
 } from 'lucide-react';
 import { requestNotificationPermission } from "../utils/notifications";
 import { checkAndNotifyExpiring } from "../utils/alertChecker";
@@ -50,6 +50,9 @@ const Dashboard = () => {
   const [photoMap, setPhotoMap] = useState({});
   const [athleteSearch, setAthleteSearch] = useState('');
   const [athleteFilter, setAthleteFilter] = useState('all');
+  const [currentDateStr, setCurrentDateStr] = useState(todayStr());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(typeof navigator !== 'undefined' && navigator.onLine ? 'synced' : 'offline');
 
   // Live refresh for session duration display
   useEffect(() => {
@@ -151,10 +154,9 @@ const Dashboard = () => {
     };
   }, []);
 
-  const fetchTodayStats = async () => {
+  const fetchTodayStats = async (targetDate = currentDateStr) => {
     try {
-      const today = todayStr();
-      const sessionsTodayQ = query(collection(db, 'sessions'), where('sessionDate', '==', today));
+      const sessionsTodayQ = query(collection(db, 'sessions'), where('sessionDate', '==', targetDate));
       const sessionsTodaySnap = await getDocs(sessionsTodayQ);
       const uniqueMembersToday = new Set(sessionsTodaySnap.docs.map(d => d.data().memberId));
 
@@ -168,10 +170,34 @@ const Dashboard = () => {
     }
   };
 
+  // Revalidate date rollover & network reconnects when PWA returns to foreground
+  useEffect(() => {
+    const handleSync = () => {
+      const isOnline = navigator.onLine;
+      setSyncStatus(isOnline ? 'synced' : 'offline');
+      if (document.visibilityState === 'visible' && isOnline) {
+        const freshDate = todayStr();
+        if (freshDate !== currentDateStr) {
+          setCurrentDateStr(freshDate);
+        }
+        fetchTodayStats(freshDate);
+      }
+    };
+
+    window.addEventListener('online', handleSync);
+    window.addEventListener('offline', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      window.removeEventListener('online', handleSync);
+      window.removeEventListener('offline', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+    };
+  }, [currentDateStr]);
+
   // Live subscription for currently inside floor sessions and today's stats
   useEffect(() => {
-    const today = todayStr();
-    const q = query(collection(db, 'sessions'), where('sessionDate', '==', today));
+    const q = query(collection(db, 'sessions'), where('sessionDate', '==', currentDateStr));
     const unsub = onSnapshot(q, (snap) => {
       const allToday = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
@@ -185,11 +211,50 @@ const Dashboard = () => {
         presentToday: uniqueMembersToday.size,
         totalToday: allToday.length,
       }));
+      setSyncStatus('synced');
     }, (err) => {
       console.warn("Live sessions snapshot warning:", err);
+      if (!navigator.onLine) setSyncStatus('offline');
     });
     return () => unsub();
-  }, []);
+  }, [currentDateStr]);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setSyncStatus('syncing');
+    try {
+      const freshDate = todayStr();
+      setCurrentDateStr(freshDate);
+      const [photos, snap] = await Promise.all([
+        getMemberPhotoMap(),
+        getDocs(collection(db, 'members'))
+      ]);
+      setPhotoMap(photos);
+      const memberList = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          profilePictureUrl: data.profilePictureUrl || photos[doc.id] || null
+        };
+      });
+      setMembers(memberList);
+      const computedStats = calculateMemberStats(memberList, getGymTodayDate());
+      setStats(prev => ({
+        ...prev,
+        total: computedStats.totalRegistered,
+        activeCount: computedStats.activePaidCount
+      }));
+      await fetchTodayStats(freshDate);
+      setSyncStatus('synced');
+    } catch (e) {
+      console.warn("Manual dashboard refresh error:", e);
+      setSyncStatus(navigator.onLine ? 'synced' : 'offline');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const gymToday = getGymTodayDate();
   const today = gymToday;
@@ -235,11 +300,22 @@ const Dashboard = () => {
 
         <div className="relative z-10 p-4 sm:p-6 md:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
           <div className="space-y-1.5 sm:space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
-                Turnstiles & GPS Geofence Active
-              </span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${syncStatus === 'offline' ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-gold-400 font-athletic">
+                  Turnstiles & GPS Geofence Active · {syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'offline' ? 'Offline' : 'Live Synced'}
+                </span>
+              </div>
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-neutral-300 hover:text-gold-400 px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 transition-colors uppercase font-athletic cursor-pointer disabled:opacity-50"
+                title="Refresh live data from server"
+              >
+                <RefreshCw size={10} className={isRefreshing ? "animate-spin text-gold-400" : "text-neutral-400"} />
+                <span>{isRefreshing ? 'Refreshing' : 'Sync'}</span>
+              </button>
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-5xl font-black uppercase tracking-tight text-white font-athletic leading-tight">
               ATHLETIC COMMAND <span className="text-gold-gradient">PORTAL</span>

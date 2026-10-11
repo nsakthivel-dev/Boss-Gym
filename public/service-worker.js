@@ -1,5 +1,5 @@
 // Service Worker for New Boss Gym PWA - Robust Update & Fresh Data Architecture
-const CACHE_VERSION = 'boss-gym-v4.1';
+const CACHE_VERSION = 'boss-gym-v4.2';
 const STATIC_CACHE = `boss-gym-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `boss-gym-runtime-${CACHE_VERSION}`;
 
@@ -119,6 +119,8 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;
+          const appShell = (await caches.match('/index.html')) || (await caches.match('/'));
+          if (appShell) return appShell;
           const offlinePage = await caches.match('/offline.html');
           return offlinePage || new Response('Offline', { status: 503 });
         })
