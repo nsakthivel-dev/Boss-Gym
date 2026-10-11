@@ -250,20 +250,20 @@ const Dashboard = () => {
           </div>
 
           {/* Primary Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button 
               onClick={() => navigate('/members')}
-              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all shadow-gold-sm active:scale-95 font-athletic cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center min-h-[42px] sm:min-h-[44px] gap-1.5 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-neutral-950 font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-gold-sm active:scale-95 font-athletic cursor-pointer"
             >
-              <Plus size={15} strokeWidth={3} />
-              <span>Enrol Athlete</span>
+              <Plus size={15} strokeWidth={3} className="shrink-0" />
+              <span className="truncate">Enrol Athlete</span>
             </button>
             <button 
               onClick={() => navigate('/qr')}
-              className="inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center min-h-[42px] sm:min-h-[44px] gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] hover:border-gold-400 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-all active:scale-95 font-athletic cursor-pointer"
             >
-              <QrCode size={15} className="text-gold-400" />
-              <span>Wall QR Sign</span>
+              <QrCode size={15} className="text-gold-400 shrink-0" />
+              <span className="truncate">Wall QR Sign</span>
             </button>
           </div>
         </div>

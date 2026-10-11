@@ -12,13 +12,13 @@ import EmptyState from '../components/ui/EmptyState';
 import { getGymDateString } from '../utils/workoutSchedule';
 
 const SectionCard = ({ title, subtitle, action, children }) => (
-  <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 md:p-8 shadow-xs space-y-5">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#e7e2d5]">
+  <div className="bg-white border border-[#e7e2d5] rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-xs space-y-4 sm:space-y-5">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[#e7e2d5]">
       <div>
-        <h3 className="text-neutral-900 font-black text-base uppercase tracking-tight font-athletic">{title}</h3>
-        {subtitle && <p className="text-xs text-neutral-500 font-medium mt-0.5">{subtitle}</p>}
+        <h3 className="text-neutral-900 font-black text-sm sm:text-base uppercase tracking-tight font-athletic">{title}</h3>
+        {subtitle && <p className="text-[11px] sm:text-xs text-neutral-500 font-medium mt-0.5">{subtitle}</p>}
       </div>
-      {action && <div>{action}</div>}
+      {action && <div className="w-full sm:w-auto">{action}</div>}
     </div>
     {children}
   </div>
@@ -41,24 +41,38 @@ const exportCSV = (data, filename, columns) => {
 const ExportBtn = ({ onClick }) => (
   <button 
     onClick={onClick}
-    className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-neutral-800 hover:text-gold-700 bg-white hover:bg-gold-50 border border-[#e7e2d5] hover:border-gold-300 px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95 font-athletic"
+    className="inline-flex items-center justify-center min-h-[38px] gap-2 text-xs font-black uppercase tracking-wider text-neutral-800 hover:text-gold-700 bg-white hover:bg-gold-50 border border-[#e7e2d5] hover:border-gold-300 px-3.5 sm:px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95 font-athletic shrink-0 cursor-pointer"
   >
-    <Download className="w-3.5 h-3.5 text-gold-600" /> Export CSV
+    <Download className="w-3.5 h-3.5 text-gold-600 shrink-0" />
+    <span className="whitespace-nowrap">Export CSV</span>
   </button>
 );
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
+  const count = payload[0].value ?? 0;
   return (
-    <div className="bg-[#171717] border border-gold-500/40 rounded-2xl px-4 py-3 shadow-2xl text-xs text-white">
+    <div className="bg-[#171717]/95 backdrop-blur-md border border-gold-500/50 rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 shadow-2xl text-xs text-white pointer-events-none select-none max-w-[200px]">
       <p className="text-neutral-400 font-bold uppercase tracking-wider text-[10px] font-athletic">Day {label}</p>
-      <p className="text-gold-400 font-black text-base mt-0.5 font-athletic">{payload[0].value} Workouts Logged</p>
+      <p className="text-gold-400 font-black text-xs sm:text-sm mt-0.5 font-athletic">
+        {count} {count === 1 ? 'Workout' : 'Workouts'} Logged
+      </p>
     </div>
   );
 };
 
 const Reports = () => {
   const [loading, setLoading] = useState({});
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const todayStr = () => getGymDateString();
   const thisMonthStr = () => {
     return getGymDateString().slice(0, 7);
@@ -128,6 +142,14 @@ const Reports = () => {
 
   useEffect(() => { loadMonthlyReport(monthlyMonth); }, [monthlyMonth]);
 
+  // Responsive chart parameters
+  const xAxisInterval = windowWidth < 380 ? 4 : windowWidth < 640 ? 2 : windowWidth < 960 ? 1 : 0;
+  const chartMargin = windowWidth < 640 
+    ? { top: 10, right: 6, left: -14, bottom: 4 }
+    : { top: 10, right: 10, left: -10, bottom: 0 };
+  const yAxisWidth = windowWidth < 640 ? 26 : 32;
+  const tickFontSize = windowWidth < 640 ? 9 : 10;
+
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in">
       {/* Header */}
@@ -144,25 +166,47 @@ const Reports = () => {
         title="Monthly Gym Volume & Frequency"
         subtitle={`Total of ${monthlyTotal} completed sessions in ${monthlyMonth}`}
         action={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
             <input
               type="month"
               value={monthlyMonth}
               onChange={e => setMonthlyMonth(e.target.value)}
-              className="bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none"
+              className="flex-1 sm:flex-none min-w-[130px] min-h-[38px] bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none focus:border-gold-400 font-sans"
             />
             <ExportBtn onClick={() => exportCSV(monthlyChart, `boss_gym_monthly_${monthlyMonth}`, ['date', 'sessions'])} />
           </div>
         }
       >
-        <div className="h-72 w-full pt-4">
+        <div className="h-60 sm:h-72 w-full min-w-0 pt-2 sm:pt-4 overflow-hidden">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <BarChart data={monthlyChart} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0ece2" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#71717a' }} stroke="#e7e2d5" />
-              <YAxis tick={{ fontSize: 10, fill: '#71717a' }} stroke="#e7e2d5" allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="sessions" fill="#c9a227" radius={[6, 6, 0, 0]} />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: tickFontSize, fill: '#71717a' }} 
+                stroke="#e7e2d5" 
+                interval={xAxisInterval}
+                tickMargin={4}
+              />
+              <YAxis 
+                tick={{ fontSize: tickFontSize, fill: '#71717a' }} 
+                stroke="#e7e2d5" 
+                allowDecimals={false} 
+                width={yAxisWidth}
+                tickMargin={2}
+              />
+              <Tooltip 
+                content={<CustomTooltip />} 
+                cursor={{ fill: 'rgba(201, 162, 39, 0.12)' }}
+                isAnimationActive={false}
+                wrapperStyle={{ zIndex: 40, outline: 'none', pointerEvents: 'none' }}
+              />
+              <Bar 
+                dataKey="sessions" 
+                fill="#c9a227" 
+                radius={[4, 4, 0, 0]} 
+                maxBarSize={28}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -173,12 +217,12 @@ const Reports = () => {
         title="Daily Athlete Attendance Breakdown"
         subtitle={`Detailed workout sessions for ${dailyDate}`}
         action={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
             <input
               type="date"
               value={dailyDate}
               onChange={e => setDailyDate(e.target.value)}
-              className="bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none"
+              className="flex-1 sm:flex-none min-w-[130px] min-h-[38px] bg-[#faf9f6] border border-[#e7e2d5] text-xs font-bold text-neutral-900 rounded-xl px-3 py-2 focus:outline-none focus:border-gold-400 font-sans"
             />
             <ExportBtn onClick={() => exportCSV(dailySessions, `boss_gym_daily_${dailyDate}`, ['Member', 'Entry', 'Exit', 'Duration', 'Status'])} />
           </div>
@@ -193,8 +237,8 @@ const Reports = () => {
             description={`No attendance sessions logged for ${dailyDate}.`}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full text-left text-xs border-collapse min-w-[500px]">
               <thead>
                 <tr className="border-b border-[#e7e2d5] bg-[#faf9f6] text-[10px] font-black uppercase tracking-wider text-neutral-500 font-athletic">
                   <th className="py-3 px-4">Athlete</th>
