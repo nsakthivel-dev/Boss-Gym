@@ -1,3 +1,5 @@
+import { getGymDateString } from './workoutSchedule';
+
 const GYM_NAME = import.meta.env.VITE_GYM_NAME || "BOSS GYM"
 
 // Request permission from browser
@@ -30,5 +32,5 @@ export function sendBrowserNotification(title, body, icon) {
 
 // Get today's date string YYYY-MM-DD
 export function getTodayString() {
-  return new Date().toISOString().split("T")[0]
+  return getGymDateString();
 }

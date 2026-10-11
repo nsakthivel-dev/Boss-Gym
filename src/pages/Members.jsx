@@ -20,8 +20,10 @@ import EmptyState from '../components/ui/EmptyState';
 import { getMemberPhotoMap } from '../utils/supabaseStorage';
 import MemberFormModal from '../components/MemberFormModal';
 import { fetchMemberTodayWorkout } from '../utils/attendanceService';
+import { calculateMemberStats, filterAthletes, getSubscriptionStatus } from '../utils/memberStats';
+import { getGymTodayDate, getGymDateString } from '../utils/workoutSchedule';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => getGymDateString();
 
 const Modal = ({ title, children, onClose, maxWidth = 'max-w-lg' }) => (
   <div 
@@ -771,29 +773,12 @@ const Members = () => {
     }
   };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const gymToday = getGymTodayDate();
+  const memberStats = calculateMemberStats(members, gymToday);
+  const { totalRegistered, activePaidCount, totalRevenue, retentionRate } = memberStats;
 
-  const filtered = members
-    .sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
-    .filter(m => {
-      const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.phone?.includes(search);
-      if (!matchesSearch) return false;
-
-      const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
-      const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-
-      if (filterStatus === 'active') return m.status === 'active' && daysLeft > 3;
-      if (filterStatus === 'expiring') return daysLeft <= 3 && daysLeft >= 0;
-      if (filterStatus === 'expired') return m.status === 'expired' || daysLeft < 0;
-      return true;
-    });
-
-  const activeCount = members.filter(m => m.status === 'active').length;
-  const totalRevenue = members.filter(m => m.status === 'active').reduce((acc, m) => acc + (Number(m.price) || 0), 0);
-  const activeRetention = members.length > 0 
-    ? Math.round((activeCount / members.length) * 100) 
-    : 0;
+  const filtered = filterAthletes(members, filterStatus, search, gymToday)
+    .sort((a,b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0));
 
   const handleExport = () => {
     if (filtered.length === 0) return;
@@ -819,7 +804,7 @@ const Members = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `boss_gym_athletes_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `boss_gym_athletes_${getGymDateString()}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -846,7 +831,7 @@ const Members = () => {
               ATHLETE ROSTER
             </h1>
             <p className="text-xs text-neutral-300 font-medium">
-              {activeCount} active gym subscriptions out of {members.length} registered athletes
+              {activePaidCount} active gym subscriptions out of {totalRegistered} registered athletes
             </p>
           </div>
 
@@ -879,7 +864,7 @@ const Members = () => {
             </div>
           </div>
           <div>
-            <p className="text-base sm:text-2xl md:text-3xl font-black text-blue-600 font-athletic tracking-tight leading-none">{activeRetention}%</p>
+            <p className="text-base sm:text-2xl md:text-3xl font-black text-blue-600 font-athletic tracking-tight leading-none">{retentionRate}%</p>
             <p className="text-[9px] sm:text-[11px] text-neutral-400 mt-1 hidden sm:block truncate">Consecutive attendance</p>
           </div>
         </div>
@@ -905,7 +890,7 @@ const Members = () => {
             </div>
           </div>
           <div>
-            <p className="text-base sm:text-2xl md:text-3xl font-black text-emerald-600 font-athletic tracking-tight leading-none">{activeCount} / {members.length}</p>
+            <p className="text-base sm:text-2xl md:text-3xl font-black text-emerald-600 font-athletic tracking-tight leading-none">{activePaidCount} / {totalRegistered}</p>
             <p className="text-[9px] sm:text-[11px] text-neutral-400 mt-1 hidden sm:block truncate">Current valid roster</p>
           </div>
         </div>
@@ -985,10 +970,10 @@ const Members = () => {
               <tbody className="divide-y divide-[#f0ece2]">
                 {filtered.map((m) => {
                   const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                  const isExpired = m.status === 'expired';
-                  const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
-                  const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-                  const progress = Math.max(0, Math.min(100, Math.round(((Number(m.durationDays || 30) - daysLeft) / Number(m.durationDays || 30)) * 100)));
+                  const subStatus = getSubscriptionStatus(m, gymToday);
+                  const isExpired = subStatus.isExpired;
+                  const daysLeft = subStatus.daysLeft;
+                  const progress = Math.max(0, Math.min(100, Math.round(((Number(m.durationDays || 30) - Math.max(0, daysLeft)) / Number(m.durationDays || 30)) * 100)));
                   const memberTodaySession = todaySessions[m.id];
 
                   return (
@@ -1130,9 +1115,9 @@ const Members = () => {
           <div className="md:hidden divide-y divide-[#f0ece2]">
             {filtered.map((m) => {
               const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-              const isExpired = m.status === 'expired';
-              const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
-              const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
+              const subStatus = getSubscriptionStatus(m, gymToday);
+              const isExpired = subStatus.isExpired;
+              const daysLeft = subStatus.daysLeft;
               const memberTodaySession = todaySessions[m.id];
 
               return (

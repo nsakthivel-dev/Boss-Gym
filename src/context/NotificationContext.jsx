@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { getGymTodayDate } from '../utils/workoutSchedule';
 
 const NotificationContext = createContext();
 
@@ -49,9 +50,9 @@ export const NotificationProvider = ({ children }) => {
   const value = {
     alerts,
     alertCount: alerts.filter(m => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const endDate = m.endDate.toDate?.() ?? new Date(m.endDate);
+      const today = getGymTodayDate();
+      const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
+      if (!endDate) return false;
       const daysLeft = Math.ceil((endDate - today) / 86400000);
       return daysLeft <= 3; // Standard threshold for high priority alerts
     }).length,

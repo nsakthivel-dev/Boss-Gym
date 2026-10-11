@@ -12,21 +12,13 @@ import { useAuth } from '../context/AuthContext';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 
-const DEFAULT_7_DAY_CYCLE = [
-  { day: 1, title: 'CHEST WORKOUT', muscles: 'Chest · Upper Chest · Lower Chest', isRest: false },
-  { day: 2, title: 'BACK WORKOUT', muscles: 'Lats · Traps · Lower Back', isRest: false },
-  { day: 3, title: 'SHOULDER', muscles: 'Deltoids · Rear Delts', isRest: false },
-  { day: 4, title: 'BICEPS', muscles: 'Biceps Brachii · Brachialis', isRest: false },
-  { day: 5, title: 'LEGS DAY', muscles: 'Quads · Hamstrings · Glutes · Calves', isRest: false },
-  { day: 6, title: 'TRICEPS', muscles: 'Long Head · Lateral Head · Medial Head', isRest: false },
-  { day: 7, title: 'REST & RECOVERY', muscles: 'Active Recovery & Stretching', isRest: true }
-].map(item => ({
-  ...item,
-  exercises: [
-    { name: "Compound Movement 1", sets: "4", reps: "10-12", notes: "Heavy & Controlled" },
-    { name: "Isolation Movement 2", sets: "3", reps: "12-15", notes: "Peak Contraction" }
-  ]
-}));
+import { 
+  FIXED_WEEKLY_WORKOUT_SCHEDULE, 
+  getWorkoutForDate, 
+  getGymTodayDate, 
+  getGymDateString, 
+  calculateMonthStats 
+} from '../utils/workoutSchedule';
 
 const Schedule = () => {
   const { userRole } = useAuth();
@@ -39,9 +31,9 @@ const Schedule = () => {
   const [isModalEditing, setIsModalEditing] = useState(false);
   const [modalExercises, setModalExercises] = useState([]);
   
-  // Calendar State
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // Calendar State in Gym Timezone
+  const [currentDate, setCurrentDate] = useState(() => getGymTodayDate());
+  const [selectedDate, setSelectedDate] = useState(() => getGymTodayDate());
   
   const loadData = async () => {
     setLoading(true);
@@ -58,20 +50,32 @@ const Schedule = () => {
       const scheduleSnap = await getDocs(query(collection(db, 'workout_schedule'), orderBy('day', 'asc')));
       let scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Auto-migrate if empty
-      const isOld7Day = scheduleData.length === 7 && scheduleData.some(d => d.day === 5 && d.title === 'LEGS');
-      if (scheduleData.length === 0 || scheduleData.length === 30 || isOld7Day) {
-        if (scheduleData.length === 30 || isOld7Day) {
+      // Auto-migrate if empty or not 7 days
+      if (scheduleData.length === 0 || scheduleData.length !== 7) {
+        if (scheduleData.length > 0) {
           for (const d of scheduleSnap.docs) {
             await deleteDoc(doc(db, 'workout_schedule', d.id));
           }
         }
         
-        const initial = DEFAULT_7_DAY_CYCLE;
+        const initial = FIXED_WEEKLY_WORKOUT_SCHEDULE;
         for (const item of initial) {
           await setDoc(doc(db, 'workout_schedule', `day-${item.day}`), item);
         }
         scheduleData = initial;
+      } else {
+        // Enforce the fixed title & muscles for each day
+        scheduleData = scheduleData.map(d => {
+          const canonical = FIXED_WEEKLY_WORKOUT_SCHEDULE.find(c => c.day === d.day) || d;
+          return {
+            ...d,
+            weekday: canonical.weekday,
+            title: canonical.title,
+            isRest: canonical.isRest,
+            muscles: d.muscles || canonical.muscles,
+            exercises: Array.isArray(d.exercises) && d.exercises.length > 0 ? d.exercises : canonical.exercises
+          };
+        });
       }
       setBaseSchedule(scheduleData);
     } catch (err) {
@@ -83,32 +87,9 @@ const Schedule = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const getDayWorkout = (date, member) => {
-    if (member && member.workoutStartDate) {
-      const start = member.workoutStartDate.toDate ? member.workoutStartDate.toDate() : new Date(member.workoutStartDate);
-      start.setHours(0, 0, 0, 0);
-      
-      const targetDate = new Date(date);
-      targetDate.setHours(0, 0, 0, 0);
-      
-      const diffTime = targetDate.getTime() - start.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays >= 0 && baseSchedule.length > 0) {
-        const cycleIndex = diffDays % baseSchedule.length;
-        return baseSchedule[cycleIndex];
-      }
-    }
-    
-    // Cyclical fallback by day of week so workouts always cleanly populate
-    if (baseSchedule.length > 0) {
-      const targetDate = new Date(date);
-      const dayOfWeek = targetDate.getDay(); // 0 is Sun, 1 is Mon...
-      const cycleIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      return baseSchedule[cycleIndex % baseSchedule.length] || null;
-    }
-    
-    return null;
+  // Fixed schedule source of truth: all members see the exact same workout for any calendar date
+  const getDayWorkout = (date) => {
+    return getWorkoutForDate(date, baseSchedule);
   };
 
   const getShortMuscleTag = (workout) => {
@@ -137,53 +118,12 @@ const Schedule = () => {
   };
 
   const getMonthStats = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    let activeDays = 0;
-    let restDays = 0;
-    
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(year, month, d);
-      const workout = getDayWorkout(date, selectedMember);
-      if (workout) {
-        if (workout.isRest) {
-          restDays++;
-        } else {
-          activeDays++;
-        }
-      }
-    }
-    
-    const total = activeDays + restDays;
-    const rate = total > 0 ? Math.round((activeDays / total) * 100) : 0;
-    
-    // Dynamic streak calculation: consecutive workout days ending today
-    let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    for (let i = 0; i < 30; i++) {
-      const pastDate = new Date(today);
-      pastDate.setDate(today.getDate() - i);
-      const workout = getDayWorkout(pastDate, selectedMember);
-      if (workout && !workout.isRest) {
-        streak++;
-      } else {
-        if (i === 0 && workout && workout.isRest) {
-          continue;
-        }
-        break;
-      }
-    }
-    
-    return {
-      activeDays,
-      restDays,
-      rate,
-      streak: streak > 0 ? streak : 6
-    };
+    return calculateMonthStats(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      baseSchedule,
+      getGymTodayDate()
+    );
   };
 
   const renderCalendar = () => {
@@ -193,6 +133,9 @@ const Schedule = () => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const prevMonthDays = new Date(year, month, 0).getDate();
     
+    const gymTodayStr = getGymDateString(new Date());
+    const selDateStr = selectedDate ? getGymDateString(selectedDate) : '';
+
     const days = [];
     
     // Trailing days of previous month (e.g. 29, 30 in muted gray)
@@ -213,9 +156,10 @@ const Schedule = () => {
     // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
-      const isToday = new Date().toDateString() === date.toDateString();
-      const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
-      const workout = getDayWorkout(date, selectedMember);
+      const thisDateStr = getGymDateString(date);
+      const isToday = thisDateStr === gymTodayStr;
+      const isSelected = thisDateStr === selDateStr;
+      const workout = getDayWorkout(date);
       const shortTag = getShortMuscleTag(workout);
       const isRest = workout?.isRest;
       
@@ -520,8 +464,9 @@ const Schedule = () => {
 
                 <button 
                   onClick={() => {
-                    setCurrentDate(new Date());
-                    setSelectedDate(new Date());
+                    const today = getGymTodayDate();
+                    setCurrentDate(today);
+                    setSelectedDate(today);
                   }}
                   className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 rounded-xl text-xs font-black uppercase tracking-wider transition-colors font-athletic active:scale-95 shrink-0"
                 >

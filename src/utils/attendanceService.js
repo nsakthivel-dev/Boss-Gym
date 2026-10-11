@@ -2,11 +2,16 @@ import { db } from '../firebase/config';
 import { supabase } from '../supabase/config';
 import { 
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, 
-  query, where, serverTimestamp, Timestamp, orderBy, limit 
+  query, where, serverTimestamp, Timestamp 
 } from 'firebase/firestore';
 import { getDistanceMeters } from './distance';
+import { 
+  getGymDateString, 
+  getGymTodayDate, 
+  getWorkoutForDate 
+} from './workoutSchedule';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => getGymDateString();
 
 // Persistent Device Identifier for Anti-Abuse
 export const getDeviceId = () => {
@@ -603,36 +608,8 @@ export const fetchMemberTodayWorkout = async (member) => {
       }
     }
 
-    if (baseSchedule.length === 0) {
-      baseSchedule = DEFAULT_7_DAY_CYCLE;
-    }
-
-    let todaysWorkout = null;
-    const todayDate = new Date();
-    todayDate.setHours(0, 0, 0, 0);
-
-    // If member has workoutStartDate, calculate progressive 7-day cycle
-    if (member.workoutStartDate) {
-      const start = member.workoutStartDate.toDate 
-        ? member.workoutStartDate.toDate() 
-        : new Date(member.workoutStartDate);
-      start.setHours(0, 0, 0, 0);
-
-      const diffTime = todayDate.getTime() - start.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays >= 0) {
-        const cycleIndex = diffDays % baseSchedule.length;
-        todaysWorkout = baseSchedule[cycleIndex];
-      }
-    } else {
-      // Default to day of week mapping (1 = Mon, ..., 7 = Sun)
-      const dayOfWeek = todayDate.getDay(); // 0 is Sun, 1 is Mon
-      const scheduleDay = dayOfWeek === 0 ? 7 : dayOfWeek;
-      todaysWorkout = baseSchedule.find(s => s.day === scheduleDay) || baseSchedule[0];
-    }
-
-    return todaysWorkout;
+    const today = getGymTodayDate();
+    return getWorkoutForDate(today, baseSchedule);
   } catch (err) {
     console.error('Failed to fetch assigned workout:', err);
     return null;

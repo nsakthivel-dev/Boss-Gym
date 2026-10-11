@@ -1,9 +1,10 @@
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { getGymDateString } from './workoutSchedule';
 
 export const runMidnightCleanup = async () => {
   try {
-    const today = new Date().toISOString().split("T")[0]
+    const today = getGymDateString();
     const q = query(
       collection(db, "sessions"),
       where("status", "==", "open"),

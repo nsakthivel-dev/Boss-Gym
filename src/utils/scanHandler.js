@@ -1,5 +1,6 @@
 import { db } from '../firebase/config';
-import { collection, query, where, getDocs, doc, getDoc, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getGymDateString, getGymTodayDate } from './workoutSchedule';
 
 export const handleScan = async (qrValue) => {
   try {
@@ -15,11 +16,11 @@ export const handleScan = async (qrValue) => {
     const memberDoc = querySnapshot.docs[0];
     const member = { id: memberDoc.id, ...memberDoc.data() };
     const memberName = member.name;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getGymDateString();
     
     // Step 2: Check expiry
     const endDate = member.endDate?.toDate();
-    if (!endDate || endDate < new Date(new Date().setHours(0,0,0,0))) {
+    if (!endDate || endDate < getGymTodayDate()) {
       return { status: 'expired', memberName };
     }
 

@@ -7,8 +7,9 @@ import { CalendarCheck, Edit2, X, RefreshCw, Clock, UserCheck, Calendar, Activit
 import { useAuth } from '../context/AuthContext';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
+import { getGymDateString } from '../utils/workoutSchedule';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => getGymDateString();
 
 const formatTime = (ts) => {
   if (!ts) return '—';

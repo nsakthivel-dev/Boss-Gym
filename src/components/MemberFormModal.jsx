@@ -5,8 +5,9 @@ import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestor
 import { useSettings } from '../context/SettingsContext';
 import { sendWelcomeMessage } from '../utils/whatsapp';
 import { X, UserPlus, Save, Loader2, Sparkles } from 'lucide-react';
+import { getGymDateString } from '../utils/workoutSchedule';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => getGymDateString();
 
 const MemberFormModal = ({ editingMember, initialPhone = '', onClose, onSaved }) => {
   const { settings: gymSettings } = useSettings();
@@ -17,7 +18,7 @@ const MemberFormModal = ({ editingMember, initialPhone = '', onClose, onSaved })
     price: editingMember?.price || 800,
     durationDays: editingMember?.durationDays || 30,
     startDate: editingMember?.startDate 
-      ? new Date(editingMember.startDate.toDate?.() || editingMember.startDate).toISOString().split('T')[0]
+      ? getGymDateString(editingMember.startDate.toDate?.() || editingMember.startDate)
       : todayStr(),
     workoutStartPreference: 'today'
   });

@@ -1,5 +1,5 @@
 import {
-  collection, query, where,
+  collection,
   getDocs, doc, setDoc, getDoc
 } from "firebase/firestore"
 import { db } from "../firebase/config"
@@ -7,13 +7,14 @@ import {
   sendBrowserNotification,
   getTodayString
 } from "./notifications"
+import { getGymTodayDate } from "./workoutSchedule"
 
 const getGymName = async () => {
   try {
     const docRef = doc(db, "settings", "config");
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data().gymName : "BOSS GYM";
-  } catch (err) {
+  } catch {
     return "BOSS GYM";
   }
 };
@@ -21,8 +22,7 @@ const getGymName = async () => {
 export async function checkAndNotifyExpiring() {
   try {
     const gymName = await getGymName();
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = getGymTodayDate();
     const todayStr = getTodayString()
 
     // Calculate date 3 days from now

@@ -20,8 +20,10 @@ import { CardSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { Link, useNavigate } from 'react-router-dom';
 import { getMemberPhotoMap } from '../utils/supabaseStorage';
+import { calculateMemberStats, filterAthletes, getSubscriptionStatus } from '../utils/memberStats';
+import { getGymTodayDate, getGymDateString } from '../utils/workoutSchedule';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => getGymDateString();
 
 const formatTime = (ts) => {
   if (!ts) return '—';
@@ -93,10 +95,11 @@ const Dashboard = () => {
             };
           });
           setMembers(memberList);
+          const computedStats = calculateMemberStats(memberList, getGymTodayDate());
           setStats(prev => ({
             ...prev,
-            total: memberList.length,
-            activeCount: memberList.filter(m => m.status === 'active').length
+            total: computedStats.totalRegistered,
+            activeCount: computedStats.activePaidCount
           }));
           setLoading(false);
         }, async (snapErr) => {
@@ -113,10 +116,11 @@ const Dashboard = () => {
             });
             if (isMounted) {
               setMembers(memberList);
+              const computedStats = calculateMemberStats(memberList, getGymTodayDate());
               setStats(prev => ({
                 ...prev,
-                total: memberList.length,
-                activeCount: memberList.filter(m => m.status === 'active').length
+                total: computedStats.totalRegistered,
+                activeCount: computedStats.activePaidCount
               }));
             }
           } catch (getErr) {
@@ -187,25 +191,11 @@ const Dashboard = () => {
     return () => unsub();
   }, []);
 
+  const gymToday = getGymTodayDate();
+  const memberStats = calculateMemberStats(members, gymToday);
+
   // Filtered members for Dashboard Athlete Showcase
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const filteredAthletes = members
-    .filter(m => {
-      const matchesSearch = 
-        m.name?.toLowerCase().includes(athleteSearch.toLowerCase()) || 
-        m.phone?.includes(athleteSearch);
-      if (!matchesSearch) return false;
-
-      const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
-      const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-
-      if (athleteFilter === 'active') return m.status === 'active' && daysLeft > 3;
-      if (athleteFilter === 'expiring') return daysLeft <= 3 && daysLeft >= 0;
-      if (athleteFilter === 'expired') return m.status === 'expired' || daysLeft < 0;
-      return true;
-    })
+  const filteredAthletes = filterAthletes(memberStats.uniqueAthletes, athleteFilter, athleteSearch, gymToday)
     .sort((a, b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0));
 
   if (loading) {
@@ -320,7 +310,7 @@ const Dashboard = () => {
           </div>
           <div>
             <p className="text-2xl sm:text-3xl md:text-4xl font-black text-white font-athletic tracking-tight leading-none">
-              {liveInside.length} / {members.filter(m => m.status === 'active').length || members.length}
+              {liveInside.length} / {memberStats.activePaidCount || memberStats.totalRegistered || members.length}
             </p>
             <p className="text-[10px] sm:text-xs text-neutral-400 font-medium mt-1 truncate">Active on floor / Roster</p>
           </div>
@@ -335,10 +325,10 @@ const Dashboard = () => {
             </div>
           </div>
           <div>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{members.length || stats.total}</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-neutral-900 font-athletic tracking-tight leading-none">{memberStats.totalRegistered || stats.total}</p>
             <p className="text-[10px] sm:text-xs font-semibold text-neutral-500 mt-1 flex items-center gap-1 sm:gap-1.5 truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-gold-500 shrink-0" />
-              <span className="truncate">{stats.activeCount || members.filter(m => m.status === 'active').length} Active</span>
+              <span className="truncate">{memberStats.activePaidCount || stats.activeCount} Active</span>
             </p>
           </div>
         </div>
@@ -392,7 +382,7 @@ const Dashboard = () => {
                   Enrolled Athletes & Profiles
                 </h2>
                 <span className="text-xs font-black text-gold-700 bg-gold-50 border border-gold-200 px-2.5 py-0.5 rounded-full font-athletic">
-                  {members.length} Synced
+                  {memberStats.totalRegistered || members.length} Synced
                 </span>
               </div>
               <p className="text-xs text-neutral-500 font-medium">

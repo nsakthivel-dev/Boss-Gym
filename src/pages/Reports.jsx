@@ -9,6 +9,7 @@ import {
 import { PieChart, Download, Calendar, ArrowUpRight, TrendingUp, Activity, Dumbbell } from 'lucide-react';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
+import { getGymDateString } from '../utils/workoutSchedule';
 
 const SectionCard = ({ title, subtitle, action, children }) => (
   <div className="bg-white border border-[#e7e2d5] rounded-3xl p-6 md:p-8 shadow-xs space-y-5">
@@ -58,10 +59,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const Reports = () => {
   const [loading, setLoading] = useState({});
-  const todayStr = () => new Date().toISOString().split('T')[0];
+  const todayStr = () => getGymDateString();
   const thisMonthStr = () => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+    return getGymDateString().slice(0, 7);
   };
 
   // Daily Report
