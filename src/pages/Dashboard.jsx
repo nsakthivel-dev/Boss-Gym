@@ -192,6 +192,7 @@ const Dashboard = () => {
   }, []);
 
   const gymToday = getGymTodayDate();
+  const today = gymToday;
   const memberStats = calculateMemberStats(members, gymToday);
 
   // Filtered members for Dashboard Athlete Showcase
@@ -443,9 +444,9 @@ const Dashboard = () => {
             {filteredAthletes.slice(0, 12).map(m => {
               const photoUrl = m.profilePictureUrl || photoMap[m.id];
               const initials = m.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A';
-              const endDate = m.endDate?.toDate?.() ?? (m.endDate ? new Date(m.endDate) : null);
-              const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-              const isExpired = m.status === 'expired' || daysLeft < 0;
+              const subStatus = getSubscriptionStatus(m, gymToday);
+              const daysLeft = subStatus.daysLeft;
+              const isExpired = subStatus.isExpired;
 
               return (
                 <div
@@ -555,17 +556,12 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {expiryAlerts
               .filter(member => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const endDate = member.endDate?.toDate?.() ?? (member.endDate ? new Date(member.endDate) : null);
-                const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-                return daysLeft <= 3;
+                const subStatus = getSubscriptionStatus(member, gymToday);
+                return subStatus.isExpiring || (subStatus.daysLeft <= 3 && subStatus.daysLeft >= 0);
               })
               .map(member => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const endDate = member.endDate?.toDate?.() ?? (member.endDate ? new Date(member.endDate) : null);
-                const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
+                const subStatus = getSubscriptionStatus(member, gymToday);
+                const daysLeft = subStatus.daysLeft;
                 const photoUrl = member.profilePictureUrl || photoMap[member.id];
 
                 return (

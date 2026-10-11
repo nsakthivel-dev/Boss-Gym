@@ -220,11 +220,9 @@ const MemberProfileModal = ({ member, onClose, onEdit, onDelete, onWhatsApp, onP
   }
 
   const initials = member.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endDate = member.endDate?.toDate?.() ?? (member.endDate ? new Date(member.endDate) : null);
-  const daysLeft = endDate ? Math.ceil((endDate - today) / 86400000) : 0;
-  const progressPercent = Math.max(0, Math.min(100, Math.round(((Number(member.durationDays || 30) - daysLeft) / Number(member.durationDays || 30)) * 100)));
+  const subStatus = getSubscriptionStatus(member, getGymTodayDate());
+  const daysLeft = subStatus.daysLeft;
+  const progressPercent = Math.max(0, Math.min(100, Math.round(((Number(member.durationDays || 30) - Math.max(0, daysLeft)) / Number(member.durationDays || 30)) * 100)));
 
   // Resolve today's attendance session safely
   const todayStrDate = todayStr();
@@ -774,6 +772,7 @@ const Members = () => {
   };
 
   const gymToday = getGymTodayDate();
+  const today = gymToday;
   const memberStats = calculateMemberStats(members, gymToday);
   const { totalRegistered, activePaidCount, totalRevenue, retentionRate } = memberStats;
 
