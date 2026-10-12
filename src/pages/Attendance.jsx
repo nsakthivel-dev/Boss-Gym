@@ -145,6 +145,7 @@ const Attendance = () => {
   const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState(typeof navigator !== 'undefined' && navigator.onLine ? 'synced' : 'offline');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [editingSession, setEditingSession] = useState(null);
 
   const loadAttendance = async (targetDate = selectedDate) => {
     setLoading(true);
