@@ -1,5 +1,5 @@
 // Service Worker for New Boss Gym PWA - Robust Update & Fresh Data Architecture
-const CACHE_VERSION = 'boss-gym-v4.2';
+const CACHE_VERSION = 'boss-gym-v4.3';
 const STATIC_CACHE = `boss-gym-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `boss-gym-runtime-${CACHE_VERSION}`;
 
@@ -39,6 +39,7 @@ function isDynamicRequest(url) {
 // Install event - pre-cache static application shell
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing version:', CACHE_VERSION);
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {

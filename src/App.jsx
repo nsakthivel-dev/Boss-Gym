@@ -71,8 +71,25 @@ class ErrorBoundary extends React.Component {
               {this.state.error?.message || "An unexpected error occurred while rendering the page."}
             </p>
             <button
-              onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic"
+              onClick={async () => {
+                try {
+                  if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                  }
+                  if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (const r of regs) {
+                      await r.update();
+                    }
+                  }
+                } catch (e) {
+                  console.warn("Cache reset error:", e);
+                }
+                this.setState({ hasError: false });
+                window.location.reload();
+              }}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 text-neutral-950 font-black text-xs uppercase tracking-wider font-athletic cursor-pointer active:scale-95"
             >
               Reload Page
             </button>
